@@ -1,8 +1,9 @@
 # Deployment
 
 The homepage Windows installer link defaults to disabled. See
-[Windows release gates](PUBLIC_WINDOWS_RELEASE.md) for required native testing,
-HTTPS artifact verification and release metadata. Full NJIT rule distribution
+[Windows beta publication](PUBLIC_WINDOWS_RELEASE.md) for hosted build/smoke checks,
+HTTPS artifact verification and release metadata. Installer lifecycle qualification
+is not a beta publication gate. Full NJIT rule distribution
 is authorized; keep the source repository private.
 Do not enable the link merely because the web implementation passes tests.
 

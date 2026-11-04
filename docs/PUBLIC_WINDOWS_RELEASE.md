@@ -1,160 +1,89 @@
-# Full NJIT Windows application release
+# NJIT Windows beta release
 
-The user has authorized distribution of the full NJIT rule implementations and
-accepted inspectable packaged files/rules. PyMuPDF licensing is resolved. Neither
-is a release blocker. The source repository remains private; only qualified
-installer assets and reviewed release documentation will be public.
+Public distribution, installer publication, integration and deployment are authorized.
+Keep `SoroushVahidi/njit-thesis-auditor` private. Only the selected installer,
+its byte metadata/checksum and brief release documentation belong in the separate
+public distribution repository `SoroushVahidi/njit-thesis-auditor-desktop`.
+Never copy a source checkout, Git history, credentials, student PDFs or audit outputs
+into that repository.
 
-## Implementation
+## Recovered source and new build
 
-Candidate application: **NJIT Thesis Auditor 0.2.0-rc.2**, Windows 11 x64 target.
-Windows 10 is not advertised or accepted by this installer pending validation.
-The production reference is `4efd780dde53eea907a714df8bfed86e923ef86a`.
-See [the complete feature/rule matrix](WINDOWS_FEATURE_PARITY.md).
+The release branch starts from `7069363583ddeafc910f91c62c0845cc415b7bd0`, which
+includes the Windows loopback, concurrent PDF publication and UTF-8/LF export fixes.
+It adds PowerShell 5.1 quoting corrections, stable GET redirects for failed
+submissions, report badge/navigation/terminology corrections, local completion time,
+Audit IDs under Technical details, and active-audit recovery during navigation.
+Bundled Help/Rule Reference and the existing worker are retained. Rules, thresholds,
+raw findings and machine-readable export schemas are unchanged.
 
-The existing authenticated FastAPI/local-browser desktop is integrated with the
-production engine and reporting templates. No detector thresholds or rule IDs
-were changed. All rule modules, rule JSON, wording, templates, fonts, icon and
-Python runtime are bundled. URL imports have a local equivalent: save the PDF
-and upload it. Built-in examples use a locally generated synthetic PDF instead
-of distributing private student samples. Help and Rule Reference are local.
+The requested final Windows commit `93457c10b18d59e829a97a72b6215123c150ee51`
+was unavailable from GitHub and the Ubuntu project handoffs at recovery time.
+The recorded `0.2.0-rc.2` installer was not recovered or substituted. Its recorded
+size is 41,335,510 bytes and SHA-256 is
+`19266ec1b7bfd375afeee16a65eb732897f617ca46070cc3902d55bb06f2f883`.
 
-The launcher disables Uvicorn's console-dependent logging configuration so a
-windowed Windows executable can start with stdout/stderr absent. Audits run in
-supervised processes with native Windows Job Object containment; Cancel, Quit,
-reopen, bounded shutdown and temporary cleanup reuse the existing implementation.
-The launcher and workers deny outbound Python socket connections. Browser UI
-requests remain on loopback; sending email via the contact link requires connectivity.
+The replacement is a **new build, version 0.2.0-rc.3**, with its own source SHA,
+size and checksum. Do not claim byte identity or inherit earlier test results.
 
-## Build and validate
+## Build and smoke checks
 
-On native Windows x64, use Python 3.12 x64 and Inno Setup 6 **on the builder only**:
+`.github/workflows/windows-desktop.yml` uses the hosted `windows-2025` runner.
+It checks out the actual PR source head, installs isolated tools, runs focused native
+regressions, executes the established packaging script through **Windows PowerShell
+5.1**, and runs a packaged startup/synthetic audit/export/Help/Rules/shutdown smoke
+check. Installer/uninstaller lifecycle qualification is not a publication gate.
+The workflow uploads the installer, checksum, metadata and test evidence as private
+Actions artifacts; those expiring URLs are not public download destinations.
 
-```powershell
-./packaging/build_offline_windows.ps1
-```
-
-The script verifies a clean committed checkout, installs pinned build dependencies,
-creates the full NJIT one-folder application, checks all rule modules/resources,
-and compiles `packaging/windows_installer.iss`. Candidate output:
+The build script emits:
 
 ```text
-dist/installers/NJIT-Thesis-Auditor-Setup-0.2.0-rc.2.exe
-dist/installers/NJIT-Thesis-Auditor-Setup-0.2.0-rc.2.json
+dist/installers/NJIT-Thesis-Auditor-Setup-0.2.0-rc.3.exe
+dist/installers/NJIT-Thesis-Auditor-Setup-0.2.0-rc.3.json
 dist/installers/SHA256SUMS.txt
 ```
 
-These are **output paths, not evidence that an installer has been built**.
-The JSON records exact installer bytes/hash/size/source and defaults qualification
-and publication flags to false. No checksum or size is invented before building.
-The graphical installer offers a custom directory, Start Menu shortcut, optional
-desktop shortcut, automatic launch, version/icon and standard uninstaller. No
-student Python installation or terminal is part of the intended install flow.
+These paths describe expected output, not completed build evidence. Read the actual
+metadata and independently recompute the EXE checksum before selecting it.
+A Windows Server smoke check does not establish clean Windows 11 qualification,
+installer/uninstaller behavior or every prior test result. State those limits in
+the beta release notes, along with actual source SHA, version, size and SHA-256.
+Windows 11 x64 remains the installer target; do not advertise Windows 10 support.
 
-`.github/workflows/windows-desktop.yml` runs the native build, bundle inventory,
-synthetic regressions, verified production-reference replay, interactive installation to
-a path with spaces/Unicode, first launch, parity, reopen, cleanup and standard
-silent uninstallation. It blocks the installed application's outbound traffic and
-keeps the test driver and runner online. Only explicit candidate/evidence files
-are uploaded as **private CI artifacts**. No source checkout is published.
+## Publish and enable
 
-The default `windows-2025` runner is Windows Server, not Windows 11. Its pass
-cannot qualify Windows 11. The manual workflow also supports a registered
-`[self-hosted, Windows, X64, windows11]` interactive runner. The clean-client
-qualification still requires a Windows 11 x64 machine without Python/developer
-tools: install graphically, test the chosen path and shortcuts, disconnect the
-OS network, audit/export/view original and annotated PDFs, open Help/Rules, Quit,
-reopen and uninstall through Windows Settings. Preserve exported user files.
-Record OS build, source commit, installer SHA-256, screenshots and each result.
-
-Before this workflow is merged to the default branch, run it by pushing a normal
-commit to the open PR #640 branch (without `[skip ci]`). The `pull_request`
-`synchronize` event runs the branch's workflow even while the PR is a draft;
-`gh workflow run` cannot dispatch a workflow that is not registered on main.
-The existing Linux CI selects synthetic tests and skips LFS downloads for this
-candidate branch only. Other branches retain the full regression suite. Both
-native and Linux candidate suites include the desktop worker/lifecycle tests.
-If Actions rejects the run before assigning a runner, retain the run URL and
-check annotations; a queued workflow or successful push is not a native pass.
-
-Windows CI never needs to reach production to install or validate the app. It
-unpacks `tests/fixtures/desktop_reference/production-4efd780-v1.json.gz` using its
-versioned manifest. The verifier rejects incorrect archive/member hashes or sizes,
-wrong source/origin, missing fixtures/exports/Help/Rules, and original-PDF hash
-mismatches before writing any inputs. No reference outputs are generated by the
-application under test. A separate non-blocking job diagnoses production connectivity.
-
-The artifact contains six synthetic PDFs, the actual normalized production
-responses, and capture provenance (UTC time, before/after `/version` responses,
-capture-tool SHA-256 and payload hashes). The source must be
-`4efd780dde53eea907a714df8bfed86e923ef86a`. The reference is deliberately versioned
-in Git, without LFS, so Windows receives it even with private-document LFS disabled.
-Hashes establish integrity against the reviewed manifest; capture provenance records
-the observed responses from the authoritative HTTP server.
-
-Refresh only from a host that can actually reach production, using fresh output
-directories and a new artifact version. Review the source identity and comparison
-results before replacing the pinned workflow path:
-
-```bash
-python scripts/validate_desktop_parity.py --capture-url http://128.235.41.222:8000 --reference .runtime/reference-refresh
-python scripts/desktop_reference.py pack --directory .runtime/reference-refresh --artifact tests/fixtures/desktop_reference/production-4efd780-v2.json.gz --manifest tests/fixtures/desktop_reference/production-4efd780-v2.manifest.json
-python scripts/desktop_reference.py unpack --manifest tests/fixtures/desktop_reference/production-4efd780-v2.manifest.json --output .runtime/reference-verified
-python scripts/validate_desktop_parity.py --reference .runtime/reference-verified --output .runtime/reference-comparison
-```
-
-Parity capture uses six nonconfidential PDFs and checks `/version` against the
-authoritative SHA before and after capture. Comparisons retain IDs, severity, locations, explanations,
-card text, grouped-route status/content, original bytes, report content, drawing
-geometry and PDF annotations. Only volatile job IDs/paths/timestamps and float
-serialization noise are normalized. Help comparisons retain all explanation
-sections except the explicit local/server-processing introduction. Existing
-production 404 group links are recorded as 404, not mislabeled as working links.
-
-## Publish only after qualification
-
-Keep the source repository private. Use the separate public distribution-only
-repository `SoroushVahidi/njit-thesis-auditor-desktop`, with fresh history containing
-only release documentation and approved assets. Publish the tested EXE under:
+Use a fresh distribution-only repository if it does not exist. Publish the exact
+selected EXE at this durable HTTPS URL:
 
 ```text
-https://github.com/SoroushVahidi/njit-thesis-auditor-desktop/releases/download/desktop-v0.2.0-rc.2/NJIT-Thesis-Auditor-Setup-0.2.0-rc.2.exe
+https://github.com/SoroushVahidi/njit-thesis-auditor-desktop/releases/download/desktop-v0.2.0-rc.3/NJIT-Thesis-Auditor-Setup-0.2.0-rc.3.exe
 ```
 
-This is a **proposed URL, not a verified download**. Publish a new version for each
-change; never replace approved bytes. Check the final installer for unintended
-student data, credentials, private logs and repository history. The NJIT rule
-implementations themselves are intentionally included.
+Publish brief beta release notes and the actual checksum/metadata. Do not replace
+published bytes under an existing version. Verify an anonymous download with TLS,
+HTTPS redirects, an executable response beginning `MZ`, exact byte count and
+SHA-256 before enabling the link.
 
-Download anonymously from an independent browser/network with TLS verification.
-Verify every redirect uses HTTPS, the response is the actual EXE with attachment
-filename/binary content type, and its exact size/SHA-256 match the final release.
-If signing changes bytes, regenerate metadata and retest the final installer.
-
-## Enable the existing homepage section
-
-The homepage title is **Download NJIT Thesis Auditor for Windows**. The existing
-PR #640 configuration defaults to disabled; no URL is exposed while unqualified.
-The enabled card displays version, Windows 11/x64, bytes/MiB, installation steps
-and SHA-256. All fields below have prefix `NJIT_AUDITOR_WINDOWS_DOWNLOAD_`:
+After checks pass, merge the release PR normally, respecting any branch protections.
+Use the exact merged main commit and the established dedicated systemd deployment
+worktree described in [DEPLOYMENT.md](DEPLOYMENT.md). Preserve existing service
+settings and access controls. Set these deployment fields together; each has prefix
+`NJIT_AUDITOR_WINDOWS_DOWNLOAD_`:
 
 | Suffix | Value |
 | --- | --- |
-| `APPROVED` | `1` only after native and anonymous-download qualification |
+| `APPROVED` | `1` (authorized public distribution) |
+| `BETA` | `1` (beta publication, independent of lifecycle qualification) |
 | `EDITION` | `njit` |
-| `NATIVE_TESTED` | `1` backed by the exact installer qualification |
 | `URL` | Exact versioned HTTPS EXE URL |
-| `SHA256` | Exact 64-character installer SHA-256 |
+| `SHA256` | Actual 64-character installer SHA-256 |
 | `SIZE_BYTES` | Actual positive byte count |
 | `ARCHITECTURE` | `x64` |
 | `WINDOWS_VERSIONS` | `Windows 11` |
 
-The retired confidentiality flag is not required. Release flags record evidence;
-they do not prove tests happened. Requests cannot configure these settings.
-
-After review and passing required checks, squash-merge PR #640 and follow
-[DEPLOYMENT.md](DEPLOYMENT.md) using the exact clean merged main SHA. Set release
-metadata together in the existing systemd service environment, restart only that
-service, verify `/version`, and test the live desktop/mobile download and synthetic
-auditing workflow. Withdraw the link by setting `APPROVED=0` and restarting that
-service. No activation or deployment occurs merely by committing this code.
+Restart only `thesis-auditor-web.service`. Verify `/version` matches the deployed
+main commit, `/healthz` succeeds, the enabled **Download for Windows (Beta)** link
+is visible, its actual target downloads anonymously with matching size/checksum,
+and a fresh synthetic website audit and report download succeed. Test Help/Rules.
+Setting `APPROVED=0` and restarting withdraws the link without changing access.

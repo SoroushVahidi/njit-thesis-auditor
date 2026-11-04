@@ -324,4 +324,4 @@ def test_results_page_still_renders(client: tuple[TestClient, Any], tmp_path: Pa
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Problems found" in resp.content
+    assert b"Items to review" in resp.content

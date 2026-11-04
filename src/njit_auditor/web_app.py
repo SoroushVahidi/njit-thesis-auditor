@@ -2004,6 +2004,11 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
     }
 
 
+def _submission_error(error: str, status_code: int = 400) -> RedirectResponse:
+    query = urllib.parse.urlencode({"error": error, "error_status": status_code})
+    return RedirectResponse(url=f"/?{query}", status_code=303)
+
+
 def _index_error(request: Request, error: str, status_code: int = 400) -> HTMLResponse:
     samples = [] if getattr(request.app.state, "offline_mode", False) else list_builtin_samples()
     return _render(
@@ -2251,13 +2256,24 @@ async def version() -> JSONResponse:
     )
 
 
-@app.get("/", response_class=HTMLResponse)
-async def index(request: Request, error: str = "") -> HTMLResponse:
+@app.get("/", response_class=HTMLResponse, response_model=None)
+async def index(
+    request: Request, error: str = "", error_status: int = 400
+) -> HTMLResponse | RedirectResponse:
+    if getattr(request.app.state, "offline_mode", False) and not request.query_params:
+        with _jobs_lock:
+            active = next(
+                (job.job_id for job in reversed(list(_jobs.values()))
+                 if job.state in {"pending", "running"}), None
+            )
+        if active is not None:
+            return RedirectResponse(url=f"/audits/{active}", status_code=303)
     samples = [] if getattr(request.app.state, "offline_mode", False) else list_builtin_samples()
     return _render(
         request,
         "index.html",
         {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": samples},
+        status_code=(413 if error_status == 413 else 400) if error else 200,
     )
 
 
@@ -2271,11 +2287,11 @@ async def submit_audit(
     ext = Path(filename).suffix.lower()
 
     if ext != ".pdf":
-        return _index_error(request, _PDF_ONLY_ERROR)
+        return _submission_error(_PDF_ONLY_ERROR)
 
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
-        return _index_error(request, f"File exceeds the {MAX_UPLOAD_MB} MB limit.", status_code=413)
+        return _submission_error(f"File exceeds the {MAX_UPLOAD_MB} MB limit.", status_code=413)
 
     job_id = _new_job_id()
     jdir = _job_dir(job_id)
@@ -2289,7 +2305,7 @@ async def submit_audit(
         validate_upload_path(upload_path, MAX_UPLOAD_BYTES)
     except UploadValidationError as exc:
         shutil.rmtree(jdir, ignore_errors=True)
-        return _index_error(request, str(exc))
+        return _submission_error(str(exc))
 
     job = JobState(
         job_id=job_id,
@@ -2314,7 +2330,7 @@ async def submit_audit_url(
 ) -> RedirectResponse | HTMLResponse:
     url = pdf_url.strip()
     if not url:
-        return _index_error(request, "Please provide a PDF URL.")
+        return _submission_error("Please provide a PDF URL.")
 
     job_id = _new_job_id()
     jdir = _job_dir(job_id)
@@ -2335,7 +2351,7 @@ async def submit_audit_url(
         fetch_pdf_url(url, jdir / "upload.pdf", MAX_UPLOAD_BYTES)
     except FetchError as exc:
         shutil.rmtree(jdir, ignore_errors=True)
-        return _index_error(request, str(exc))
+        return _submission_error(str(exc))
 
     job = JobState(
         job_id=job_id,
@@ -2356,12 +2372,12 @@ async def submit_audit_sample(
 ) -> RedirectResponse | HTMLResponse:
     sid = sample_id.strip()
     if not sid:
-        return _index_error(request, "Please select a built-in sample.")
+        return _submission_error("Please select a built-in sample.")
 
     try:
         info = get_builtin_sample(sid)
     except ValueError:
-        return _index_error(request, "Unknown or invalid sample selection.")
+        return _submission_error("Unknown or invalid sample selection.")
 
     job_id = _new_job_id()
     jdir = _job_dir(job_id)
@@ -2371,13 +2387,13 @@ async def submit_audit_sample(
         copy_builtin_sample_to_job(sid, jdir / "upload.pdf")
     except FileNotFoundError:
         shutil.rmtree(jdir, ignore_errors=True)
-        return _index_error(request, "The selected sample file is not available on this server.")
+        return _submission_error("The selected sample file is not available on this server.")
     except ValueError as exc:
         shutil.rmtree(jdir, ignore_errors=True)
-        return _index_error(request, str(exc))
+        return _submission_error(str(exc))
     except Exception:  # noqa: BLE001
         shutil.rmtree(jdir, ignore_errors=True)
-        return _index_error(request, "An error occurred loading the sample file.")
+        return _submission_error("An error occurred loading the sample file.")
 
     safe_name = sanitize_upload_filename(Path(info.rel_path).name, default_ext=".pdf")
     job = JobState(

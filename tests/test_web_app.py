@@ -121,7 +121,7 @@ def test_upload_non_pdf_extension_rejected(client: tuple[TestClient, Any]) -> No
     resp = c.post(
         "/audits",
         files={"file": ("thesis.docx", io.BytesIO(b"PK\x03\x04fake"), "application/octet-stream")},
-        follow_redirects=False,
+        follow_redirects=True,
     )
     assert resp.status_code == 400
     assert _PDF_ONLY_ERROR in resp.content
@@ -132,7 +132,7 @@ def test_upload_tex_extension_rejected(client: tuple[TestClient, Any]) -> None:
     resp = c.post(
         "/audits",
         files={"file": ("main.tex", io.BytesIO(_MINIMAL_TEX), "text/plain")},
-        follow_redirects=False,
+        follow_redirects=True,
     )
     assert resp.status_code == 400
     assert _PDF_ONLY_ERROR in resp.content
@@ -149,7 +149,7 @@ def test_upload_zip_extension_rejected(client: tuple[TestClient, Any]) -> None:
     resp = c.post(
         "/audits",
         files={"file": ("project.zip", zbuf, "application/zip")},
-        follow_redirects=False,
+        follow_redirects=True,
     )
     assert resp.status_code == 400
     assert _PDF_ONLY_ERROR in resp.content
@@ -160,7 +160,7 @@ def test_upload_wrong_magic_bytes_rejected(client: tuple[TestClient, Any]) -> No
     resp = c.post(
         "/audits",
         files={"file": ("thesis.pdf", io.BytesIO(b"NOTAPDF_content"), "application/pdf")},
-        follow_redirects=False,
+        follow_redirects=True,
     )
     assert resp.status_code == 400
     assert b"valid PDF" in resp.content
@@ -171,7 +171,7 @@ def test_upload_too_small_rejected(client: tuple[TestClient, Any]) -> None:
     resp = c.post(
         "/audits",
         files={"file": ("tiny.pdf", io.BytesIO(b"%PDF"), "application/pdf")},
-        follow_redirects=False,
+        follow_redirects=True,
     )
     assert resp.status_code == 400
 
@@ -1081,7 +1081,7 @@ def test_results_page_renders_sort_control_with_accessible_label(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     body = resp.text
-    assert '<label for="sort-problems">Sort problems</label>' in body
+    assert '<label for="sort-problems">Sort findings</label>' in body
     assert 'id="sort-problems"' in body
     assert 'name="sort"' in body
     assert "Default order" not in body
@@ -1206,7 +1206,7 @@ def test_individual_findings_are_sorted_by_page_order_on_initial_render(
 ) -> None:
     """The primary Findings table (not just the advanced grouped summary) must
     render individual findings in page order by default, matching the "Page
-    order" default in the Sort problems dropdown."""
+    order" default in the Sort findings dropdown."""
     c, wa = client
     job_id = _inject_complete_job_with_findings(
         wa,
@@ -2855,14 +2855,14 @@ def test_index_contains_url_form(client: tuple[TestClient, Any]) -> None:
 
 def test_url_audit_missing_url_rejected(client: tuple[TestClient, Any]) -> None:
     c, _ = client
-    resp = c.post("/audits/url", data={}, follow_redirects=False)
+    resp = c.post("/audits/url", data={}, follow_redirects=True)
     assert resp.status_code == 400
     assert b"PDF URL" in resp.content or b"provide" in resp.content.lower()
 
 
 def test_url_audit_whitespace_url_rejected(client: tuple[TestClient, Any]) -> None:
     c, _ = client
-    resp = c.post("/audits/url", data={"pdf_url": "   "}, follow_redirects=False)
+    resp = c.post("/audits/url", data={"pdf_url": "   "}, follow_redirects=True)
     assert resp.status_code == 400
 
 
@@ -2871,7 +2871,7 @@ def test_url_audit_non_http_scheme_rejected(client: tuple[TestClient, Any]) -> N
     resp = c.post(
         "/audits/url",
         data={"pdf_url": "file:///etc/passwd"},
-        follow_redirects=False,
+        follow_redirects=True,
     )
     assert resp.status_code == 400
     assert b"http" in resp.content.lower()
@@ -2882,7 +2882,7 @@ def test_url_audit_localhost_rejected(client: tuple[TestClient, Any]) -> None:
     resp = c.post(
         "/audits/url",
         data={"pdf_url": "http://localhost/thesis.pdf"},
-        follow_redirects=False,
+        follow_redirects=True,
     )
     assert resp.status_code == 400
 
@@ -2892,7 +2892,7 @@ def test_url_audit_loopback_ip_rejected(client: tuple[TestClient, Any]) -> None:
     resp = c.post(
         "/audits/url",
         data={"pdf_url": "http://127.0.0.1/thesis.pdf"},
-        follow_redirects=False,
+        follow_redirects=True,
     )
     assert resp.status_code == 400
 
@@ -2902,7 +2902,7 @@ def test_url_audit_private_ip_rejected(client: tuple[TestClient, Any]) -> None:
     resp = c.post(
         "/audits/url",
         data={"pdf_url": "http://10.0.0.1/thesis.pdf"},
-        follow_redirects=False,
+        follow_redirects=True,
     )
     assert resp.status_code == 400
 
@@ -2924,7 +2924,7 @@ def test_url_audit_resolves_to_private_rejected(
     resp = c.post(
         "/audits/url",
         data={"pdf_url": "http://evil.internal.corp/thesis.pdf"},
-        follow_redirects=False,
+        follow_redirects=True,
     )
     assert resp.status_code == 400
 
@@ -2961,7 +2961,7 @@ def test_url_audit_fetch_error_shows_error(
         resp = c.post(
             "/audits/url",
             data={"pdf_url": "https://example.com/fake.bin"},
-            follow_redirects=False,
+            follow_redirects=True,
         )
     assert resp.status_code == 400
     assert b"does not point to a valid PDF" in resp.content
@@ -2980,7 +2980,7 @@ def test_url_audit_oversized_shows_error(
         resp = c.post(
             "/audits/url",
             data={"pdf_url": "https://example.com/huge.pdf"},
-            follow_redirects=False,
+            follow_redirects=True,
         )
     assert resp.status_code == 400
     assert b"exceeds" in resp.content.lower()
@@ -3188,7 +3188,7 @@ def test_index_shows_three_input_methods(client: tuple[TestClient, Any]) -> None
 def test_sample_audit_missing_sample_id_rejected(client: tuple[TestClient, Any]) -> None:
     c, wa = client
     with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        resp = c.post("/audits/sample", data={}, follow_redirects=False)
+        resp = c.post("/audits/sample", data={}, follow_redirects=True)
     assert resp.status_code == 400
     assert b"select" in resp.content.lower() or b"sample" in resp.content.lower()
 
@@ -3196,14 +3196,14 @@ def test_sample_audit_missing_sample_id_rejected(client: tuple[TestClient, Any])
 def test_sample_audit_empty_sample_id_rejected(client: tuple[TestClient, Any]) -> None:
     c, wa = client
     with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        resp = c.post("/audits/sample", data={"sample_id": "   "}, follow_redirects=False)
+        resp = c.post("/audits/sample", data={"sample_id": "   "}, follow_redirects=True)
     assert resp.status_code == 400
 
 
 def test_sample_audit_unknown_sample_id_rejected(client: tuple[TestClient, Any]) -> None:
     c, wa = client
     with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        resp = c.post("/audits/sample", data={"sample_id": "bad_id_xyz"}, follow_redirects=False)
+        resp = c.post("/audits/sample", data={"sample_id": "bad_id_xyz"}, follow_redirects=True)
     assert resp.status_code == 400
     assert b"Unknown" in resp.content or b"invalid" in resp.content.lower()
 
@@ -3215,7 +3215,7 @@ def test_sample_audit_path_traversal_rejected(client: tuple[TestClient, Any]) ->
             resp = c.post(
                 "/audits/sample",
                 data={"sample_id": bad_id},
-                follow_redirects=False,
+                follow_redirects=True,
             )
         assert resp.status_code == 400, f"Expected 400 for bad_id={bad_id!r}"
 
@@ -3295,7 +3295,7 @@ def test_sample_audit_missing_file_shows_error(client: tuple[TestClient, Any]) -
                 resp = c.post(
                     "/audits/sample",
                     data={"sample_id": "ester_sample_a"},
-                    follow_redirects=False,
+                    follow_redirects=True,
                 )
     assert resp.status_code == 400
     assert b"not available" in resp.content or b"not found" in resp.content.lower()
@@ -3313,7 +3313,7 @@ def test_sample_audit_invalid_pdf_shows_error(client: tuple[TestClient, Any]) ->
                 resp = c.post(
                     "/audits/sample",
                     data={"sample_id": "ester_sample_a"},
-                    follow_redirects=False,
+                    follow_redirects=True,
                 )
     assert resp.status_code == 400
     assert b"valid PDF" in resp.content or b"PDF" in resp.content
@@ -3342,7 +3342,7 @@ def test_sample_audit_no_private_text_in_response(client: tuple[TestClient, Any]
     """Error responses must not contain dissertation content — only UI text."""
     c, wa = client
     with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        resp = c.post("/audits/sample", data={"sample_id": "bad_id_xyz"}, follow_redirects=False)
+        resp = c.post("/audits/sample", data={"sample_id": "bad_id_xyz"}, follow_redirects=True)
     assert resp.status_code == 400
     # Response should be a normal HTML page with a short error message
     assert b"<html" in resp.content or b"<!DOCTYPE" in resp.content
@@ -3575,7 +3575,7 @@ def test_upload_start_error_still_uses_could_not_start(
     resp = c.post(
         "/audits",
         files={"file": ("thesis.docx", io.BytesIO(b"PK\x03\x04fake"), "application/octet-stream")},
-        follow_redirects=False,
+        follow_redirects=True,
     )
     assert resp.status_code == 400
     assert b"Could not start audit" in resp.content
@@ -5204,3 +5204,19 @@ def test_footer_attribution_and_contact(client: tuple[TestClient, Any]) -> None:
         assert "Soroush Vahidi" in body, f"{path} missing author name"
         assert "mailto:sv96@njit.edu" in body, f"{path} missing mailto link"
         assert "soroush.vahidi@njit.edu" not in body, f"{path} contains wrong email address"
+
+
+def test_validation_error_redirects_to_refreshable_get(client: tuple[TestClient, Any]) -> None:
+    c, wa = client
+    response = c.post(
+        '/audits', files={'file': ('invalid.txt', b'not a pdf', 'text/plain')},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    target = response.headers['location']
+    assert target.startswith('/?error=')
+    for _ in range(2):
+        page = c.get(target)
+        assert page.status_code == 400
+        assert 'Could not start audit' in page.text
+    assert not wa._jobs

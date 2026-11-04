@@ -175,3 +175,30 @@ def test_session_recovery_is_html_for_navigation_and_json_for_api(tmp_path, monk
             assert response.status_code == 403
             assert response.headers["content-type"].startswith("application/json")
         assert client.get("/_session/start?ticket=wrong").status_code == 403
+
+
+def test_refresh_and_local_navigation_preserve_active_worker(tmp_path, browser):
+    psutil = pytest.importorskip("psutil")
+
+    with desktop(tmp_path / 'refresh', delayed=True) as server, browser.new_context() as context:
+        page = context.new_page()
+        page.goto(server.url)
+        job = upload(context, server, 'cancel-refresh.pdf')
+        wait_state(context.request, server.origin, job, {'running'})
+        page.goto(server.origin + job)
+        children = {p.pid for p in psutil.Process(server.process.pid).children(recursive=True)}
+        assert children
+        for destination in (None, '/help', '/rules', '/'):
+            if destination is None:
+                page.reload()
+            else:
+                assert page.goto(server.origin + destination).status == 200
+                if destination in {'/help', '/rules'}:
+                    page.goto(server.origin + job)
+            assert page.url == server.origin + job
+            assert server.client.get(job + '/status').json()['state'] == 'running'
+            assert children == {
+                p.pid for p in psutil.Process(server.process.pid).children(recursive=True)
+            }
+        page.get_by_role('button', name='Cancel audit', exact=True).click()
+        page.get_by_text('Audit canceled', exact=True).wait_for(timeout=10000)

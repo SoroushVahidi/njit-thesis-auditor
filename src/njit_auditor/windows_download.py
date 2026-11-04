@@ -35,8 +35,8 @@ class WindowsDownload:
 def windows_download(environ: Mapping[str, str] | None = None) -> WindowsDownload:
     """Fail closed unless an operator has approved a correctly formed release.
 
-    Flags record release evidence, not proof of qualification or asset availability.
-    Operators must complete the documented release gates first.
+    Publication approval is independent of installer lifecycle qualification.
+    The beta release notes state the actual testing limits.
     No request parameters, cookies, credentials, or network calls are involved.
     """
     env = os.environ if environ is None else environ
@@ -47,7 +47,7 @@ def windows_download(environ: Mapping[str, str] | None = None) -> WindowsDownloa
         env.get("NJIT_AUDITOR_WINDOWS_DOWNLOAD_" + key) != value
         for key, value in {
             "EDITION": "njit",
-            "NATIVE_TESTED": "1",
+            "BETA": "1",
             "ARCHITECTURE": "x64",
         }.items()
     ):

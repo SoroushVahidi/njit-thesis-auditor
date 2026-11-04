@@ -24,7 +24,7 @@ def release_env(**overrides: str) -> dict[str, str]:
     values = {
         "URL": URL, "APPROVED": "1", "SHA256": "ab" * 32,
         "SIZE_BYTES": "104857600", "WINDOWS_VERSIONS": "Windows 11",
-        "ARCHITECTURE": "x64", "EDITION": "njit", "NATIVE_TESTED": "1",
+        "ARCHITECTURE": "x64", "EDITION": "njit", "BETA": "1",
     }
     values.update(overrides)
     return {PREFIX + key: value for key, value in values.items()}
@@ -185,7 +185,7 @@ def test_browser_layout_and_keyboard(
             assert panel.is_visible()
             assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
             if available:
-                link = panel.get_by_role("link", name="Download for Windows", exact=True)
+                link = panel.get_by_role("link", name="Download for Windows (Beta)", exact=True)
                 assert link.get_attribute("href") == URL
                 link.focus()
                 assert link.evaluate("el => el === document.activeElement")
@@ -214,7 +214,7 @@ def test_every_required_release_field_must_be_present(key: str) -> None:
 
 @pytest.mark.parametrize(("key", "value"), [
     ("EDITION", "generic"), ("EDITION", "Document Format Auditor"),
-    ("NATIVE_TESTED", "0"),
+    ("BETA", "0"),
     ("ARCHITECTURE", "arm64"), ("SIZE_BYTES", "0"), ("SIZE_BYTES", "-1"),
     ("SIZE_BYTES", "1.5"), ("SIZE_BYTES", "100 MB"), ("SIZE_BYTES", "9" * 13),
     ("WINDOWS_VERSIONS", "Windows XP"), ("WINDOWS_VERSIONS", "Windows 10"),

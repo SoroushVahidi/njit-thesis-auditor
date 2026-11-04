@@ -7,8 +7,8 @@ from typing import Any
 
 from njit_auditor.resource_paths import resource_path
 
-DESKTOP_VERSION = "0.2.0-rc.2"
-FILE_VERSION = (0, 2, 0, 2)
+DESKTOP_VERSION = "0.2.0-rc.3"
+FILE_VERSION = (0, 2, 0, 3)
 
 
 def desktop_build_info() -> dict[str, Any]:
