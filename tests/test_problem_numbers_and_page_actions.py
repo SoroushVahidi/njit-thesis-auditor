@@ -277,7 +277,7 @@ def test_problem_number_is_consistent_across_pages_and_reports(
         f"/audits/{job_id}/problems/rule/P017/issue-type/missing-terminal-punctuation",
     ):
         text = _get_html(c, path)
-        assert f"Original finding {problem_number}" in text
+        assert f"Report reference {problem_number}" in text
         assert f'problem-{problem_number}' in text
 
     assert f"### Problem {problem_number} —" in markdown

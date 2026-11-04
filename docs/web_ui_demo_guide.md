@@ -56,7 +56,7 @@ Verify `/` shows:
 3. Wait for completion.
 4. Verify the completed page shows:
    - summary cards
-   - Recommended review order
+   - How to use this report
    - Findings by topic (category overview)
    - Findings in page order (compact cards — the main review list)
    - polished comments
@@ -95,7 +95,7 @@ If built-in samples are available on the server:
 For at least one completed job, verify:
 
 - the same totals and rule/category counts appear on mobile and desktop
-- Recommended review order, Findings by topic, and Findings in page order are all reachable
+- How to use this report, Findings by topic, and Findings in page order are all reachable
 - the main findings list uses compact cards (no legacy grouped/individual toggle)
 - issue-type explanations are visible on both viewports
 - JSON/Markdown downloads are present on both viewports

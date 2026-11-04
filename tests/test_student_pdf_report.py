@@ -10,6 +10,7 @@ import fitz
 import pytest
 
 from njit_auditor.pdf_highlight import HighlightBox
+from njit_auditor.student_cards import plain_student_text
 from njit_auditor.student_pdf_report import (
     build_combined_student_pdf_report,
     ordered_student_findings,
@@ -101,7 +102,7 @@ def test_complete_thesis_and_every_finding_in_report(tmp_path: Path) -> None:
         assert "DOCUMENT-LEVEL FINDINGS" in text
         assert combined.get_toc() == [
             [1, "Thesis", 1],
-            [1, "Formatting Problems", 8],
+            [1, "Findings to check", 8],
         ]
 
 
@@ -125,7 +126,7 @@ def test_no_bbox_and_long_unicode_text_wrap_across_pages(tmp_path: Path) -> None
         assert "résumé" in text
         assert "Problem #1" in text and "Problem #2" in text
         assert "Exact visual highlight unavailable." in text
-        assert "How to fix:" in text
+        assert "What to check:" in text
         assert len(list(doc[1].annots() or [])) == 0
         assert len(list(doc[2].annots() or [])) == 1
 
@@ -236,8 +237,8 @@ def test_web_view_text_and_pdf_share_problem_identity_and_wording(tmp_path: Path
     for finding in findings:
         assert f"Problem #{finding['problem_number']}" in text
         assert f"Problem #{finding['problem_number']}" in pdf_text
-        assert finding["polished_comment"] in text
-        assert finding["polished_comment"] in normalized_pdf_text
+        assert plain_student_text(finding["polished_comment"]) in text
+        assert plain_student_text(finding["polished_comment"]) in normalized_pdf_text
         assert finding["suggested_fix"] in text
         assert finding["suggested_fix"] in normalized_pdf_text
     assert "R045" in text and "R045" in pdf_text

@@ -128,7 +128,7 @@ def test_jump_chip_uses_recommended_review_order_label(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     html = resp.text
-    assert '>Recommended review order<' in html
+    assert '>How to use this report<' in html
     assert 'href="#section-review-order"' in html
     assert ">Review order<" not in html
 
@@ -174,6 +174,6 @@ def test_markdown_export_grouped_heading_matches_ui_wording(tmp_path: Path) -> N
 
 def test_demo_guide_describes_recommended_review_order() -> None:
     guide = Path("docs/web_ui_demo_guide.md").read_text(encoding="utf-8")
-    assert "Recommended review order" in guide
+    assert "How to use this report" in guide
     assert "\n   - Review order\n" not in guide
     assert "Summary → Review order" not in guide

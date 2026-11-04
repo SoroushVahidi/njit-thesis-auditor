@@ -11,7 +11,6 @@ from fastapi.testclient import TestClient
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.polished_comments import (
-    GLOBAL_AUTOMATED_REVIEW_NOTE,
     VERIFY_SUFFIX,
     build_polished_comment,
 )
@@ -148,7 +147,7 @@ def test_markdown_has_global_caveat_not_per_line_verify_suffix(tmp_path: Path) -
     md_path = tmp_path / "report.md"
     write_markdown_report(findings, {"audit_type": "pdf"}, md_path)
     text = md_path.read_text(encoding="utf-8")
-    assert GLOBAL_AUTOMATED_REVIEW_NOTE in text
+    assert text.count("Findings are possible formatting issues and may be wrong.") == 1
     assert VERIFY_SUFFIX not in text
 
 
@@ -364,4 +363,4 @@ def test_results_page_shows_confidence_badge_not_prose(
     assert "confidence-badge" in html
     assert "Medium confidence" in html
     assert "Confidence: medium" not in html
-    assert "Suggested fix:" in html
+    assert "What to check:" in html

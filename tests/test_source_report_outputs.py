@@ -116,7 +116,8 @@ def test_source_markdown_export_privacy_safe(tmp_path: Path) -> None:
     assert "chapter1.tex:42" in text
     assert "fig:secret_diagram" not in text
     assert "secret_diagram" not in text
-    assert "Review needed" in text
+    assert "Review needed:" not in text
+    assert "Problem" in text
 
 
 def test_build_report_view_handles_source_locations() -> None:

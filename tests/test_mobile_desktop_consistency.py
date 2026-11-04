@@ -21,6 +21,8 @@ import pytest
 from fastapi.testclient import TestClient
 from pdf_link_helpers import extract_audit_pdf_links
 
+from njit_auditor.student_cards import plain_student_text
+
 _MOBILE_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
@@ -354,7 +356,6 @@ def test_result_page_content_parity(client: tuple[TestClient, Any]) -> None:
     common_tokens = [
         "Audit complete",
         "Items to review",
-        "Needs fixing",
         "Pages affected",
         "Rules flagged",
         "Findings in page order",
@@ -443,9 +444,9 @@ def test_problem_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Does the PDF contain annotations/comments?",
     ]
     for comment in {f.polished_comment for f in view.findings if f.category == "page_numbering"}:
-        category_tokens.append(comment)
+        category_tokens.append(plain_student_text(comment))
     for comment in {f.polished_comment for f in view.findings if f.rule_id == "P012"}:
-        rule_tokens.append(comment)
+        rule_tokens.append(plain_student_text(comment))
 
     _assert_contains_tokens(category_mobile, category_tokens)
     _assert_contains_tokens(category_desktop, category_tokens)

@@ -30,15 +30,13 @@ STATUS_LABELS: dict[CoverageStatus, str] = {
 COVERAGE_HEADING = "What this report checked and what you must check yourself"
 
 COVERAGE_INTRO: tuple[str, ...] = (
-    "This report checks many, but not all, of the items on the Graduate Studies "
-    "self-assessment sheet. It does not replace that sheet or Graduate Studies review.",
-    "Each finding is a possible problem detected automatically. Some findings may be "
-    "wrong, and some real problems may be missed, so review every finding before you "
-    "change your document.",
-    "Having few or no findings does not mean your document meets NJIT requirements. Check "
-    "the items listed under \"Check yourself\" by hand.",
-    "The checks read the text stored in your PDF. Pages without selectable text, such as "
-    "scanned or image-only pages, cannot be checked.",
+    "Findings are possible formatting issues and may be wrong. "
+    "Check the evidence before changing your document. "
+    "This report does not replace the Graduate Studies self-assessment sheet or review.",
+    "Use Check yourself for items the tool cannot establish. Few or no findings do not "
+    "mean your document meets NJIT requirements.",
+    "Pages without selectable text, such as scanned or image-only pages, "
+    "cannot be checked automatically.",
 )
 
 
@@ -62,10 +60,12 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         title="Margins",
         status="partial",
         checked=(
-            "Text that crosses the 1.5-inch left margin or the 1-inch top, right, or "
-            "bottom margin."
+            "Text that crosses the 1.5-inch left margin or the 1-inch top, right, or bottom margin."
         ),
-        manual="Images, drawings, and table rules that extend into a margin.",
+        manual=(
+            "Margin settings in your source document: PDF text positions do not establish them. "
+            "Also check images, drawings, and table rules near the margins."
+        ),
         rule_ids=("P011",),
     ),
     CoverageArea(
@@ -145,8 +145,8 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         checked="Heading spelling and paragraph indentation.",
         manual=(
             "Paragraph order (advisor, committee, technical support, funding with "
-            "grant numbers, colleagues, family); full names; \"Advisor\" and "
-            "\"Committee Members\" capitalized."
+            'grant numbers, colleagues, family); full names; "Advisor" and '
+            '"Committee Members" capitalized.'
         ),
         rule_ids=("P038", "P043"),
     ),
@@ -155,7 +155,7 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         title="Table of Contents",
         status="partial",
         checked=(
-            "Heading and \"(Continued)\" headings; chapter titles in all caps; level-2 "
+            'Heading and "(Continued)" headings; chapter titles in all caps; level-2 '
             "titles in title case; clear level-3 Title Case violations; wrapped titles "
             "with a large gap between their lines; "
             "indentation; leaders; right-aligned page numbers in order."
@@ -172,7 +172,7 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         title="List of Tables",
         status="partial",
         checked=(
-            "Title case; the word \"Table\" before each number; wrapped titles with a "
+            'Title case; the word "Table" before each number; wrapped titles with a '
             "large gap between their lines; leaders and page-number alignment."
         ),
         manual=(
@@ -186,7 +186,7 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         title="List of Figures",
         status="guidance_differs",
         checked=(
-            "The word \"Figure\" before each number; ending punctuation; title case, "
+            'The word "Figure" before each number; ending punctuation; title case, '
             "following current Graduate Studies reviewer guidance."
         ),
         manual=(
@@ -238,8 +238,8 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
             "punctuation."
         ),
         manual=(
-            "Only \"Table X.x\" or \"Figure X.x\" in bold; two blank lines between a "
-            "figure and its description; sources in 10 pt; \"(Continued)\" on "
+            'Only "Table X.x" or "Figure X.x" in bold; two blank lines between a '
+            'figure and its description; sources in 10 pt; "(Continued)" on '
             "multi-page tables."
         ),
         rule_ids=("P017", "P035"),
@@ -251,7 +251,7 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         checked="",
         manual=(
             "Chapter-form numbers (X.x) in parentheses, right-aligned; equations "
-            "centered; \"Equation\" capitalized in the text."
+            'centered; "Equation" capitalized in the text.'
         ),
     ),
     CoverageArea(

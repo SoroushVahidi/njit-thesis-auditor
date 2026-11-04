@@ -243,7 +243,7 @@ def test_no_duplicated_suggested_fix_label(tmp_path: Path) -> None:
     findings = [_toc_finding(12, 0, "1 INTRODUCTION", "Background and Context")]
     text = _write(findings, tmp_path)
     assert "Suggested fix: | Suggested fix:" not in text
-    assert text.count("How to fix it:") == 1
+    assert text.count("What to check:") == 1
 
 
 def test_no_truncated_ellipsis_in_student_facing_text(tmp_path: Path) -> None:
