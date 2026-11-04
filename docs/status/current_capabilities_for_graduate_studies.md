@@ -1,7 +1,7 @@
 # Current Capabilities for Graduate Studies
 
 > **Student-facing summary.** For maintainer status (latest `main`, tests, open PRs) see
-> [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).
+> [CURRENT_STATUS.md](CURRENT_STATUS.md).
 
 This tool is a local/offline screening assistant for thesis/dissertation PDF formatting review.
 It is designed to help Graduate Studies staff quickly find likely formatting issues before detailed manual review.

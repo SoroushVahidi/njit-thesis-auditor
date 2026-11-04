@@ -1,5 +1,7 @@
 # NJIT Windows beta release
 
+Published bytes, exact source pin, build run and actual test limits: [rc.3 release record](releases/windows-0.2.0-rc.3.md). This document is the build/publication procedure; current source changes do not replace the published executable.
+
 Public distribution, installer publication, integration and deployment are authorized.
 Keep `SoroushVahidi/njit-thesis-auditor` private. Only the selected installer,
 its byte metadata/checksum and brief release documentation belong in the separate
