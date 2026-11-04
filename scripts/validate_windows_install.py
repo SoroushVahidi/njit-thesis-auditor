@@ -1,0 +1,225 @@
+"""Native interactive installer + packaged parity + reopen + standard uninstall.
+
+Hosted Windows Server results are recorded as such, never Windows 11 qualification.
+Run on an interactive Windows 11 x64 desktop for client-OS qualification.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import platform
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+
+def select_installer_window(windows, owned_pids: set[int]):
+    """Find the visible Inno wizard in this launch's process tree only."""
+    matches = [
+        window
+        for window in windows
+        if window.process_id() in owned_pids
+        and window.is_visible()
+        and window.class_name() == "TWizardForm"
+        and "NJIT Thesis Auditor" in window.window_text()
+    ]
+    if len(matches) > 1:
+        raise RuntimeError("Multiple owned NJIT installer wizards; refusing ambiguous input")
+    return matches[0] if matches else None
+
+
+def require_no_auditor_processes(processes) -> None:
+    """Fail closed instead of interfering with an existing GUI/audit session."""
+    for process in processes:
+        if (process.info.get("name") or "").casefold() == "njit thesis auditor.exe":
+            raise RuntimeError(
+                "An NJIT Thesis Auditor process is already running. Finish/export its audit "
+                "and quit it before starting installer or parity validation. "
+                "Validation will not close it automatically."
+            )
+
+
+def finish_installer(window) -> bool:
+    """Click Finish only after positively disabling the postinstall launch."""
+    finish = window.child_window(title_re=".*Finish.*", control_type="Button")
+    if not finish.exists(timeout=0.2) or not finish.is_enabled():
+        return False
+    try:
+        matches = [
+            checkbox
+            for checkbox in window.descendants(control_type="CheckBox")
+            if checkbox.window_text().replace("&", "") == "Launch NJIT Thesis Auditor"
+            and checkbox.is_visible()
+        ]
+        if len(matches) != 1:
+            raise RuntimeError("Expected exactly one visible Launch NJIT Thesis Auditor checkbox")
+        checkbox = matches[0]
+        if not checkbox.is_enabled():
+            raise RuntimeError("Launch checkbox is disabled")
+        state = checkbox.get_toggle_state()
+        if state not in (0, 1):
+            raise RuntimeError(f"Unknown launch checkbox state: {state!r}")
+        if state == 1:
+            # Inno's RunList is a TNewCheckListBox. Its UIA state is readable,
+            # but Toggle() can raise COMError (0x80131509). Use real mouse input
+            # and verify the result; never blindly toggle again on another poll.
+            checkbox.click_input()
+        if checkbox.get_toggle_state() != 0:
+            raise RuntimeError("Launch checkbox did not become unchecked")
+    except Exception as exc:
+        # Includes unavailable UIA/COM providers. Do not guess a state or click
+        # Finish when we cannot prove that automatic launch has been disabled.
+        raise RuntimeError("Cannot verify launch is disabled; refusing to click Finish") from exc
+    finish.click_input()
+    return True
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--installer", type=Path, required=True)
+    parser.add_argument("--reference", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    if sys.platform != "win32" or platform.machine().lower() not in {"amd64", "x86_64"}:
+        raise RuntimeError("This test requires native Windows x64")
+    import psutil
+    from pywinauto import Application, Desktop
+    from validate_desktop_parity import validate
+    from win32com.shell import shell, shellcon
+
+    require_no_auditor_processes(psutil.process_iter(["name"]))
+    args.output.mkdir(parents=True, exist_ok=True)
+    directory = args.output.resolve() / "Custom Install Résumé" / "NJIT Thesis Auditor"
+    assert not directory.exists(), "Use a fresh install directory"
+    installer = args.installer.resolve()
+    install_log = args.output.resolve() / "installer.log"
+    ui = Application(backend="uia").start(
+        f'"{installer}" /DIR="{directory}" /TASKS="desktopicon" /LANG=english /LOG="{install_log}"'
+    )
+    # Inno's initial EXE is SetupLdr; the actual wizard runs in its child
+    # temporary executable. Application.top_window() searches the loader only.
+    desktop_ui = Desktop(backend="uia")
+    processes = {ui.process: psutil.Process(ui.process)}
+    deadline = time.monotonic() + 180
+    finished = False
+    while time.monotonic() < deadline:
+        for process in list(processes.values()):
+            try:
+                for child in process.children(recursive=True):
+                    processes[child.pid] = child
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        owned_pids = {pid for pid, process in processes.items() if process.is_running()}
+        windows = [
+            window
+            for window in desktop_ui.windows(visible_only=True)
+            if window.process_id() in owned_pids
+        ]
+        (args.output / "installer-windows.json").write_text(
+            json.dumps(
+                {
+                    "loader_pid": ui.process,
+                    "live_owned_pids": sorted(owned_pids),
+                    "windows": [
+                        {
+                            "pid": w.process_id(),
+                            "class": w.class_name(),
+                            "title": w.window_text(),
+                            "handle": w.handle,
+                        }
+                        for w in windows
+                    ],
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        wizard = select_installer_window(windows, owned_pids)
+        if wizard is None:
+            time.sleep(0.5)
+            continue
+        window = desktop_ui.window(handle=wizard.handle)
+        window.wait("visible", timeout=15)
+        window.capture_as_image().save(str(args.output / "installer.png"))
+        if finish_installer(window):
+            finished = True
+            break
+        for label in [".*Next.*", "^Install$"]:
+            button = window.child_window(title_re=label, control_type="Button")
+            if button.exists(timeout=0.2) and button.is_enabled():
+                button.click_input()
+                break
+        time.sleep(0.5)
+    assert finished, "Graphical installer did not finish; see installer.log/installer-windows.json"
+    ui.wait_for_process_exit(timeout=30)
+    require_no_auditor_processes(psutil.process_iter(["name"]))
+    exe = directory / "NJIT Thesis Auditor.exe"
+    assert exe.is_file()
+    programs = Path(shell.SHGetFolderPath(0, shellcon.CSIDL_PROGRAMS, None, 0))
+    desktop = Path(shell.SHGetFolderPath(0, shellcon.CSIDL_DESKTOPDIRECTORY, None, 0))
+    shortcuts = [programs / "NJIT Thesis Auditor.lnk", desktop / "NJIT Thesis Auditor.lnk"]
+    assert all(path.is_file() for path in shortcuts), "Missing installed shortcuts"
+    # App-specific firewall rule: retain runner connectivity and OS security controls.
+    rule = "NJIT Auditor validation " + str(os.getpid())
+    firewall_env = {**os.environ, "NJIT_TEST_RULE": rule, "NJIT_TEST_EXE": str(exe)}
+    subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-Command",
+            "New-NetFirewallRule -DisplayName $env:NJIT_TEST_RULE "
+            "-Direction Outbound -Program $env:NJIT_TEST_EXE -Action Block | Out-Null",
+        ],
+        check=True,
+        env=firewall_env,
+    )
+    try:
+        validate(exe, args.reference, args.output / "first-launch", args.output / "shared-profile")
+        validate(exe, args.reference, args.output / "reopened", args.output / "shared-profile")
+    finally:
+        subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                "Remove-NetFirewallRule -DisplayName $env:NJIT_TEST_RULE",
+            ],
+            check=True,
+            env=firewall_env,
+        )
+    # Standard registered uninstaller, automated silently after interactive install.
+    sentinel = directory.parent / "student-export.txt"
+    sentinel.write_text("Preserve user exports", encoding="utf-8")
+    subprocess.run(
+        [str(directory / "unins000.exe"), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"],
+        check=True,
+        timeout=120,
+    )
+    assert not exe.exists() and all(not path.exists() for path in shortcuts)
+    assert sentinel.read_text(encoding="utf-8") == "Preserve user exports"
+    workstation = sys.getwindowsversion().product_type == 1
+    result = {
+        "platform": platform.platform(),
+        "windows_edition": platform.win32_edition(),
+        "windows11_candidate": workstation and sys.getwindowsversion().build >= 22000,
+        "installer_sha256": hashlib.sha256(installer.read_bytes()).hexdigest(),
+        "graphical_install": "passed",
+        "custom_path": "passed",
+        "shortcuts": "passed",
+        "first_launch_parity": "passed",
+        "reopen_parity": "passed",
+        "uninstall_silent": "passed",
+        "user_export_preserved": "passed",
+        "application_outbound_firewall": "blocked during testing",
+        "os_disconnected_test": "manual qualification still required",
+        "clean_machine_without_python": "manual qualification still required",
+    }
+    (args.output / "windows-result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()

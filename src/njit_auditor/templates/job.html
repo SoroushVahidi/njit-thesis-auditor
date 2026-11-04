@@ -58,9 +58,17 @@
     white-space: normal;
     text-align: center;
   }
-  .confidence-badge--low,
-  .confidence-badge--medium,
   .confidence-badge--high {
+    background: #fef3f2;
+    border-color: #fda29b;
+    color: #b42318;
+  }
+  .confidence-badge--medium {
+    background: #fffaeb;
+    border-color: #fec84b;
+    color: #93370d;
+  }
+  .confidence-badge--low {
     background: #f1f3f5;
     border-color: #adb5bd;
     color: #343a40;
@@ -214,9 +222,18 @@
     var statusUrl = "/audits/{{ job_id }}/status";
     function poll() {
       fetch(statusUrl)
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+          {% if offline_mode %}
+          if (r.status === 403) {
+            window.location.reload();
+            return null;
+          }
+          {% endif %}
+          return r.json();
+        })
         .then(function(data) {
-          if (data.state === "complete" || data.state === "failed") {
+          if (!data) { return; }
+          if (data.state === "complete" || data.state === "failed" || data.state === "cancelled") {
             window.location.reload();
           } else {
             setTimeout(poll, 2000);
@@ -254,7 +271,7 @@
         if (show) visible += 1;
         if (show) {
           var position = row.querySelector(".finding-card__problem");
-          if (position) position.textContent = "Issue " + visible;
+          if (position) position.textContent = "Finding " + visible;
         }
       });
       rows.forEach(function(row) {
@@ -346,6 +363,19 @@
   });
 </script>
 {% endif %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("time[data-local-time]").forEach(function (node) {
+      var date = new Date(node.getAttribute("datetime"));
+      if (!Number.isNaN(date.getTime())) {
+        node.textContent = date.toLocaleString(undefined, {
+          year: "numeric", month: "short", day: "numeric",
+          hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short"
+        });
+      }
+    });
+  });
+</script>
 {% endblock %}
 
 {% macro severity_status_badge(severity, triage_tier="") -%}
@@ -362,11 +392,17 @@
 
 {% block content %}
 
+<details class="section">
+  <summary>Technical details</summary>
+  <p>Audit ID: <code>{{ job_id }}</code></p>
+</details>
+
 {% if state in ("pending", "running") %}
 <div class="status-banner status-banner--pending">
   <div class="status-banner__body">
     <p class="status-banner__title"><span class="spinner"></span> Processing audit&hellip;</p>
-    <p class="status-banner__meta">Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}</p>
+    {% if offline_mode %}<form action="/audits/{{ job_id }}/cancel" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Cancel audit</button></form>{% endif %}
+    <p class="status-banner__meta">{{ file_name }}</p>
   </div>
 </div>
 <div class="card">
@@ -374,11 +410,24 @@
   <p class="file-hint" style="margin:0.5rem 0 0;">Started: {{ created_at }}</p>
 </div>
 
+{% elif state == "cancelled" %}
+<div class="status-banner" role="status">
+  <div class="status-banner__body">
+    <p class="status-banner__title">Audit canceled</p>
+    <p class="status-banner__meta">{{ file_name }}</p>
+  </div>
+</div>
+<p>{{ error_message }}</p>
+<p>
+  <a href="/" class="btn btn-secondary">Audit another PDF</a>
+  <a href="/help" class="btn btn-secondary" style="margin-left:0.5rem;">Help</a>
+</p>
+
 {% elif state == "failed" %}
 <div class="status-banner status-banner--failed">
   <div class="status-banner__body">
     <p class="status-banner__title">Audit could not complete</p>
-    <p class="status-banner__meta">Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}</p>
+    <p class="status-banner__meta">{{ file_name }}</p>
   </div>
 </div>
 <div class="alert-error" role="alert">
@@ -411,14 +460,14 @@
     <p class="status-banner__title">Audit complete</p>
     <p class="status-banner__meta" style="margin-top:0.15rem;font-style:italic;">Automated review signals — verify all findings manually before submission</p>
     <p class="status-banner__meta">
-      Job <code>{{ job_id[:8] }}</code> &middot; {{ file_name }}
+      {{ file_name }}
       &middot; PDF layout audit
-      {% if finished_at %} &middot; Finished {{ finished_at[:19] }}{% endif %}
+      {% if finished_at %} &middot; Finished <time data-local-time datetime="{{ finished_at }}">{{ finished_at }}</time>{% endif %}
     </p>
   </div>
   <div>
     {% if problems_found_count > 0 %}
-    <span class="badge badge-fail">Problems found</span>
+    <span class="badge badge-fail">Items to review</span>
     {% elif failed_check_count %}
     <span class="badge badge-warn">Audit incomplete</span>
     {% else %}
@@ -543,7 +592,7 @@
   <div class="section-header">
     <div>
       <h2>Findings in page order</h2>
-      <span class="section-note">Main student review list — every counted problem finding in PDF page order by default. Use Sort problems to reorder by confidence instead. Inventory-only page-number candidates appear in Advanced below and are not counted as problems.</span>
+      <span class="section-note">Main student review list — every counted problem finding in PDF page order by default. Use Sort findings to reorder by confidence instead. Inventory-only page-number candidates appear in Advanced below and are not counted as problems.</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
       <span id="filter-count" class="filter-count"></span>
@@ -564,7 +613,7 @@
   </script>
   <div class="filter-bar">
     <div>
-      <label for="sort-problems">Sort problems</label>
+      <label for="sort-problems">Sort findings</label>
       <select id="sort-problems" name="sort" onchange="applySortMode(this.value)">
         <option value="default" {% if sort_mode in ("default", "page_order") or not sort_mode %}selected{% endif %}>Page order</option>
         <option value="confidence_desc" {% if sort_mode == "confidence_desc" %}selected{% endif %}>High confidence first</option>
@@ -636,7 +685,7 @@
           <div class="finding-card__confidence">{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</div>
         </div>
         <div class="finding-card__meta">
-          <span class="finding-card__problem">Issue {{ loop.index }} of {{ findings|length }}</span>
+          <span class="finding-card__problem">Finding {{ loop.index }} of {{ findings|length }}</span>
           <span class="finding-card__page">
             {% if f.page is not none %}{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}{% else %}Document-wide{% endif %}
           </span>
@@ -713,6 +762,7 @@
     <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
     <a href="/audits/{{ job_id }}/download/json" class="btn btn-secondary">Download JSON (structured/developer export)</a>
     <a href="/" class="btn btn-secondary">&larr; Audit another file</a>
+    {% if offline_mode %}<form action="/audits/{{ job_id }}/delete" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Delete this audit</button></form>{% endif %}
   </div>
 </section>
 
@@ -728,8 +778,8 @@
 <div class="privacy-note">
   <strong>Privacy note:</strong> This report is for you. To point at each problem it may quote short pieces of your
   document, such as table of contents, list, or heading entries and individual flagged words; highlighted PDFs are
-  copies of your own pages. {{ retention_notice }} Until they are deleted, anyone with this page's link can
-  open it, so share the link or downloads only as you would share your document.
+  copies of your own pages. {{ retention_notice }} {% if not offline_mode %}Until they are deleted, anyone with this page's link can
+  open it, so share the link or downloads only as you would share your document.{% endif %}
   Automated findings require manual verification against NJIT guidelines. Routine page-number candidates in the inventory section are not counted as problems.
 </div>
 

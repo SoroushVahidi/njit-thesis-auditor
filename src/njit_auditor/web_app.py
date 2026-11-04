@@ -11,8 +11,10 @@ import re
 import secrets
 import shutil
 import subprocess
+import sys
 import threading
 import urllib.parse
+from _thread import LockType
 from collections.abc import Callable, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
@@ -20,6 +22,7 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from weakref import WeakValueDictionary
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -75,6 +78,7 @@ from njit_auditor.report_view import (
     sort_findings,
     sort_grouped_problems,
 )
+from njit_auditor.resource_paths import resource_path
 from njit_auditor.student_cards import student_card_fields
 from njit_auditor.student_pdf_report import (
     build_combined_student_pdf_report,
@@ -85,12 +89,32 @@ from njit_auditor.upload_handling import (
     sanitize_upload_filename,
     validate_upload_path,
 )
-from njit_auditor.web_samples import (
-    copy_builtin_sample_to_job,
-    get_builtin_sample,
-    list_builtin_samples,
-)
-from njit_auditor.web_url_fetch import FetchError, fetch_pdf_url
+from njit_auditor.web_fetch_error import FetchError
+from njit_auditor.windows_download import windows_download
+
+
+def list_builtin_samples() -> list[Any]:
+    from njit_auditor.web_samples import list_builtin_samples
+
+    return list_builtin_samples()
+
+
+def get_builtin_sample(sample_id: str) -> Any:
+    from njit_auditor.web_samples import get_builtin_sample
+
+    return get_builtin_sample(sample_id)
+
+
+def copy_builtin_sample_to_job(sample_id: str, destination: Path) -> None:
+    from njit_auditor.web_samples import copy_builtin_sample_to_job
+
+    copy_builtin_sample_to_job(sample_id, destination)
+
+
+def fetch_pdf_url(url: str, destination: Path, max_bytes: int) -> None:
+    from njit_auditor.web_url_fetch import fetch_pdf_url
+
+    fetch_pdf_url(url, destination, max_bytes)
 
 # ---------------------------------------------------------------------------
 # Configuration from environment
@@ -118,6 +142,10 @@ def _read_git_metadata() -> tuple[str, str]:
     (e.g. an exported archive), so any failure here must degrade to
     "unknown" rather than raise.
     """
+    if getattr(sys, "frozen", False):
+        from njit_auditor.desktop_metadata import desktop_build_info
+
+        return str(desktop_build_info().get("commit", "unknown")), "packaged-desktop"
     repo_root = Path(__file__).resolve().parent.parent.parent
     try:
         commit = subprocess.run(
@@ -195,7 +223,7 @@ _PDF_ONLY_ERROR = "Only PDF files are supported in the web interface. Please upl
 @dataclass
 class JobState:
     job_id: str
-    state: str  # pending | running | complete | failed
+    state: str  # pending | running | complete | failed | cancelled (desktop only)
     created_at: str
     file_name: str
     audit_type: str = "pdf"
@@ -227,6 +255,19 @@ class JobState:
 
 _jobs: dict[str, JobState] = {}
 _jobs_lock = threading.Lock()
+_student_pdf_locks: WeakValueDictionary[str, LockType] = WeakValueDictionary()
+
+
+def _student_pdf_lock(job_id: str) -> LockType:
+    # Concurrent requests must recheck the cache after the first writer publishes
+    # PDF, metadata and stamp. Windows cannot replace a PDF held by a downloader.
+    # Weak references release idle locks without accumulating expired job IDs.
+    with _jobs_lock:
+        lock = _student_pdf_locks.get(job_id)
+        if lock is None:
+            lock = threading.Lock()
+            _student_pdf_locks[job_id] = lock
+        return lock
 
 
 def _get_job(job_id: str) -> JobState | None:
@@ -263,7 +304,7 @@ def _is_under_runtime(path: Path) -> bool:
     """Return True when *path* resolves inside the configured runtime directory."""
     try:
         path.resolve().relative_to(RUNTIME_DIR.resolve())
-    except ValueError:
+    except (ValueError, OSError, RuntimeError):
         return False
     return True
 
@@ -468,6 +509,7 @@ def _expired_job_notice() -> str:
 
 
 _retention_sweeper = RetentionSweeper(cleanup_expired_jobs, CLEANUP_INTERVAL_SECONDS)
+_after_audit_task: Callable[[str], None] | None = None
 
 
 @asynccontextmanager
@@ -486,7 +528,7 @@ app = FastAPI(
     redoc_url=None,
     lifespan=_lifespan,
 )
-_templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+_templates = Jinja2Templates(directory=str(resource_path("src", "njit_auditor", "templates")))
 
 
 def _retention_notice() -> str:
@@ -508,10 +550,7 @@ _templates.env.globals["retention_notice"] = _retention_notice()
 # Rule catalog helpers (canonical structured data)
 # ---------------------------------------------------------------------------
 
-_RULES_JSON_PATH = (
-    Path(__file__).parent.parent.parent
-    / "data" / "processed" / "rules" / "project_added_rules.json"
-)
+_RULES_JSON_PATH = resource_path("data", "processed", "rules", "project_added_rules.json")
 
 _P_RULE_RE = re.compile(r"^P\d+$")
 
@@ -1872,9 +1911,15 @@ def _render(
     status_code: int = 200,
 ) -> HTMLResponse:
     """Render a Jinja2 template using the Starlette 1.x API."""
-    return _templates.TemplateResponse(
-        request=request, name=template, context=context, status_code=status_code
-    )
+    if template == "index.html":
+        context = {**context, "windows_download": windows_download()}
+    templates = getattr(request.app.state, "templates", _templates)
+    context = {**context, "offline_mode": getattr(request.app.state, "offline_mode", False)}
+    if context["offline_mode"]:
+        context["csrf_token"] = request.app.state.csrf_token
+        context["deletion_status"] = request.query_params.get("deletion", "")
+    return templates.TemplateResponse(request=request, name=template, context=context,
+                                      status_code=status_code)
 
 
 
@@ -1959,23 +2004,30 @@ def _job_page_context(job: JobState, sort_mode: str = SORT_MODE_DEFAULT) -> dict
     }
 
 
+def _submission_error(error: str, status_code: int = 400) -> RedirectResponse:
+    query = urllib.parse.urlencode({"error": error, "error_status": status_code})
+    return RedirectResponse(url=f"/?{query}", status_code=303)
+
+
 def _index_error(request: Request, error: str, status_code: int = 400) -> HTMLResponse:
+    samples = [] if getattr(request.app.state, "offline_mode", False) else list_builtin_samples()
     return _render(
         request,
         "index.html",
-        {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": list_builtin_samples()},
+        {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": samples},
         status_code=status_code,
     )
 
 
 def _index_notice(request: Request, notice: str, status_code: int = 404) -> HTMLResponse:
+    samples = [] if getattr(request.app.state, "offline_mode", False) else list_builtin_samples()
     return _render(
         request,
         "index.html",
         {
             "notice": notice,
             "max_upload_mb": MAX_UPLOAD_MB,
-            "builtin_samples": list_builtin_samples(),
+            "builtin_samples": samples,
         },
         status_code=status_code,
     )
@@ -2004,6 +2056,9 @@ def _run_audit_task(job_id: str) -> None:
             _set_job(job)
         # Exception type only: messages and tracebacks can carry the job path.
         _logger.warning("Audit task failed after start (%s).", type(exc).__name__)
+    finally:
+        if _after_audit_task is not None:
+            _after_audit_task(job_id)
 
 
 def _execute_audit_task(job_id: str) -> None:
@@ -2073,7 +2128,7 @@ def _execute_audit_task(job_id: str) -> None:
     # Sanitize before writing: replace raw messages embedding label/ref names with
     # generic privacy-safe descriptions for source (TeX) audits.
     web_payload = sanitize_report_for_web_export(payload)
-    json_report_path.write_text(json.dumps(web_payload, indent=2), encoding="utf-8")
+    json_report_path.write_text(json.dumps(web_payload, indent=2), encoding="utf-8", newline="\n")
 
     # Write Markdown report using sanitized findings so label/ref names do not
     # appear in the downloaded .md or in the in-page preview.
@@ -2166,6 +2221,7 @@ def _execute_audit_task(job_id: str) -> None:
             failed_check_count=job.failed_check_count,
         ),
         encoding="utf-8",
+        newline="\n",
     )
     job.grouped_summary = grouped_rows
     job.report_view = view_dict
@@ -2200,12 +2256,24 @@ async def version() -> JSONResponse:
     )
 
 
-@app.get("/", response_class=HTMLResponse)
-async def index(request: Request, error: str = "") -> HTMLResponse:
+@app.get("/", response_class=HTMLResponse, response_model=None)
+async def index(
+    request: Request, error: str = "", error_status: int = 400
+) -> HTMLResponse | RedirectResponse:
+    if getattr(request.app.state, "offline_mode", False) and not request.query_params:
+        with _jobs_lock:
+            active = next(
+                (job.job_id for job in reversed(list(_jobs.values()))
+                 if job.state in {"pending", "running"}), None
+            )
+        if active is not None:
+            return RedirectResponse(url=f"/audits/{active}", status_code=303)
+    samples = [] if getattr(request.app.state, "offline_mode", False) else list_builtin_samples()
     return _render(
         request,
         "index.html",
-        {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": list_builtin_samples()},
+        {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": samples},
+        status_code=(413 if error_status == 413 else 400) if error else 200,
     )
 
 
@@ -2219,11 +2287,11 @@ async def submit_audit(
     ext = Path(filename).suffix.lower()
 
     if ext != ".pdf":
-        return _index_error(request, _PDF_ONLY_ERROR)
+        return _submission_error(_PDF_ONLY_ERROR)
 
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
-        return _index_error(request, f"File exceeds the {MAX_UPLOAD_MB} MB limit.", status_code=413)
+        return _submission_error(f"File exceeds the {MAX_UPLOAD_MB} MB limit.", status_code=413)
 
     job_id = _new_job_id()
     jdir = _job_dir(job_id)
@@ -2237,7 +2305,7 @@ async def submit_audit(
         validate_upload_path(upload_path, MAX_UPLOAD_BYTES)
     except UploadValidationError as exc:
         shutil.rmtree(jdir, ignore_errors=True)
-        return _index_error(request, str(exc))
+        return _submission_error(str(exc))
 
     job = JobState(
         job_id=job_id,
@@ -2246,7 +2314,10 @@ async def submit_audit(
         file_name=safe_name,
     )
     _set_job(job)
-    background_tasks.add_task(_run_audit_task, job_id)
+    prepare_audit = getattr(request.app.state, "prepare_audit", None)
+    if prepare_audit is not None:
+        prepare_audit(job_id)
+    background_tasks.add_task(getattr(request.app.state, "audit_executor", _run_audit_task), job_id)
 
     return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
 
@@ -2259,7 +2330,7 @@ async def submit_audit_url(
 ) -> RedirectResponse | HTMLResponse:
     url = pdf_url.strip()
     if not url:
-        return _index_error(request, "Please provide a PDF URL.")
+        return _submission_error("Please provide a PDF URL.")
 
     job_id = _new_job_id()
     jdir = _job_dir(job_id)
@@ -2280,7 +2351,7 @@ async def submit_audit_url(
         fetch_pdf_url(url, jdir / "upload.pdf", MAX_UPLOAD_BYTES)
     except FetchError as exc:
         shutil.rmtree(jdir, ignore_errors=True)
-        return _index_error(request, str(exc))
+        return _submission_error(str(exc))
 
     job = JobState(
         job_id=job_id,
@@ -2301,12 +2372,12 @@ async def submit_audit_sample(
 ) -> RedirectResponse | HTMLResponse:
     sid = sample_id.strip()
     if not sid:
-        return _index_error(request, "Please select a built-in sample.")
+        return _submission_error("Please select a built-in sample.")
 
     try:
         info = get_builtin_sample(sid)
     except ValueError:
-        return _index_error(request, "Unknown or invalid sample selection.")
+        return _submission_error("Unknown or invalid sample selection.")
 
     job_id = _new_job_id()
     jdir = _job_dir(job_id)
@@ -2316,13 +2387,13 @@ async def submit_audit_sample(
         copy_builtin_sample_to_job(sid, jdir / "upload.pdf")
     except FileNotFoundError:
         shutil.rmtree(jdir, ignore_errors=True)
-        return _index_error(request, "The selected sample file is not available on this server.")
+        return _submission_error("The selected sample file is not available on this server.")
     except ValueError as exc:
         shutil.rmtree(jdir, ignore_errors=True)
-        return _index_error(request, str(exc))
+        return _submission_error(str(exc))
     except Exception:  # noqa: BLE001
         shutil.rmtree(jdir, ignore_errors=True)
-        return _index_error(request, "An error occurred loading the sample file.")
+        return _submission_error("An error occurred loading the sample file.")
 
     safe_name = sanitize_upload_filename(Path(info.rel_path).name, default_ext=".pdf")
     job = JobState(
@@ -2589,7 +2660,7 @@ async def download_json(job_id: str) -> FileResponse | JSONResponse:
     if job is None or job.state != "complete":
         return JSONResponse({"error": "report not available"}, status_code=404)
     report_path = _job_dir(job_id) / "report.json"
-    if not report_path.exists():
+    if not _is_under_runtime(report_path) or not report_path.exists():
         return JSONResponse({"error": "report file missing"}, status_code=404)
     return FileResponse(
         path=str(report_path),
@@ -2604,7 +2675,7 @@ async def download_markdown(job_id: str) -> FileResponse | JSONResponse:
     if job is None or job.state != "complete":
         return JSONResponse({"error": "report not available"}, status_code=404)
     report_path = _job_dir(job_id) / "report.md"
-    if not report_path.exists():
+    if not _is_under_runtime(report_path) or not report_path.exists():
         return JSONResponse({"error": "report file missing"}, status_code=404)
     return FileResponse(
         path=str(report_path),
@@ -2619,7 +2690,7 @@ async def download_text(job_id: str) -> FileResponse | JSONResponse:
     if job is None or job.state != "complete":
         return JSONResponse({"error": "report not available"}, status_code=404)
     report_path = _job_dir(job_id) / "report.txt"
-    if not report_path.exists():
+    if not _is_under_runtime(report_path) or not report_path.exists():
         return JSONResponse({"error": "report file missing"}, status_code=404)
     return FileResponse(
         path=str(report_path),
@@ -2659,57 +2730,65 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
             default=str,
         ).encode("utf-8")
     ).hexdigest()
-    if not output.exists() or not stamp.exists() or stamp.read_text(encoding="ascii") != signature:
-        boxes_by_problem: dict[int, list[HighlightBox]] = {}
-        for finding in job.findings:
-            number = int(finding.get("problem_number") or 0)
-            page = _coerce_page_number(finding.get("page"))
-            if not number or page is None:
-                continue
-            rule = str(finding.get("rule_id", ""))
-            raw_index = parse_finding_id(str(finding.get("finding_id", "")))
-            if rule == "P011":
-                matched = [
-                    f
-                    for f in raw
-                    if _coerce_page_number(f.get("page")) == page
-                    and str(f.get("rule_id", "")) == rule
-                ]
-            elif raw_index is not None and raw_index < len(raw):
-                matched = [raw[raw_index]]
-            else:
-                matched = [
-                    f
-                    for f in raw
-                    if _coerce_page_number(f.get("page")) == page
-                    and str(f.get("rule_id", "")) == rule
-                    and _finding_issue_type(f) == str(finding.get("issue_type", ""))
-                ][:1]
-            boxes_by_problem[number] = _highlight_boxes_by_page(matched).get(page, [])
-        try:
-            result = build_combined_student_pdf_report(
-                source,
-                output,
-                job.findings,
-                boxes_by_problem=boxes_by_problem,
-                file_name=job.file_name,
-                manuscript_page_labels=job.manuscript_page_labels,
-                failed_check_count=job.failed_check_count,
-            )
-            metadata_path = jdir / "student-report-metadata.json"
-            temporary_metadata = jdir / f"student-report-{secrets.token_hex(8)}.json.tmp"
-            temporary_metadata.write_text(json.dumps(asdict(result), indent=2), encoding="utf-8")
-            os.replace(temporary_metadata, metadata_path)
-            temporary_stamp = jdir / f"student-report-{secrets.token_hex(8)}.sha256.tmp"
-            temporary_stamp.write_text(signature, encoding="ascii")
-            os.replace(temporary_stamp, stamp)
-        except Exception:
-            _logger.exception("Combined student PDF generation failed for job %s", job_id)
-            return _index_notice(
-                request,
-                "The complete PDF report could not be prepared. Please try again.",
-                status_code=500,
-            )
+    with _student_pdf_lock(job_id):
+        if (
+            not output.exists()
+            or not stamp.exists()
+            or stamp.read_text(encoding="ascii") != signature
+        ):
+            boxes_by_problem: dict[int, list[HighlightBox]] = {}
+            for finding in job.findings:
+                number = int(finding.get("problem_number") or 0)
+                page = _coerce_page_number(finding.get("page"))
+                if not number or page is None:
+                    continue
+                rule = str(finding.get("rule_id", ""))
+                raw_index = parse_finding_id(str(finding.get("finding_id", "")))
+                if rule == "P011":
+                    matched = [
+                        f
+                        for f in raw
+                        if _coerce_page_number(f.get("page")) == page
+                        and str(f.get("rule_id", "")) == rule
+                    ]
+                elif raw_index is not None and raw_index < len(raw):
+                    matched = [raw[raw_index]]
+                else:
+                    matched = [
+                        f
+                        for f in raw
+                        if _coerce_page_number(f.get("page")) == page
+                        and str(f.get("rule_id", "")) == rule
+                        and _finding_issue_type(f) == str(finding.get("issue_type", ""))
+                    ][:1]
+                boxes_by_problem[number] = _highlight_boxes_by_page(matched).get(page, [])
+            try:
+                result = build_combined_student_pdf_report(
+                    source,
+                    output,
+                    job.findings,
+                    boxes_by_problem=boxes_by_problem,
+                    file_name=job.file_name,
+                    manuscript_page_labels=job.manuscript_page_labels,
+                    failed_check_count=job.failed_check_count,
+                )
+                metadata_path = jdir / "student-report-metadata.json"
+                temporary_metadata = jdir / f"student-report-{secrets.token_hex(8)}.json.tmp"
+                temporary_metadata.write_text(
+                    json.dumps(asdict(result), indent=2), encoding="utf-8"
+                )
+                os.replace(temporary_metadata, metadata_path)
+                temporary_stamp = jdir / f"student-report-{secrets.token_hex(8)}.sha256.tmp"
+                temporary_stamp.write_text(signature, encoding="ascii")
+                os.replace(temporary_stamp, stamp)
+            except Exception as exc:  # noqa: BLE001
+                # Paths, job IDs, and input-derived text can occur in exception messages.
+                _logger.warning("Combined student PDF generation failed (%s).", type(exc).__name__)
+                return _index_notice(
+                    request,
+                    "The complete PDF report could not be prepared. Please try again.",
+                    status_code=500,
+                )
     safe_name = sanitize_upload_filename(job.file_name or "thesis.pdf")
     download_name = f"{Path(safe_name).stem}_NJIT_Formatting_Audit.pdf"
     return FileResponse(path=str(output), media_type="application/pdf", filename=download_name)
@@ -3002,9 +3081,8 @@ async def serve_job_pdf_highlighted(
             result = build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
             if not result.has_highlight:
                 _logger.warning(
-                    "Highlight request for job %s matched %d finding(s) but drew no "
+                    "Highlight request matched %d finding(s) but drew no "
                     "visible annotation (skipped=%d); falling back to plain PDF.",
-                    job_id,
                     len(matches),
                     result.skipped_count,
                 )
@@ -3012,11 +3090,10 @@ async def serve_job_pdf_highlighted(
             return plain_response
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
         _logger.warning(
-            "Highlighted PDF generation failed for job %s; falling back to plain PDF.",
-            job_id,
-            exc_info=True,
+            "Highlighted PDF generation failed (%s); falling back to plain PDF.",
+            type(exc).__name__,
         )
         return plain_response
 
@@ -3108,9 +3185,8 @@ async def serve_job_highlighted_page_pdf(
                 )
                 if not result.has_highlight:
                     _logger.warning(
-                        "Page-focused highlight for job %s page=%s matched %d finding(s) "
+                        "Page-focused highlight on page=%s matched %d finding(s) "
                         "but drew no visible annotation (skipped=%d); serving single page only.",
-                        job_id,
                         page,
                         len(matches),
                         result.skipped_count,
@@ -3125,12 +3201,11 @@ async def serve_job_highlighted_page_pdf(
                 )
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
         _logger.warning(
-            "Page-focused highlighted PDF generation failed for job %s; "
+            "Page-focused highlighted PDF generation failed (%s); "
             "attempting single-page extract.",
-            job_id,
-            exc_info=True,
+            type(exc).__name__,
         )
         return _extract_plain_single_page()
 

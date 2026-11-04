@@ -1,0 +1,99 @@
+name: Windows desktop beta build
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Native test host (Server CI does not qualify Windows 11)
+        type: choice
+        options: [windows-2025, windows11]
+        default: windows-2025
+  pull_request:
+    # A normal push to the open PR triggers synchronize, including while draft.
+    # Unlike workflow_dispatch, this does not require registration on main.
+    paths:
+      - '.gitattributes'
+      - 'packaging/**'
+      - 'scripts/*desktop*'
+      - 'scripts/*windows*'
+      - 'src/njit_auditor/**'
+      - '.github/workflows/windows-desktop.yml'
+      - '.github/workflows/ci.yml'
+      - 'tests/test_*desktop*.py'
+      - 'tests/test_windows*.py'
+      - 'tests/fixtures/desktop_reference/**'
+      - 'pyproject.toml'
+permissions:
+  contents: read
+concurrency:
+  group: windows-desktop-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build-and-test:
+    if: startsWith(github.head_ref, 'release/windows-beta-publish-') || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ inputs.runner == 'windows11' && fromJSON('["self-hosted","Windows","X64","windows11"]') || 'windows-2025' }}
+    timeout-minutes: 35
+    env:
+      GIT_LFS_SKIP_SMUDGE: '1'
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Locate native installer compiler
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw 'Install Inno Setup 6 on this runner.' }
+          Get-ComputerInfo -Property WindowsProductName,WindowsVersion,OsBuildNumber
+          git config --show-origin --get core.autocrlf
+          git ls-files --eol data/processed/rules/project_added_rules.json src/njit_auditor/audit_runner.py
+      - name: Install isolated validation tools
+        run: |
+          $validator = Join-Path $env:RUNNER_TEMP 'njit-validator'
+          python -m venv $validator
+          $python = Join-Path $validator 'Scripts/python.exe'
+          & $python -m pip install -c packaging/offline-build-constraints.txt -e '.[dev]' playwright pywinauto psutil
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $python -m playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "NJIT_VALIDATOR_PYTHON=$python" >> $env:GITHUB_ENV
+      - name: Native startup, network and concurrent export regressions
+        run: |
+          & $env:NJIT_VALIDATOR_PYTHON -m pytest -q tests/test_windows_startup.py tests/test_windows_install_harness.py tests/test_desktop_sessions.py tests/test_desktop_network.py tests/test_offline_desktop.py::test_audit_with_connections_denied tests/test_web_app.py::test_complete_student_pdf_concurrent_requests_return_complete_files --junitxml=.runtime/windows-validation/native-smoke.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build full NJIT application and Inno Setup installer
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./packaging/build_offline_windows.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Focused beta regressions
+        run: |
+          & $env:NJIT_VALIDATOR_PYTHON -m pytest -q tests/test_export_newlines.py tests/test_windows_download.py tests/test_offline_desktop.py tests/test_windows_startup.py tests/test_desktop_sessions.py tests/test_desktop_executor.py tests/test_desktop_network.py tests/test_web_app.py tests/test_student_pdf_report.py tests/test_help_rules.py tests/test_mobile_desktop_consistency.py --junitxml=.runtime/windows-validation/regressions.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Packaged startup and synthetic audit smoke (no installation)
+        run: |
+          & $env:NJIT_VALIDATOR_PYTHON scripts/smoke_windows_beta.py --executable 'dist/NJIT Thesis Auditor/NJIT Thesis Auditor.exe' --output .runtime/windows-validation/packaged-smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: njit-windows-candidate-${{ github.sha }}
+          retention-days: 30
+          path: |
+            dist/installers/*.exe
+            dist/installers/*.json
+            dist/installers/SHA256SUMS.txt
+            .runtime/windows-validation/windows-result.json
+            .runtime/windows-validation/regressions.xml
+            .runtime/windows-validation/native-smoke.xml
+            .runtime/windows-validation/packaged-smoke/result.json
+            .runtime/windows-validation/packaged-smoke/application.log
+      # Publication is performed from Ubuntu after verifying these exact bytes.
+      # Hosted Windows Server smoke tests do not establish Windows 11 qualification.

@@ -4245,5 +4245,6 @@ def write_markdown_report(
     lines.append("- Limitation: findings are heuristic and require human review.")
 
     output_path.write_text(
-        convert_pxxx_tokens_to_public_display("\n".join(lines) + "\n"), encoding="utf-8"
+        convert_pxxx_tokens_to_public_display("\n".join(lines) + "\n"),
+        encoding="utf-8", newline="\n",
     )

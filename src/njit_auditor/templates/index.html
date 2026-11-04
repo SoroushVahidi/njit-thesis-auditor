@@ -2,6 +2,44 @@
 {% block title %}NJIT Thesis Auditor — Upload{% endblock %}
 {% block head_extra %}
 <style>
+  .info-grid .support-table { overflow-wrap: anywhere; }
+  .windows-download {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem 1.5rem;
+    border-top: 3px solid var(--color-primary);
+  }
+  .windows-download__intro { flex: 1 1 24rem; min-width: 0; }
+  .windows-download__intro p { margin: 0.5rem 0 0; }
+  .windows-download__platform {
+    display: block;
+    color: var(--color-primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+  }
+  .windows-download__action { flex: 1 1 15rem; min-width: 0; }
+  .windows-download__action .file-hint { margin: 0.5rem 0; }
+  .windows-download__action button:disabled {
+    background: #e9ecef;
+    color: #5c6b7a;
+    cursor: default;
+  }
+  .windows-download__action .btn,
+  .windows-download__action button { max-width: 100%; text-align: center; }
+  .windows-download__instructions { flex-basis: 100%; min-width: 0; }
+  .windows-download__instructions summary { cursor: pointer; color: var(--color-primary); }
+  .windows-download__instructions code { overflow-wrap: anywhere; }
+  .windows-download a:focus-visible,
+  .windows-download summary:focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 3px;
+  }
+  @media (max-width: 600px) {
+    .windows-download__action .btn,
+    .windows-download__action button { width: 100%; }
+  }
   .upload-zone {
     display: flex;
     align-items: center;
@@ -154,6 +192,8 @@
   Upload a thesis or dissertation PDF and the tool checks it for common NJIT formatting issues automatically.
   Results are advisory and require human review. Processing runs on this server; your file is not sent to any outside service.
 </p>
+
+{% include "_windows_download.html" %}
 
 {% if notice %}
 <div class="alert-warn" role="alert">

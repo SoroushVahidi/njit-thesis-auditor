@@ -1,0 +1,38 @@
+<section class="card section windows-download" id="windows-download" aria-labelledby="windows-download-heading">
+  <div class="windows-download__intro">
+    <span class="windows-download__platform">Windows desktop</span>
+    <h2 id="windows-download-heading">Download NJIT Thesis Auditor for Windows</h2>
+    {% if windows_download.url %}
+    <p>Audit PDFs locally, even without an internet connection. No Python or technical setup required.</p>
+    {% else %}
+    <p>A Windows application for auditing PDFs locally is being prepared. A qualified installer is not yet available.</p>
+    {% endif %}
+    <p class="file-hint">The online auditor below processes uploads on this server. The desktop app processes documents on your own computer.</p>
+  </div>
+  <div class="windows-download__action">
+    {% if windows_download.url %}
+    <a class="btn" href="{{ windows_download.url }}" rel="noreferrer" referrerpolicy="no-referrer">Download for Windows (Beta)</a>
+    <p class="file-hint">Version {{ windows_download.version }} · {{ windows_download.windows_versions }} ({{ windows_download.architecture }})</p>
+    <p class="file-hint">Download size: {{ windows_download.size_label }}</p>
+    <p class="file-hint">Open the downloaded installer, select Install, then launch NJIT Thesis Auditor from the Start menu.</p>
+    <a href="{{ windows_download.release_notes_url }}" rel="noreferrer" referrerpolicy="no-referrer">Release notes and system requirements</a>
+    {% else %}
+    <button type="button" disabled aria-describedby="windows-download-pending">Download for Windows</button>
+    <p id="windows-download-pending" class="file-hint">Download unavailable while release validation is pending. You can use the online auditor below.</p>
+    {% endif %}
+  </div>
+  {% if windows_download.url %}
+  <details class="windows-download__instructions">
+    <summary>How to install</summary>
+    <ol>
+      <li>Download and open the installer.</li>
+      <li>Choose where to install the app, then select <strong>Install</strong>.</li>
+      <li>Open <strong>NJIT Thesis Auditor</strong> from the Start menu or your optional desktop shortcut.</li>
+    </ol>
+    <p>Your default browser displays the local app. Choose a PDF to start your audit.</p>
+    {% if windows_download.sha256 %}
+    <p>SHA-256 checksum: <code>{{ windows_download.sha256 }}</code></p>
+    {% endif %}
+  </details>
+  {% endif %}
+</section>
