@@ -36,6 +36,7 @@ def test_about_content_and_downloads_link(web: Any) -> None:
         assert section in text
     for person in ['Soroush Vahidi', 'Ester Flaim', 'Ioannis Koutis', 'Sotirios G. Ziavras']:
         assert person in text
+    assert 'Professor Ioannis Koutis, for early project discussions.' in text
     assert 'Esther Flaim' not in text
     assert 'May 2026' in text and 'November 2026' in text
     assert 'Computer Science PhD student' in text
