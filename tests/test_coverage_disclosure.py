@@ -99,7 +99,7 @@ def test_wording_never_claims_compliance_or_replaces_the_checklist() -> None:
     intro = " ".join(COVERAGE_INTRO)
     assert "does not replace" in intro
     assert "may be wrong" in intro
-    assert "does not mean your document meets NJIT requirements" in intro
+    assert "do not mean your document meets NJIT requirements" in intro
 
 
 def test_known_policy_conflict_is_disclosed_not_resolved() -> None:
@@ -195,7 +195,7 @@ def test_zero_finding_pdf_report_stays_short(tmp_path: Path) -> None:
     assert result.report_pages <= 2
     text = _pdf_report_text(output, 2)
     assert "No formatting problems were detected by the implemented checks" in text
-    assert "does not mean your document meets NJIT requirements" in text
+    assert "do not mean your document meets NJIT requirements" in text
 
 
 @pytest.fixture()
@@ -231,7 +231,7 @@ def test_results_page_with_no_findings_still_discloses_coverage(
     html = c.get(f"/audits/{job_id}").text
     assert "No problems found" in html
     assert 'id="section-coverage"' in html
-    assert "does not mean your document meets NJIT requirements" in html
+    assert "do not mean your document meets NJIT requirements" in html
 
 
 # ---------------------------------------------------------------------------

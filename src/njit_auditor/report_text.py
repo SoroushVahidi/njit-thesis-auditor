@@ -49,6 +49,12 @@ from njit_auditor.report_outputs import (
     public_display_rule_id,
 )
 from njit_auditor.resource_paths import resource_path
+from njit_auditor.student_cards import (
+    CONFIDENCE_NOTE,
+    finding_check_lines,
+    plain_student_text,
+    student_card_fields,
+)
 
 PublicRuleReferenceFn = Callable[..., str]
 
@@ -267,6 +273,7 @@ class _Occurrence:
     confidence: str
     rule_reference: str
     problem_number: int
+    checks: tuple[str, ...] = ()
 
 
 @dataclass
@@ -284,6 +291,7 @@ class _Record:
     occurrence_count: int
     sort_key: int
     number: int = 0
+    checks: tuple[str, ...] = ()
 
 
 def _build_occurrences(
@@ -321,6 +329,17 @@ def _build_occurrences(
         )
         comment = _clean_detected_text(comment)
         fix = _detruncate_fix_text(rule_id, fix, details)
+        fields = student_card_fields({**finding, "polished_comment": comment,
+                                      "suggested_fix": fix}, details)
+        if rule_id == "P011":
+            comment, fix = fields["student_summary"], fields["student_fix"]
+        else:
+            comment = plain_student_text(comment)
+        checks = finding_check_lines(fields)
+        if fields["technical_details"]:
+            checks += ["Technical details:"] + [
+                f"{label}: {value}" for label, value in fields["technical_details"]
+            ]
 
         location_text = _problem_location_text(
             finding,
@@ -361,6 +380,7 @@ def _build_occurrences(
                     details=details,
                 ),
                 problem_number=problem_number,
+                checks=tuple(checks),
             )
         )
     return occurrences
@@ -401,6 +421,7 @@ def _consolidate_page_occurrences(occurrences: list[_Occurrence]) -> list[_Recor
                     fix_text=first.fix_text,
                     confidence=first.confidence,
                     rule_reference=first.rule_reference,
+                    checks=tuple(dict.fromkeys(line for m in members for line in m.checks)),
                     occurrence_count=1,
                     sort_key=first.problem_number,
                 )
@@ -429,6 +450,7 @@ def _consolidate_page_occurrences(occurrences: list[_Occurrence]) -> list[_Recor
                 fix_text=first.fix_text,
                 confidence="/".join(confidences),
                 rule_reference=first.rule_reference,
+                    checks=tuple(dict.fromkeys(line for m in members for line in m.checks)),
                 occurrence_count=len(members),
                 sort_key=min(m.problem_number for m in members),
             )
@@ -482,11 +504,12 @@ def _render_record(record: _Record) -> list[str]:
         lines.append(f"  Exact location: {record.exact_location or NOT_DETERMINED_LOCATION}")
     lines.append(f"  What was detected: {record.detected_text}")
     if record.fix_text:
-        lines.append(f"  How to fix it: {record.fix_text}")
+        lines.append(f"  What to check: {record.fix_text}")
     if record.occurrence_count > 1:
         lines.append(f"  Affected locations: {record.occurrence_count}")
         for index, location in enumerate(record.locations, start=1):
             lines.append(f"    {index}. {location}")
+    lines.extend("  " + line for line in record.checks)
     if record.confidence:
         lines.append(f"  Confidence: {record.confidence}")
     if record.rule_reference:
@@ -541,6 +564,8 @@ def _render_text(
     )
     lines.append("")
 
+    lines.extend([CONFIDENCE_NOTE, ""])
+
     for page, manuscript_page, records in page_sections:
         if not records:
             continue
@@ -562,11 +587,7 @@ def _render_text(
             lines.extend(_render_record(record))
 
     lines.append(_SEP_LIGHT)
-    lines.append(
-        "End of report. This report was generated automatically and may contain "
-        "false positives or miss issues outside its checks. Confirm every item "
-        "against the official NJIT formatting guidelines before submission."
-    )
+    lines.append("End of report.")
     lines.append(_SEP_LIGHT)
 
     return "\n".join(lines) + "\n"

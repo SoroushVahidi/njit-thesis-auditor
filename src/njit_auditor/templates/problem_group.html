@@ -66,8 +66,7 @@
   .margin-checks { margin: 0.5rem 0; padding-left: 1.2rem; font-size: 0.9rem; }
   .margin-checks li { margin: 0.2rem 0; }
   .margin-checks .margin-answer--no { color: #9f1d16; }
-  .margin-checks .margin-answer--yes { color: #155724; }
-  .margin-checks .margin-answer--needs-review { color: #495057; }
+  .margin-checks .margin-answer--yes { color: var(--color-text); }
   .example-card__title-row {
     display: flex;
     align-items: flex-start;
@@ -102,28 +101,6 @@
   .issue-type-help summary { cursor: pointer; color: var(--color-primary); font-weight: 600; padding: 0.2rem 0; }
   .issue-type-help summary:hover { text-decoration: underline; }
   .issue-type-help p { margin: 0.35rem 0 0; color: var(--color-text-muted, #555); font-size: 0.89rem; }
-  .confidence-badge {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 0.2rem 0.65rem;
-    font-size: 0.78rem;
-    font-weight: 700;
-    border: 1px solid transparent;
-    text-transform: none;
-    letter-spacing: 0;
-    line-height: 1.2;
-    max-width: 100%;
-    white-space: normal;
-    text-align: center;
-  }
-  .confidence-badge--low,
-  .confidence-badge--medium,
-  .confidence-badge--high {
-    background: #f1f3f5;
-    border-color: #adb5bd;
-    color: #343a40;
-  }
   @media (max-width: 640px) {
     .example-card__header {
       align-items: flex-start;
@@ -229,7 +206,7 @@
 <section class="section" aria-label="Problem examples" id="examples">
   <div class="section-header">
     <h2>{{ group_examples_heading if group_examples_heading else "Examples of this problem" }}</h2>
-    <span class="section-note">{{ example_count }} findings in this view</span>
+    <span class="section-note">{{ example_count }} findings in this view. {{ confidence_note }}</span>
   </div>
   <div class="example-list">
     {% for example in examples %}
@@ -240,7 +217,7 @@
           <span class="example-card__marker" aria-label="Legend item {{ example.legend_number }}">{{ example.legend_number }}</span>
           {% endif %}
           <p class="example-card__title">
-            Issue {{ loop.index }} of {{ examples|length }} ·
+            Finding {{ loop.index }} of {{ examples|length }} ·
             {% if example.public_rule_reference_id %}
             <a href="/rules#{{ example.public_rule_reference_id }}" class="rule-link" aria-label="{{ example.student_topic }}: see rule reference">{{ example.student_topic }}</a>
             {% elif public_rule_reference_href is defined and public_rule_reference_href(example.rule_id, issue_type=example.issue_type) %}
@@ -266,13 +243,20 @@
         {% elif example.issue_type and example.student_summary != (example.issue_type | humanize_detail_key) %}
         <div><strong>Issue type:</strong> {{ example.issue_type | humanize_detail_key }}</div>
         {% endif %}
-        {% if example.suggested_fix %}
-        <div><strong>Suggested fix:</strong> {{ example.suggested_fix }}</div>
+        {% if example.student_fix %}
+        <div><strong>What to check:</strong> {{ example.student_fix }}</div>
         {% endif %}
       </div>
       {% if example.margin_questions %}<ul class="margin-checks" aria-label="Margin questions for this finding">{% for question, answer in example.margin_questions %}<li>{{ question }} <strong class="margin-answer--{{ answer | lower | replace(' ', '-') }}">{{ answer }}</strong></li>{% endfor %}</ul>{% endif %}
-      {% if example.polished_comment %}<details class="finding-explanation"><summary>Review note</summary><p>{{ example.polished_comment }}</p></details>{% endif %}
-      {% if example.detailed_explanation %}
+      {% if example.check_yourself %}
+        <details class="finding-explanation check-yourself">
+          <summary>Check yourself</summary>
+          <p>These questions are not answered by the tool. {{ example.student_note }}</p>
+          <ul>{% for question, instruction in example.check_yourself %}<li><strong>{{ question }}</strong> {{ instruction }}</li>{% endfor %}</ul>
+        </details>
+        {% endif %}
+        {% if example.student_note and not example.check_yourself %}<details class="finding-explanation"><summary>Review note</summary><p>{{ example.student_note }}</p></details>{% endif %}
+      {% if example.detailed_explanation and not example.check_yourself %}
       <details class="finding-explanation">
         <summary>What does this mean?</summary>
         <p>{{ example.detailed_explanation }}</p>
@@ -287,7 +271,8 @@
         <span class="file-hint no-highlight-note" style="align-self:center;">{{ example.no_highlight_reason if example.no_highlight_reason else "No specific PDF page is available for this finding — see the explanation above." }}</span>
         {% endif %}
       </div>
-      <details class="finding-explanation"><summary>Technical details</summary><p>Rule {{ example.rule_id | display_rule_id }} · Original finding {{ example.problem_number }}</p></details>
+      <details class="finding-explanation"><summary>Technical details</summary>{% for label, value in example.technical_details %}<p>{{ label }}: {{ value }}</p>{% endfor %}
+          {% if example.source_file %}<p>Source: {{ example.source_file }}{% if example.source_line %}, line {{ example.source_line }}{% endif %}</p>{% endif %}<p>Rule {{ example.rule_id | display_rule_id }} · Report reference {{ example.problem_number }} (matches PDF markers)</p></details>
     </article>
     {% endfor %}
   </div>

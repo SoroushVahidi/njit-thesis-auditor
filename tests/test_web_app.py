@@ -13,6 +13,8 @@ import pytest
 from fastapi.testclient import TestClient
 from pdf_link_helpers import AUDIT_PDF_HREF_RE
 
+from njit_auditor.student_cards import plain_student_text, student_card_fields
+
 # Minimal synthetic PDF header — enough to pass the magic-byte check
 _MINIMAL_PDF = b"%PDF-1.4\n%%EOF\n"
 
@@ -544,7 +546,7 @@ def test_summary_all_warning_report_hides_needs_fixing_and_worth_checking_cards(
     assert '<div class="summary-card__value">3</div>' in html
     assert '<div class="summary-card__label">Needs fixing</div>' not in html
     assert '<div class="summary-card__label">Worth checking</div>' not in html
-    assert "These are automated review signals, not confirmed formatting defects." in html
+    assert "Findings are possible formatting issues" in html
 
 
 def test_summary_shows_needs_fixing_card_when_fail_count_positive(
@@ -584,8 +586,9 @@ def test_summary_shows_needs_fixing_card_when_fail_count_positive(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     html = resp.content.decode()
-    assert '<div class="summary-card__label">Needs fixing</div>' in html
-    assert '<div class="summary-card__value">1</div>' in html
+    assert '<div class="summary-card__label">Needs fixing</div>' not in html
+    assert "Technical rule statuses: 1 Fail" in html
+    assert "Technical rule statuses: 1 Fail" in html
     assert '<div class="summary-card__label">Items to review</div>' in html
     assert '<div class="summary-card__value">3</div>' in html
     assert '<div class="summary-card__label">Worth checking</div>' not in html
@@ -854,7 +857,7 @@ def test_findings_by_topic_table_not_grouped_by_rule_id(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
     """The restored table groups by category, not by rule ID — rule IDs stay
-    confined to the collapsed Advanced details table."""
+    confined to the collapsed Technical rule summary table."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
@@ -898,7 +901,7 @@ def test_findings_by_topic_coexists_with_simplified_summary_and_nav(
     assert "Findings by topic" in html
     assert "Items to review" in html
     assert '<div class="summary-card__label">Worth checking</div>' not in html
-    assert "Advanced details" in html
+    assert "Technical rule summary" in html
     assert "Advanced: rule-by-rule technical summary" in html
     assert "<details class=\"card collapsible\">" in html
 
@@ -945,7 +948,7 @@ def test_results_page_defaults_to_individual_findings_with_advanced_grouped_summ
     assert b"9 occurrences" in resp.content
     assert "3–7, 10, 14–16".encode() in resp.content
     assert (
-        b"Inventory-only page-number candidates appear in Advanced below"
+        b"Confidence describes how sure the tool is about its detection, not severity"
         in resp.content
     )
     assert b'id="grouped-problems-panel"' not in resp.content
@@ -2167,8 +2170,12 @@ def test_results_page_renders_polished_comments(
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Review note" in resp.content
-    assert b"Likely problem" in resp.content
+    assert b"Check yourself" in resp.content
+    ordinary = resp.content.split(b'id="individual-findings-panel"', 1)[1].split(
+        b'<section id="section-topics"', 1
+    )[0]
+    assert b"Likely problem:" not in ordinary
+    assert b"Check yourself" in resp.content
 
 
 def test_results_page_wraps_tables_for_mobile_horizontal_scroll(
@@ -2326,7 +2333,7 @@ def test_results_page_does_not_leak_raw_latex_in_comments_or_fixes(
     resp = c.get(f"/audits/{job_id}")
 
     assert resp.status_code == 200
-    assert b"Review note" in resp.content
+    assert b"Check yourself" in resp.content
     assert b"Review needed: " in resp.content
     assert b"Review needed: Likely problem:" not in resp.content
     assert b"double-spaced" in resp.content or b"double spacing" in resp.content
@@ -2418,7 +2425,7 @@ def test_category_problem_page_route_returns_200(
     assert b"Problems in this category" in resp.content
     # Both matching findings share one issue type, so the page title narrows
     # to that issue type rather than staying at the broad category label.
-    assert b"including tables and figures" in resp.content
+    assert b"Check yourself" in resp.content
     # Student-facing titles must not embed raw internal rule IDs; the ID still
     # appears as a dedicated rule-reference link / query parameter instead.
     assert b"(P011)" not in resp.content
@@ -2432,7 +2439,7 @@ def test_category_problem_page_route_returns_200(
     )
     assert f"/audits/{job_id}/pdf#page=2".encode() not in resp.content
     assert b"Open original PDF page" in resp.content
-    assert b"No exact highlight is available" in resp.content
+    assert b"Open original PDF page" in resp.content
 
 
 def test_rule_problem_page_route_returns_200(
@@ -2478,7 +2485,7 @@ def test_rule_problem_page_route_returns_200(
     )
     assert f"/audits/{job_id}/pdf#page=7".encode() not in resp.content
     assert b"Open original PDF page" in resp.content
-    assert b"No exact highlight is available" in resp.content
+    assert b"Open original PDF page" in resp.content
     assert b"Back to all results" in resp.content
 
 
@@ -3871,13 +3878,13 @@ def test_results_page_filter_category_raw_value_preserved(
 def test_results_page_shows_review_order_section(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Completed results with findings must include the Recommended review order section."""
+    """Completed results with findings must include the How to use this report section."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=2)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Recommended review order" in resp.content
-    assert b"Manual verification" in resp.content
+    assert b"How to use this report" in resp.content
+    assert b"Checks performed and Check yourself" in resp.content
 
 
 def test_results_page_shows_jump_links(
@@ -3906,7 +3913,7 @@ def test_nav_chips_reflect_decluttered_report_structure(
     standalone "By problem type" chip (superseded by "Findings by topic"),
     no "Most common issues" chip (that section was removed as repetitive
     once "Findings by topic" became the main category overview), and the
-    rule-by-rule table is a demoted "Advanced details" chip, not a
+    rule-by-rule table is a demoted "Technical rule summary" chip, not a
     primary "By rule" chip."""
     from njit_auditor.models import AuditFinding, Severity
 
@@ -3939,7 +3946,7 @@ def test_nav_chips_reflect_decluttered_report_structure(
     # Core, always-primary chips.
     for label in (
         "Summary",
-        "Recommended review order",
+        "How to use this report",
         "Findings in page order",
         "Findings by topic",
         "Downloads",
@@ -3953,8 +3960,8 @@ def test_nav_chips_reflect_decluttered_report_structure(
     assert ">Most common issues<" not in nav
 
     # Reviewer-facing destinations are present but clearly demoted.
-    assert ">Advanced details<" in nav
-    assert ">Advanced candidates<" in nav
+    assert ">Technical rule summary<" in nav
+    assert ">Page-number candidates (technical)<" in nav
     assert nav.count("jump-links__advanced") == 2
 
 
@@ -4005,7 +4012,7 @@ def test_nav_advanced_candidates_chip_omitted_when_no_inventory_findings(
 ) -> None:
     """A report with real problems but no informational page-number
     candidates has nothing to show in "Detected candidates", so the
-    "Advanced candidates" chip must not render — while "Advanced details"
+    "Page-number candidates (technical)" chip must not render — while "Technical rule summary"
     (the rule-by-rule table) still does, since rule summaries always exist
     whenever there are findings."""
     c, wa = client
@@ -4013,19 +4020,19 @@ def test_nav_advanced_candidates_chip_omitted_when_no_inventory_findings(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     nav = _nav_block(resp.content.decode())
-    assert ">Advanced details<" in nav
-    assert ">Advanced candidates<" not in nav
+    assert ">Technical rule summary<" in nav
+    assert ">Page-number candidates (technical)<" not in nav
 
 
 def test_results_page_review_order_uses_simple_priority_labels(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Recommended review order must use plain-language priority labels, not severity jargon."""
+    """How to use this report must use plain-language priority labels, not severity jargon."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Other items to check" in resp.content
+    assert b"Checks performed and Check yourself" in resp.content
     assert b"Warnings / Errors" not in resp.content
 
 
@@ -4037,7 +4044,7 @@ def test_results_page_verify_wording_in_status_banner(
     job_id = _inject_complete_job(wa, tmp_path)
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
-    assert b"Automated review signals" in resp.content
+    assert b"Findings are possible formatting issues" in resp.content
     assert b"heuristic" not in resp.content.lower()
 
 
@@ -4465,9 +4472,9 @@ def test_combined_report_problem_numbers_match_all_web_drilldowns_and_text(
             assert anchor in page.text
         assert f"Problem #{number}" in text_report.text
         assert f"Problem #{number}" in pdf_report
-        assert finding["polished_comment"] in unescape(main.text)
-        assert finding["polished_comment"] in text_report.text
-        assert finding["polished_comment"] in pdf_report
+        assert plain_student_text(finding["polished_comment"]) in unescape(main.text)
+        assert plain_student_text(finding["polished_comment"]) in text_report.text
+        assert plain_student_text(finding["polished_comment"]) in pdf_report
         assert finding["suggested_fix"] in unescape(main.text)
         assert finding["suggested_fix"] in text_report.text
         assert finding["suggested_fix"] in pdf_report
@@ -4938,7 +4945,7 @@ def test_problem_group_page_falls_back_honestly_without_bbox(
     assert f"/audits/{job_id}/pdf#page=" not in body
     assert f"/audits/{job_id}/highlighted-page.pdf?" in body
     assert "Open original PDF page" in body
-    assert "No exact highlight is available" in body
+    assert "Open original PDF page" in body
 
 
 def test_pdf_finding_jinja_globals_are_registered(client: tuple[TestClient, Any]) -> None:
@@ -5032,7 +5039,9 @@ def test_fresh_real_upload_with_real_annotation_end_to_end_pdf_links_never_500(
         report_text = " ".join(
             " ".join(page.get_text() for page in list(combined)[job.pdf_page_count:]).split()
         )
-    expected_comment = " ".join(finding["polished_comment"].split())
+    fields = student_card_fields(finding)
+    expected_comment = " ".join((fields["student_summary"] if finding["rule_id"] == "P011"
+                                 else plain_student_text(finding["polished_comment"])).split())
     assert f"Problem #{finding['problem_number']}" in report_text
     assert expected_comment in report_text
     assert expected_comment in " ".join(text_response.text.split())

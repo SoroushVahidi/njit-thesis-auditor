@@ -297,7 +297,9 @@ def test_reading_frame_rotation() -> None:
 def test_portrait_page_is_measured_unchanged(tmp_path: Path) -> None:
     src = fitz.open()
     page = src.new_page(width=612, height=792)
-    page.insert_image(fitz.Rect(214, 150, 474, 390), pixmap=_pixmap())  # +20 pt from 324
+    page.insert_image(
+        fitz.Rect(214, 150, 474, 390), pixmap=_pixmap(), keep_proportion=False
+    )  # Fill the intended 260x240 synthetic fixture box across PyMuPDF versions.
     page.insert_text(
         (180, 420), "Figure 1.1 A synthetic portrait figure for this test", fontsize=12
     )

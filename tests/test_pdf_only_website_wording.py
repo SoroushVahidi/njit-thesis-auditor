@@ -219,7 +219,8 @@ def test_results_page_uses_simple_severity_labels_not_raw_severity(
     resp = c.get(f"/audits/{job_id}")
     body = resp.text
     assert "Problem" in body
-    assert "Needs fixing" in body
+    assert "Needs fixing" not in body
+    assert "Technical rule statuses:" in body
     # The student-facing Severity *filter* (which used to spell out "Worth checking"
     # for WARNING findings as a dropdown option) has been removed in favor of the
     # per-card status badge and existing Confidence filter; there is no longer a

@@ -235,7 +235,8 @@ def test_issue_type_humanized_in_results_page(
     body = resp.text
     # An older in-memory finding with no polished label still gets a factual,
     # readable description instead of a generic prompt.
-    assert "margin boundary violation" in body
+    assert "possible text crossing near a margin" in body
+    assert "Check yourself" in body
     assert "Review this finding" not in body
     # Raw underscore form must not appear as a standalone rendered value
     # (it may appear in data-* attributes which is fine, but not in visible text)
@@ -282,7 +283,7 @@ def test_review_order_uses_intentional_wording(
     resp = c.get(f"/audits/{job_id}")
     assert resp.status_code == 200
     body = resp.text
-    assert "intentional" in body
+    assert "compare the detected text with the requirement" in body
 
 
 # ---------------------------------------------------------------------------
@@ -333,14 +334,14 @@ def test_jump_links_css_wraps_instead_of_overflowing(client: tuple[TestClient, A
     assert "flex-wrap: wrap;" in rule
 
 
-def test_jump_links_advanced_chips_are_visually_demoted(client: tuple[TestClient, Any]) -> None:
-    """Reviewer-facing chips (rule table, detected candidates) use a quieter
-    style than the primary student-facing chips, so they read as optional."""
+def test_jump_links_technical_chips_share_clickable_style(client: tuple[TestClient, Any]) -> None:
+    """Technical links use the same clickable CSS as other enabled navigation."""
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
     body = resp.text
-    assert ".jump-links__advanced" in body
+    assert ".jump-links a {" in body
+    assert ".jump-links a.jump-links__advanced {" not in body
 
 
 # ---------------------------------------------------------------------------

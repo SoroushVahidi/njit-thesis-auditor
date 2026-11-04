@@ -43,36 +43,6 @@
   .issue-type-help summary { cursor: pointer; color: var(--color-primary); font-weight: 600; padding: 0.15rem 0; }
   .issue-type-help summary:hover { text-decoration: underline; }
   .issue-type-help p { margin: 0.3rem 0 0; color: var(--color-text-muted, #555); font-size: 0.88rem; }
-  .confidence-badge {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 0.2rem 0.65rem;
-    font-size: 0.78rem;
-    font-weight: 700;
-    border: 1px solid transparent;
-    text-transform: none;
-    letter-spacing: 0;
-    line-height: 1.2;
-    max-width: 100%;
-    white-space: normal;
-    text-align: center;
-  }
-  .confidence-badge--high {
-    background: #fef3f2;
-    border-color: #fda29b;
-    color: #b42318;
-  }
-  .confidence-badge--medium {
-    background: #fffaeb;
-    border-color: #fec84b;
-    color: #93370d;
-  }
-  .confidence-badge--low {
-    background: #f1f3f5;
-    border-color: #adb5bd;
-    color: #343a40;
-  }
   .confidence-filter {
     display: grid;
     gap: 0.45rem;
@@ -195,8 +165,7 @@
   .margin-checks { margin: 0.45rem 0; padding-left: 1.2rem; font-size: 0.83rem; }
   .margin-checks li { margin: 0.2rem 0; }
   .margin-checks .margin-answer--no { color: #9f1d16; }
-  .margin-checks .margin-answer--yes { color: #155724; }
-  .margin-checks .margin-answer--needs-review { color: #495057; }
+  .margin-checks .margin-answer--yes { color: var(--color-text); }
   @media (min-width: 720px) {
     .finding-card {
       display: grid;
@@ -395,6 +364,7 @@
 <details class="section">
   <summary>Technical details</summary>
   <p>Audit ID: <code>{{ job_id }}</code></p>
+  {% if state == "complete" %}<p>Technical rule statuses: {{ fail_count }} Fail, {{ warn_count }} Warning.</p>{% endif %}
 </details>
 
 {% if state in ("pending", "running") %}
@@ -445,20 +415,19 @@
 {% if findings %}
 <nav class="jump-links" aria-label="Jump to section">
   <a href="#section-summary">Summary</a>
-  <a href="#section-review-order">Recommended review order</a>
+  <a href="#section-review-order">How to use this report</a>
   <a href="#section-findings">Findings in page order</a>
   <a href="#section-coverage">What was checked</a>
   {% if category_summary %}<a href="#section-topics">Findings by topic</a>{% endif %}
   <a href="#section-downloads">Downloads</a>
-  {% if grouped_summary %}<a href="#section-rule-summary" class="jump-links__advanced">Advanced details</a>{% endif %}
-  {% if report_view and report_view.inventory_findings %}<a href="#section-inventory" class="jump-links__advanced">Advanced candidates</a>{% endif %}
+  {% if grouped_summary %}<a href="#section-rule-summary" class="jump-links__advanced">Technical rule summary</a>{% endif %}
+  {% if report_view and report_view.inventory_findings %}<a href="#section-inventory" class="jump-links__advanced">Page-number candidates (technical)</a>{% endif %}
 </nav>
 {% endif %}
 
 <div class="status-banner status-banner--complete">
   <div class="status-banner__body">
     <p class="status-banner__title">Audit complete</p>
-    <p class="status-banner__meta" style="margin-top:0.15rem;font-style:italic;">Automated review signals — verify all findings manually before submission</p>
     <p class="status-banner__meta">
       {{ file_name }}
       &middot; PDF layout audit
@@ -498,15 +467,9 @@
 <section id="section-summary" class="section" aria-label="Summary">
   <div class="section-header">
     <h2>Summary</h2>
-    <span class="section-note">Problem counts exclude non-problem page-number inventory candidates &middot; <a href="/help#results">What do these results mean?</a></span>
+    <span class="section-note">Counts exclude page-number candidates used by the checks &middot; <a href="/help#results">What do these results mean?</a></span>
   </div>
   <div class="summary-grid">
-    {% if fail_count > 0 %}
-    <div class="summary-card">
-      <div class="summary-card__label">Needs fixing</div>
-      <div class="summary-card__value">{{ fail_count }}</div>
-    </div>
-    {% endif %}
     <div class="summary-card">
       <div class="summary-card__label">Items to review</div>
       <div class="summary-card__value">{{ problems_found_count }}</div>
@@ -520,7 +483,6 @@
       <div class="summary-card__value">{{ rules_flagged }}</div>
     </div>
   </div>
-  <p class="file-hint" style="margin-top:0.75rem;margin-bottom:0;">These are automated review signals, not confirmed formatting defects. All findings require manual verification against NJIT guidelines.</p>
 </section>
 
 <section id="section-coverage" class="section" aria-labelledby="coverage-heading">
@@ -545,44 +507,16 @@
 </section>
 
 {% if findings %}
-<section id="section-review-order" class="section" aria-label="Recommended review order">
+<section id="section-review-order" class="section" aria-label="How to use this report">
   <div class="section-header">
-    <h2>Recommended review order</h2>
+    <h2>How to use this report</h2>
     <span class="section-note">Work through these steps with the <a href="/rules">rule reference</a> open</span>
   </div>
   <div class="card card-compact">
     <ol class="review-order-list">
-      {% if fail_count > 0 %}
-      <li>
-        <span class="ro-label">Fix these first</span> —
-        {{ fail_count }} {{ "finding" if fail_count == 1 else "findings" }} need correction. These are the most likely formatting problems. <a href="#section-findings">Jump to findings → Needs fixing</a> and verify each one against NJIT guidelines.
-      </li>
-      {% endif %}
-      {% if category_summary %}
-      <li>
-        <span class="ro-label">Findings in page order</span> —
-        <a href="#section-findings">The main list below</a> shows every finding in PDF page order as compact cards. Work through the document from beginning to end and use the filters to narrow by rule, category, page, or confidence.
-      </li>
-      <li>
-        <span class="ro-label">Findings by topic</span> —
-        <a href="#section-topics">The summary table below</a> ranks every category by finding count for a quick topic-wide overview. Click Review all to see every example in one category.
-      </li>
-      {% else %}
-      <li>
-        <span class="ro-label">Findings in page order</span> —
-        <a href="#section-findings">The list below</a> shows every finding in PDF page order as compact cards.
-      </li>
-      {% endif %}
-      {% if warn_count > 0 %}
-      <li>
-        <span class="ro-label">Other items to check</span> —
-        {{ warn_count }} {{ "item" if warn_count == 1 else "items" }} need your judgment: some may be expected formatting choices. Scan the <a href="#section-findings">findings in page order</a> list and treat anything as acceptable in your own notes if it is intentional and consistent with NJIT guidelines.
-      </li>
-      {% endif %}
-      <li>
-        <span class="ro-label">Manual verification</span> —
-        All findings are automated signals and require manual verification. Cross-check every flagged item against the official NJIT thesis/dissertation formatting guidelines before submission to your committee reviewer.
-      </li>
+      <li>Start with <a href="#section-findings">Findings in page order</a>. Open a marked PDF page and compare the detected text with the requirement.</li>
+      {% if category_summary %}<li>Use <a href="#section-topics">Findings by topic</a> to review related findings together.</li>{% endif %}
+      <li>Use <a href="#section-coverage">Checks performed and Check yourself</a> for items the PDF cannot establish.</li>
     </ol>
   </div>
 </section>
@@ -592,7 +526,7 @@
   <div class="section-header">
     <div>
       <h2>Findings in page order</h2>
-      <span class="section-note">Main student review list — every counted problem finding in PDF page order by default. Use Sort findings to reorder by confidence instead. Inventory-only page-number candidates appear in Advanced below and are not counted as problems.</span>
+      <span class="section-note">Findings start in PDF page order. Use Sort findings or the filters to narrow the list. {{ confidence_note }}</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
       <span id="filter-count" class="filter-count"></span>
@@ -693,22 +627,31 @@
         </div>
         <div class="finding-card__issue">
           {{ f.student_summary }}
-          {% if f.suggested_fix %}<span class="finding-card__fix">Suggested fix: {{ f.suggested_fix }}</span>{% endif %}
+          {% if f.student_fix %}<span class="finding-card__fix">What to check: {{ f.student_fix }}</span>{% endif %}
         </div>
         {% if f.margin_questions %}
         <ul class="margin-checks" aria-label="Margin questions for this finding">
           {% for question, answer in f.margin_questions %}<li>{{ question }} <strong class="margin-answer--{{ answer | lower | replace(' ', '-') }}">{{ answer }}</strong></li>{% endfor %}
         </ul>
         {% endif %}
-        {% if f.polished_comment %}
+        {% if f.check_yourself %}
+        <details class="finding-explanation finding-card__note check-yourself">
+          <summary>Check yourself</summary>
+          <p>These questions are not answered by the tool. {{ f.student_note }}</p>
+          <ul>{% for question, instruction in f.check_yourself %}<li><strong>{{ question }}</strong> {{ instruction }}</li>{% endfor %}</ul>
+        </details>
+        {% endif %}
+        {% if f.student_note and not f.check_yourself %}
         <details class="finding-explanation finding-card__note">
           <summary>Review note</summary>
-          <p>{{ f.polished_comment }}</p>
+          <p>{{ f.student_note }}</p>
         </details>
         {% endif %}
         <details class="finding-explanation finding-card__note">
           <summary>Technical details</summary>
-          <p>Rule {{ f.rule_id | display_rule_id }} · Original finding {{ f.problem_number if f.problem_number else loop.index }}</p>
+          {% for label, value in f.technical_details %}<p>{{ label }}: {{ value }}</p>{% endfor %}
+          {% if f.source_file %}<p>Source: {{ f.source_file }}{% if f.source_line %}, line {{ f.source_line }}{% endif %}</p>{% endif %}
+          <p>Rule {{ f.rule_id | display_rule_id }} · Report reference {{ f.problem_number if f.problem_number else loop.index }} (matches PDF markers)</p>
         </details>
         <div class="finding-card__action">
           {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ "Open highlighted PDF" if f.action_kind == "highlight" else "Open original PDF" }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
@@ -719,7 +662,7 @@
     </div>
   </div>
   {% else %}
-  <div class="card"><p>No issues detected. This does not guarantee full compliance. Review the <a href="/help">Help page</a> for limitations and checks that may not apply to every document.</p></div>
+  <div class="card"><p>No findings were detected. Use <a href="#section-coverage">Check yourself</a> for checks that still need your review.</p></div>
   {% endif %}
 </section>
 
@@ -879,7 +822,7 @@
           <div class="grouped-problem__meta-line"><strong>Location:</strong> {{ first_finding.location_label }}</div>
           {% endif %}
           {% if problem.suggested_fix %}
-          <div class="grouped-problem__meta-line"><strong>Suggested fix:</strong> {{ problem.suggested_fix }}</div>
+          <div class="grouped-problem__meta-line"><strong>What to check:</strong> {{ student_fix(problem) }}</div>
           {% endif %}
         </div>
         {% if problem.detailed_explanation %}
@@ -930,9 +873,9 @@
                 <td>{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</td>
                 <td class="detail-cell">
                   {% if f.issue_type_label %}{{ f.issue_type_label }}{% elif f.issue_type %}{{ f.issue_type | humanize_detail_key }}{% else %}—{% endif %}
-                  {% if f.suggested_fix %}<br>fix: {{ f.suggested_fix }}{% endif %}
+                  {% if f.student_fix %}<br>fix: {{ f.student_fix }}{% endif %}
                 </td>
-                <td class="comment-cell">{{ f.polished_comment }}</td>
+                <td class="comment-cell">{{ f.student_note }}</td>
                 <td>{% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem;min-height:0;display:inline-block">{{ f.action_label }} {{ f.page_action_suffix if f.page_action_suffix else f.page }}</a>{% else %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}</td>
               </tr>
             {% endfor %}
@@ -973,7 +916,7 @@
         <tr>
           <td>{{ f.page if f.page is not none else "—" }}</td>
           <td>{{ f.issue_type_label if f.issue_type_label else "Detected page-number candidate" }}</td>
-          <td>{{ f.polished_comment }}</td>
+          <td>{{ f.student_note }}</td>
         </tr>
       {% endfor %}
       </tbody>

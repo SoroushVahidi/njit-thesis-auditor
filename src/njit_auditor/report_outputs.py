@@ -2619,6 +2619,12 @@ def _format_grouped_findings_section(
         affected_compact = str(entry.get("affected_compact", "")).strip()
         problem = str(entry.get("problem", "")).strip()
         suggested_fix = str(entry.get("suggested_fix", "")).strip()
+        from njit_auditor.student_cards import plain_student_text, student_fix
+
+        problem = plain_student_text(problem)
+        if rule_id == "P011":
+            problem = "Possible text crossings near a margin. Check the listed pages."
+            suggested_fix = student_fix(entry)
 
         heading = f"### {rule_id} — {occurrence_count} occurrence"
         if occurrence_count != 1:
@@ -2633,7 +2639,7 @@ def _format_grouped_findings_section(
         if problem:
             lines.append(f"- Problem: {problem}")
         if suggested_fix:
-            lines.append(f"- Suggested fix: {suggested_fix}")
+            lines.append(f"- What to check: {suggested_fix}")
         pattern_note = _high_volume_pattern_note(
             rule_id, issue_type, occurrence_count, affected_label, affected_compact
         )
@@ -3898,13 +3904,29 @@ def _finding_markdown_line(
         p026_pattern_stats=p026_pattern_stats,
         p011_page_stats=p011_page_stats,
     )
+    from njit_auditor.student_cards import (
+        finding_check_lines,
+        plain_student_text,
+        student_card_fields,
+    )
+
+    fields = student_card_fields({**finding, "polished_comment": polished,
+                                  "suggested_fix": suggested_fix}, safe_details)
+    polished = fields["student_summary"] if rule_id == "P011" else plain_student_text(polished)
+    suggested_fix = fields["student_fix"]
     problem_number = finding.get("problem_number")
     problem_prefix = ""
     if isinstance(problem_number, int) and problem_number > 0:
         problem_prefix = f"Problem {problem_number} · "
     line = f"- **{problem_prefix}{loc_text}** [{finding['severity']}] {polished}"
     if suggested_fix:
-        line += f" | Suggested fix: {suggested_fix}"
+        line += f" | What to check: {suggested_fix}"
+    for check in finding_check_lines(fields):
+        line += "\n  - " + check
+    if fields["technical_details"]:
+        line += "\n  - Technical details: " + "; ".join(
+            f"{label}: {value}" for label, value in fields["technical_details"]
+        )
     return line
 
 
@@ -3932,7 +3954,9 @@ def _problem_heading_text(
         p026_pattern_stats=p026_pattern_stats,
         p011_page_stats=p011_page_stats,
     )
-    return _truncate(polished, 96)
+    from njit_auditor.student_cards import plain_student_text
+
+    return _truncate(plain_student_text(polished), 96)
 
 
 def _problem_location_text(
@@ -4022,8 +4046,6 @@ def write_markdown_report(
     findings: list[AuditFinding], metadata: dict[str, str], output_path: Path
 ) -> None:
     """Write student/office-friendly markdown audit report."""
-    from njit_auditor.polished_comments import GLOBAL_AUTOMATED_REVIEW_NOTE
-
     output_path.parent.mkdir(parents=True, exist_ok=True)
     audit_type = metadata.get("audit_type", "pdf")
     prepared = _prepare_findings_for_export(findings, audit_type)
@@ -4040,9 +4062,6 @@ def write_markdown_report(
     )
     lines.append(title)
     lines.append("")
-    if audit_type != "tex":
-        lines.append(f"> {GLOBAL_AUTOMATED_REVIEW_NOTE}")
-        lines.append("")
     incomplete_notice = incomplete_audit_notice(failed_check_count_from_metadata(meta))
     if incomplete_notice:
         lines.append(f"> **{INCOMPLETE_AUDIT_TITLE}** {incomplete_notice}")
@@ -4242,7 +4261,6 @@ def write_markdown_report(
         "(such as headings, list entries, and flagged words); share it only as you "
         "would share the document."
     )
-    lines.append("- Limitation: findings are heuristic and require human review.")
 
     output_path.write_text(
         convert_pxxx_tokens_to_public_display("\n".join(lines) + "\n"),

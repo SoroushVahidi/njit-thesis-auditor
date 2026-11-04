@@ -79,7 +79,7 @@ from njit_auditor.report_view import (
     sort_grouped_problems,
 )
 from njit_auditor.resource_paths import resource_path
-from njit_auditor.student_cards import student_card_fields
+from njit_auditor.student_cards import CONFIDENCE_NOTE, student_card_fields, student_fix
 from njit_auditor.student_pdf_report import (
     build_combined_student_pdf_report,
     render_student_report_text,
@@ -562,6 +562,8 @@ def _is_p_rule_id(rule_id: str) -> bool:
 
 # Register as a Jinja2 global so templates can call it directly.
 _templates.env.globals["is_p_rule_id"] = _is_p_rule_id
+_templates.env.globals["student_fix"] = student_fix
+_templates.env.globals["confidence_note"] = CONFIDENCE_NOTE
 _templates.env.globals["coverage_heading"] = COVERAGE_HEADING
 _templates.env.globals["coverage_intro"] = COVERAGE_INTRO
 _templates.env.globals["coverage_areas"] = COVERAGE_AREAS
@@ -1565,13 +1567,9 @@ def _student_location_text(finding: dict[str, Any]) -> str:
 def _card_fields(
     finding: Mapping[str, Any], details: dict[str, Any] | None = None
 ) -> dict[str, Any]:
-    """Keep saved card wording while supporting older in-memory demo jobs."""
-    raw = details if details is not None else finding.get("details", {})
-    fields = student_card_fields(finding, raw if isinstance(raw, dict) else {})
-    for key in ("student_topic", "student_summary", "margin_questions", "student_location"):
-        if key in finding:
-            fields[key] = finding[key]
-    return fields
+    """Recompute legacy cards conservatively; reuse current presentation fields."""
+    return student_card_fields(finding, details)
+
 
 
 def _short_rule_explanation(rule: dict[str, Any] | None) -> str:
@@ -2141,6 +2139,13 @@ def _execute_audit_task(job_id: str) -> None:
     if not isinstance(raw_findings, list):
         raw_findings = []
 
+    margin_observations: dict[int, list[dict[str, Any]]] = {}
+    for raw_finding in raw_findings:
+        if isinstance(raw_finding, dict) and raw_finding.get("rule_id") == "P011":
+            detail = raw_finding.get("details", {})
+            page = raw_finding.get("page")
+            if isinstance(detail, dict) and isinstance(page, int):
+                margin_observations.setdefault(page, []).append(detail)
     serialized = []
     for fv in view_dict.get("findings", []):
         raw_details: dict[str, Any] = {}
@@ -2153,6 +2158,8 @@ def _execute_audit_task(job_id: str) -> None:
             details = raw_findings[raw_index].get("details", {})
             if isinstance(details, dict):
                 raw_details = {str(k): v for k, v in details.items()}
+        if fv.get("rule_id") == "P011" and fv.get("page") in margin_observations:
+            raw_details = {**raw_details, "_margin_observations": margin_observations[fv["page"]]}
         public_ref = _public_rule_reference_id(
             str(fv.get("rule_id", "")),
             issue_type=str(fv.get("issue_type", "")),

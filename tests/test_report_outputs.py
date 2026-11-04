@@ -3,7 +3,6 @@ import re
 from pathlib import Path
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.polished_comments import GLOBAL_AUTOMATED_REVIEW_NOTE
 from njit_auditor.report_outputs import (
     P011_ISSUE_TYPE,
     P012_ISSUE_TYPE,
@@ -1396,7 +1395,7 @@ def test_markdown_grouped_section_keeps_useful_problem_info(tmp_path: Path) -> N
     assert "### P099" not in text
     assert "2 occurrences" in text
     assert "Issue type: Possible synthetic marker issue" in text
-    assert "Suggested fix: Re-check this item against the NJIT format requirements." in text
+    assert "What to check: Re-check this item against the NJIT format requirements." in text
 
 
 def test_markdown_grouped_section_adds_manual_check_hint_for_non_high_confidence(
@@ -1407,7 +1406,7 @@ def test_markdown_grouped_section_adds_manual_check_hint_for_non_high_confidence
         _repeated_synthetic_findings(confidence="medium"), _metadata(), output_path
     )
     text = output_path.read_text(encoding="utf-8")
-    assert GLOBAL_AUTOMATED_REVIEW_NOTE in text
+    assert text.count("Findings are possible formatting issues and may be wrong.") == 1
     assert "verify this item against the NJIT format requirements" not in text
 
 
@@ -1419,7 +1418,7 @@ def test_markdown_grouped_section_omits_manual_check_hint_for_high_confidence(
         _repeated_synthetic_findings(confidence="high"), _metadata(), output_path
     )
     text = output_path.read_text(encoding="utf-8")
-    assert GLOBAL_AUTOMATED_REVIEW_NOTE in text
+    assert text.count("Findings are possible formatting issues and may be wrong.") == 1
     assert "verify this item against the NJIT format requirements" not in text
 
 
@@ -1491,12 +1490,12 @@ def test_markdown_grouped_section_shows_suggested_fix_for_every_group(
     first_block = grouped_section[first_heading:second_heading]
     second_block = grouped_section[second_heading:]
 
-    assert "Suggested fix: Fix the first synthetic issue." in first_block
-    assert "Suggested fix: Fix the second synthetic issue." in second_block
+    assert "What to check: Fix the first synthetic issue." in first_block
+    assert "What to check: Fix the second synthetic issue." in second_block
     # Each group's fix must stay scoped to its own heading, not bleed into
     # the other group's block.
-    assert "Suggested fix: Fix the second synthetic issue." not in first_block
-    assert "Suggested fix: Fix the first synthetic issue." not in second_block
+    assert "What to check: Fix the second synthetic issue." not in first_block
+    assert "What to check: Fix the first synthetic issue." not in second_block
     # Headings must be separated by a blank line, not run together.
     assert "\n\n### R098" in grouped_section
 

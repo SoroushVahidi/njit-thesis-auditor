@@ -61,27 +61,25 @@ def test_margin_wording_uses_only_detector_evidence() -> None:
     }
     measured = student_card_fields(finding, {"side": "bottom_margin", "worst_overflow_pt": "22.0"})
     assert measured["student_topic"] == "MARGINS"
-    assert measured["student_summary"] == "Bottom margin exceeded by approximately 22.0 pt"
-    assert measured["student_location"] == ""
-    assert [answer for _, answer in measured["margin_questions"]] == [
-        "Needs review",
-        "Needs review",
-        "No",
-    ]
-    assert "1.5 inches" in measured["margin_questions"][0][0]
-    assert "1 inch" in measured["margin_questions"][1][0]
-
-    unknown = student_card_fields(finding, {})
-    assert unknown["student_summary"] == "Margin boundary violation"
-    assert all(answer == "Needs review" for _, answer in unknown["margin_questions"])
-    assert "pt" not in unknown["student_summary"]
-    assert "Yes" not in str(unknown)
-    assert (
-        "pt"
-        not in student_card_fields(finding, {"side": "bottom_margin", "worst_overflow_pt": "nan"})[
-            "student_summary"
-        ]
+    assert measured["student_summary"] == (
+        "Text appears to extend about 0.31 inch past the bottom margin boundary."
     )
+    assert measured["student_location"] == ""
+    assert measured["margin_questions"] == [
+        ("Did the check detect text crossing the bottom margin?", "Yes")
+    ]
+    assert len(measured["check_yourself"]) == 2
+    assert measured["technical_details"] == [("Detected bottom overflow", "22.0 pt")]
+    unknown = student_card_fields(finding, {})
+    assert unknown["margin_questions"] == []
+    assert len(unknown["check_yourself"]) == 3
+    assert "Needs review" not in str(unknown)
+    assert "Yes" not in str(unknown)
+    assert "No" not in str(unknown)
+    assert "pt" not in unknown["student_summary"]
+    assert not student_card_fields(
+        finding, {"side": "bottom_margin", "worst_overflow_pt": "nan"}
+    )["margin_questions"]
 
     other = student_card_fields(
         {"rule_id": "P026", "category": "font_format", "issue_type_label": "Body font issue"}, {}
@@ -97,15 +95,15 @@ def test_synthetic_results_cards_and_drilldown_agree(web: tuple[TestClient, Any]
     body = unescape(response.text)
     cards = _primary_cards(body)
     assert len(cards) == len(job.findings) > 0
-    assert [f"Issue {index} of {len(cards)}" in card for index, card in enumerate(cards, 1)] == [
+    assert [f"Finding {index} of {len(cards)}" in card for index, card in enumerate(cards, 1)] == [
         True
     ] * len(cards)
     assert 'id="filter-rule"' in body and 'id="sort-problems"' in body
-    assert 'position.textContent = "Issue " + visible' in body
+    assert 'position.textContent = "Finding " + visible' in body
     assert "Open highlighted PDF" in body or "Open PDF" in body
     for card in cards:
         assert "Problem " not in card.split("<details", 1)[0]
-        assert "Suggested fix:" in card or "Review this finding" in card
+        assert "What to check:" in card or "Review this finding" in card
         assert re.search(r'<span class="finding-card__page">\s*Page \d+', card)
         assert "All findings on this page" in card
         assert "Technical details" in card
@@ -118,18 +116,20 @@ def test_synthetic_results_cards_and_drilldown_agree(web: tuple[TestClient, Any]
             assert pdf.headers["content-type"].startswith("application/pdf")
     margin = next(card for card in cards if ">MARGINS</a>" in card)
     assert ">R011</a>" not in margin.split("<details", 1)[0]
-    assert "Needs review" in margin and ">No</strong>" in margin
-    assert re.search(r"margin exceeded by approximately \d+\.\d pt", margin)
-    assert "margin-answer--yes" not in margin
+    assert "Check yourself" in margin and ">Yes</strong>" in margin
+    assert "Needs review" not in margin
+    assert "past the" in margin and "inch" in margin
+    assert "margin-answer--no" not in margin
     assert "Page " not in re.search(
         r'<div class="finding-card__action">(.*?)</div>', margin, re.DOTALL
     ).group(1)
 
     detail = unescape(client.get(f"/audits/{job_id}/problems/rule/P011").text)
-    assert "MARGINS" in detail and "Issue 1 of" in detail
-    assert "Needs review" in detail and "Open" in detail
+    assert "MARGINS" in detail and "Finding 1 of" in detail
+    assert "Check yourself" in detail and "Open" in detail
+    assert "Needs review" not in detail
     assert "highlighted-page.pdf" in detail or "/pdf" in detail
-    assert "Review note" in detail and "Technical details" in detail
+    assert "Check yourself" in detail and "Technical details" in detail
     assert client.get(f"/audits/{job_id}/download/json").status_code == 200
     assert client.get(f"/audits/{job_id}/download/markdown").status_code == 200
 
@@ -145,7 +145,7 @@ def test_sort_and_viewport_keep_real_totals(web: tuple[TestClient, Any]) -> None
             assert response.status_code == 200
             cards = _primary_cards(response.text)
             assert len(cards) == count
-            assert all(f"Issue {i} of {count}" in card for i, card in enumerate(cards, 1))
+            assert all(f"Finding {i} of {count}" in card for i, card in enumerate(cards, 1))
             assert 'aria-pressed="true"' in response.text
             assert 'target="_blank" rel="noopener noreferrer"' in response.text
 
@@ -183,8 +183,8 @@ def test_other_topics_render_as_names_on_both_views(web: tuple[TestClient, Any])
     assert len(cards) == len(job.findings) == 2
     assert ">FONT FORMATTING</a>" in cards[0]
     assert ">PAGE NUMBERING</a>" in cards[1]
-    assert "Issue 1 of 2" in cards[0] and "Issue 2 of 2" in cards[1]
+    assert "Finding 1 of 2" in cards[0] and "Finding 2 of 2" in cards[1]
     detail = client.get(f"/audits/{job_id}/problems/rule/P026").text
-    assert "FONT FORMATTING" in detail and "Issue 1 of 1" in detail
+    assert "FONT FORMATTING" in detail and "Finding 1 of 1" in detail
     assert "About this issue" in detail
-    assert "Issue type: Possible body font family issue" not in detail
+    assert "Finding type: Possible body font family issue" not in detail

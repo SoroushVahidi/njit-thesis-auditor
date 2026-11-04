@@ -208,6 +208,9 @@ def test_clean_minimal_tex_upload_rejected(client: tuple[TestClient, Any]) -> No
     """clean_minimal.tex is rejected by the web upload form (PDF-only)."""
     c, _ = client
     resp = _upload_file(c, "clean_minimal.tex", "text/plain", follow_redirects=False)
+    assert resp.status_code == 303
+    resp = c.get(resp.headers["location"])
+    assert resp.request.method == "GET"
     assert resp.status_code == 400
     assert _PDF_ONLY_ERROR in resp.content
 
@@ -216,6 +219,9 @@ def test_issues_tex_upload_rejected(client: tuple[TestClient, Any]) -> None:
     """issues_tex.tex is rejected by the web upload form (PDF-only)."""
     c, _ = client
     resp = _upload_file(c, "issues_tex.tex", "text/plain", follow_redirects=False)
+    assert resp.status_code == 303
+    resp = c.get(resp.headers["location"])
+    assert resp.request.method == "GET"
     assert resp.status_code == 400
     assert _PDF_ONLY_ERROR in resp.content
 
@@ -224,6 +230,9 @@ def test_demo_project_zip_upload_rejected(client: tuple[TestClient, Any]) -> Non
     """demo_project.zip is rejected by the web upload form (PDF-only)."""
     c, _ = client
     resp = _upload_file(c, "demo_project.zip", "application/zip", follow_redirects=False)
+    assert resp.status_code == 303
+    resp = c.get(resp.headers["location"])
+    assert resp.request.method == "GET"
     assert resp.status_code == 400
     assert _PDF_ONLY_ERROR in resp.content
 

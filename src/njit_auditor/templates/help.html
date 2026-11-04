@@ -61,7 +61,7 @@
   <p>After the audit finishes, the results page shows either <strong>"No problems found"</strong> or <strong>"Problems found"</strong>, followed by sections in this order:</p>
   <ol>
     <li><strong>Summary</strong> — quick totals and links to the main parts of the report.</li>
-    <li><strong>Recommended review order</strong> — a suggested reading order when many topics are flagged.</li>
+    <li><strong>How to use this report</strong> — a suggested reading order when many topics are flagged.</li>
     <li><strong>Findings in page order</strong> — the main student review list: every finding in PDF page order as compact cards. Use the filters to narrow by rule, category, page, or confidence.</li>
     <li><strong>Findings by topic</strong> — a secondary, collapsed category index (for example margins, headings, or page numbering), with counts and links to review each topic.</li>
     <li><strong>Downloads</strong> — JSON and Markdown exports.</li>
@@ -122,7 +122,7 @@
       </tr>
       <tr>
         <td>Confidence</td>
-        <td>A label on each finding (High, Medium, or Low confidence) indicating how strongly the automated check matched the pattern. You can filter the main list by confidence; severity is not offered as a main filter on the student review list.</td>
+        <td>{{ confidence_note }} High is red, Medium is amber, and Low is gray. Each badge also has a text label. Use confidence to filter detections, then check the evidence.</td>
       </tr>
       <tr>
         <td>Occurrence count</td>
@@ -134,7 +134,7 @@
       </tr>
       <tr>
         <td>High-volume triage</td>
-        <td>Some checks (such as margin and font checks) can produce hundreds of findings in a typical dissertation. The <strong>Recommended review order</strong> section and the advanced grouped summaries help you understand the overall pattern before working through individual cards in <strong>Findings in page order</strong>.</td>
+        <td>Some checks (such as margin and font checks) can produce hundreds of findings in a typical dissertation. The <strong>How to use this report</strong> section and the advanced grouped summaries help you understand the overall pattern before working through individual cards in <strong>Findings in page order</strong>.</td>
       </tr>
       <tr>
         <td>Experimental check</td>

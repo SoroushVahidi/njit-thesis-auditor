@@ -108,7 +108,7 @@ def test_help_describes_current_report_flow(client: tuple[TestClient, Any]) -> N
     body = resp.text
     assert "Findings by topic" in body
     assert "Findings in page order" in body
-    assert "Recommended review order" in body
+    assert "How to use this report" in body
     assert "Grouped problems" not in body
     assert "All individual findings" not in body
     assert "confidence" in body.lower()

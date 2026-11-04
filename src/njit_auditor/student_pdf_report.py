@@ -43,6 +43,13 @@ from njit_auditor.report_outputs import public_display_rule_id
 from njit_auditor.report_text import _detruncate_fix_text
 from njit_auditor.report_view import SORT_MODE_PAGE, sort_findings
 from njit_auditor.resource_paths import resource_path
+from njit_auditor.student_cards import (
+    CONFIDENCE_NOTE,
+    finding_check_lines,
+    plain_student_text,
+    student_card_fields,
+    student_fix,
+)
 
 
 @dataclass(frozen=True)
@@ -86,12 +93,32 @@ def _title(finding: Mapping[str, Any]) -> str:
 
 
 def _fix(finding: Mapping[str, Any]) -> str:
+    if _field(finding, "rule_id") == "P011":
+        return student_fix(finding)
     details = finding.get("details")
     return _detruncate_fix_text(
         _field(finding, "rule_id"),
-        _field(finding, "suggested_fix"),
+        student_fix(finding),
         details if isinstance(details, Mapping) else None,
     )
+
+
+def _detection(finding: Mapping[str, Any]) -> str:
+    if _field(finding, "rule_id") == "P011":
+        return str(student_card_fields(finding)["student_summary"])
+    return plain_student_text(_field(finding, "polished_comment"))
+
+
+def _check_lines(finding: Mapping[str, Any]) -> list[str]:
+    return finding_check_lines(student_card_fields(finding))
+
+
+def _technical_lines(finding: Mapping[str, Any]) -> list[str]:
+    fields = student_card_fields(finding)
+    lines = [f"{label}: {value}" for label, value in fields["technical_details"]]
+    if _field(finding, "rule_id") != "P011" and _field(finding, "detailed_explanation"):
+        lines.append(_field(finding, "detailed_explanation"))
+    return lines
 
 
 def render_student_report_text(
@@ -106,7 +133,7 @@ def render_student_report_text(
     ordered = ordered_student_findings(findings)
     lines = [
         "NJIT THESIS/DISSERTATION FORMATTING AUDIT",
-        "Formatting Problems",
+        "Findings to check",
         f"File: {file_name}",
         "",
     ]
@@ -116,6 +143,7 @@ def render_student_report_text(
     if not ordered:
         lines.append("No formatting problems were detected by the implemented checks.")
         lines.append("")
+    lines.append(CONFIDENCE_NOTE)
     lines.extend(coverage_text_lines())
     current_page: int | None = None
     doc_heading = False
@@ -135,13 +163,15 @@ def render_student_report_text(
         )
         if _field(finding, "location_label"):
             lines.append(f"Location: {_field(finding, 'location_label')}")
-        lines.append(f"What was detected: {_field(finding, 'polished_comment')}")
+        lines.append(f"What was detected: {_detection(finding)}")
         if _fix(finding):
-            lines.append(f"How to fix: {_fix(finding)}")
+            lines.append(f"What to check: {_fix(finding)}")
         if _field(finding, "confidence_label"):
             lines.append(f"Confidence: {_field(finding, 'confidence_label')}")
-        if _field(finding, "detailed_explanation"):
-            lines.append(f"More detail: {_field(finding, 'detailed_explanation')}")
+        lines.extend(_check_lines(finding))
+        if _technical_lines(finding):
+            lines.append("Technical details:")
+            lines.extend(_technical_lines(finding))
         if page is not None and not finding.get(
             "_combined_has_highlight", finding.get("has_highlight", False)
         ):
@@ -241,7 +271,7 @@ def _report_page_footer(canvas: Any, document: Any) -> None:
     canvas.line(54, 38, 558, 38)
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#4b5563"))
-    canvas.drawRightString(558, 25, f"Formatting Problems  |  Report page {document.page}")
+    canvas.drawRightString(558, 25, f"Findings to check  |  Report page {document.page}")
 
 
 def _report_pdf(
@@ -260,15 +290,15 @@ def _report_pdf(
         rightMargin=54,
         topMargin=50,
         bottomMargin=50,
-        title="NJIT Formatting Problems",
+        title="NJIT Findings to check",
         author="NJIT Thesis Auditor",
     )
     story: list[Any] = [
         _p("NJIT Thesis/Dissertation Formatting Audit", styles["title"]),
-        _p("Formatting Problems", styles["subtitle"]),
+        _p("Findings to check", styles["subtitle"]),
         _p(f"File: {file_name}", styles["body"]),
         _p(
-            "The preceding pages contain your thesis with detected formatting problems "
+            "The preceding pages contain your thesis with possible formatting issues "
             "highlighted where an exact location was available. The problems below are "
             "listed in document order. Problem numbers correspond to numbered highlights "
             "when shown.",
@@ -296,6 +326,7 @@ def _report_pdf(
                 styles["body"],
             )
         )
+    story.append(_p(CONFIDENCE_NOTE, styles["body"]))
     story.append(_p(COVERAGE_HEADING, styles["subtitle"]))
     for paragraph in COVERAGE_INTRO:
         story.append(_p(paragraph, styles["body"]))
@@ -328,16 +359,17 @@ def _report_pdf(
         if _field(finding, "location_label"):
             block.append(_p(f"Location: {_field(finding, 'location_label')}", styles["small"]))
         block.append(
-            _p(f"What was detected: {_field(finding, 'polished_comment')}", styles["body"])
+            _p(f"What was detected: {_detection(finding)}", styles["body"])
         )
         if _fix(finding):
-            block.append(_p(f"How to fix: {_fix(finding)}", styles["body"]))
+            block.append(_p(f"What to check: {_fix(finding)}", styles["body"]))
         if _field(finding, "confidence_label"):
             block.append(_p(f"Confidence: {_field(finding, 'confidence_label')}", styles["small"]))
-        if _field(finding, "detailed_explanation"):
-            block.append(
-                _p(f"More detail: {_field(finding, 'detailed_explanation')}", styles["small"])
-            )
+        for line in _check_lines(finding):
+            block.append(_p(line, styles["body"]))
+        if _technical_lines(finding):
+            block.append(_p("Technical details:", styles["small"]))
+            block.extend(_p(line, styles["small"]) for line in _technical_lines(finding))
         if page is not None and not finding.get("_combined_has_highlight", False):
             block.append(_p("Exact visual highlight unavailable.", styles["small"]))
             if _field(finding, "no_highlight_reason"):
@@ -346,13 +378,6 @@ def _report_pdf(
         # The heading stays with the first text line; long explanations can
         # flow naturally onto subsequent report pages.
         story.extend(block)
-    story.append(
-        _p(
-            "Automated checks can miss issues or flag acceptable formatting. "
-            "Confirm findings against the current NJIT guidelines before submission.",
-            styles["small"],
-        )
-    )
     doc.build(story, onFirstPage=_report_page_footer, onLaterPages=_report_page_footer)
     return buffer.getvalue()
 
@@ -469,7 +494,7 @@ def build_combined_student_pdf_report(
             with fitz.open() as combined:
                 combined.insert_pdf(thesis, annots=True)
                 combined.insert_pdf(report)
-                combined.set_toc([[1, "Thesis", 1], [1, "Formatting Problems", thesis_pages + 1]])
+                combined.set_toc([[1, "Thesis", 1], [1, "Findings to check", thesis_pages + 1]])
                 temp_output = temp_dir / "combined.pdf"
                 combined.save(temp_output, garbage=4, deflate=True)
         os.replace(temp_output, output_pdf)

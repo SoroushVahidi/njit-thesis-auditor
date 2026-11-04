@@ -130,11 +130,11 @@ def test_p014_markdown_export_has_no_raw_notation(tmp_path) -> None:
     output_path = tmp_path / "report.md"
     write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "Suggested fix:" in text
+    assert "What to check:" in text
     for line in text.splitlines():
-        if "Suggested fix:" not in line:
+        if "What to check:" not in line:
             continue
-        fix_part = line.split("Suggested fix:", 1)[1]
+        fix_part = line.split("What to check:", 1)[1]
         assert not _RAW_ID_PATTERN.findall(fix_part), line
     assert "Q013" not in text
     assert "P038" not in text
@@ -154,11 +154,11 @@ def test_p018_markdown_export_has_no_raw_notation(tmp_path) -> None:
     output_path = tmp_path / "report.md"
     write_markdown_report(findings, {"audit_type": "pdf"}, output_path)
     text = output_path.read_text(encoding="utf-8")
-    assert "Suggested fix:" in text
+    assert "What to check:" in text
     for line in text.splitlines():
-        if "Suggested fix:" not in line:
+        if "What to check:" not in line:
             continue
-        fix_part = line.split("Suggested fix:", 1)[1]
+        fix_part = line.split("What to check:", 1)[1]
         assert not _RAW_ID_PATTERN.findall(fix_part), line
     assert "atomic public cards" not in text
     assert "Q049" not in text
