@@ -41,8 +41,7 @@ behavior, restart the uvicorn/tmux process before the demo. Template auto-reload
 Verify `/` shows:
 
 - PDF upload form
-- public PDF URL form
-- built-in sample PDF section
+- **Download sample PDF** link with instructions to save and upload
 - wording that the public site is PDF-only
 - privacy/local-processing wording
 - links to `/help` and `/rules`
@@ -76,19 +75,17 @@ Verify `/` shows:
 3. Verify the result shows repeated findings and PDF links that open the relevant page.
 4. Open at least one Findings by topic drill-down and one Findings in page order card.
 
-### Step 3: Test URL Audit
+### Step 3: Download and upload the sample
 
-1. On `/`, use the built-in example URL helper.
-2. Submit the public PDF URL audit.
-3. Verify the resulting job behaves like a local PDF upload and reaches a normal result page.
+1. Choose **Download sample PDF** on `/` and save the file.
+2. Upload the saved PDF through the upload form.
+3. Verify it reaches the same result UI and downloads as the other PDF uploads.
 
-### Step 4: Test Built-In Sample Audit
+### Step 4: Verify legacy submissions are disabled
 
-If built-in samples are available on the server:
-
-1. Choose a sample from the dropdown.
-2. Submit it.
-3. Verify it reaches the same result UI and action set as a normal PDF upload.
+Direct POSTs to `/audits/url` and `/audits/sample`, and URL-only or mixed file/URL
+submissions to `/audits`, must redirect to a stable GET error page saying
+“Please upload your document to start an audit.” Refresh must not resubmit a form.
 
 ## 5. Result-Page Checks
 

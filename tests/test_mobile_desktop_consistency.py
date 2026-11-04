@@ -273,8 +273,6 @@ def test_home_page_content_parity(client: tuple[TestClient, Any]) -> None:
 
     common_tokens = [
         "Upload a file",
-        "Audit a public PDF URL",
-        "Audit a built-in sample PDF",
         "Supported inputs",
         "How your file is handled",
         "processed locally",
@@ -282,10 +280,8 @@ def test_home_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Help",
         "Rule Reference",
         "Drop a PDF file here",
-        "Use this URL",
         "Start audit",
-        "Audit PDF URL",
-        "Audit Sample",
+        "Download sample PDF",
     ]
     _assert_contains_tokens(mobile, common_tokens)
     _assert_contains_tokens(desktop, common_tokens)

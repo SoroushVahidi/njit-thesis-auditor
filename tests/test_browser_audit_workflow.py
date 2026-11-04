@@ -160,3 +160,51 @@ def test_refresh_preserves_worker_and_actual_pdf_links(tmp_path: Path):
             assert attempts == [], 'This workflow must never contact external services'
         finally:
             browser.close()
+
+
+def test_upload_only_errors_remain_clear_after_browser_refresh(tmp_path: Path):
+    api = pytest.importorskip('playwright.sync_api')
+    with gated_website(tmp_path) as origin, api.sync_playwright() as runner:
+        browser = runner.chromium.launch()
+        try:
+            context = browser.new_context(accept_downloads=True)
+            attempts = guard_external(context)
+            posts = []
+            context.on('request', lambda r: posts.append(urlsplit(r.url).path)
+                       if r.method == 'POST' else None)
+            page = context.new_page()
+            page.goto(origin)
+            assert page.locator('input[type=url], input[name=pdf_url]').count() == 0
+            assert page.locator('form[action="/audits/url"], '
+                                'form[action="/audits/sample"]').count() == 0
+            with page.expect_download() as pending:
+                page.get_by_role('link', name='Download sample PDF', exact=True).click()
+            assert pending.value.failure() is None
+            assert not (tmp_path/'worker.json').exists()
+            for endpoint in ['/audits', '/audits/url', '/audits/sample']:
+                page.goto(origin)
+                page.evaluate('''endpoint => {
+                    const form = document.createElement('form');
+                    form.method = 'post'; form.action = endpoint;
+                    const input = document.createElement('input');
+                    input.name = 'pdf_url'; input.value = 'https://example.invalid/thesis.pdf';
+                    form.append(input); document.body.append(form); form.submit();
+                }''', endpoint)
+                page.wait_for_url('**/?error=*')
+                message = page.get_by_role('alert')
+                assert 'Please upload your document to start an audit.' in message.inner_text()
+                before = list(posts)
+                assert page.reload().status == 400
+                assert 'Please upload your document to start an audit.' in message.inner_text()
+                assert posts == before
+                page.get_by_role('navigation').get_by_role('link', name='Help', exact=True).click()
+                page.wait_for_url(origin+'/help')
+                assert 'Upload a thesis or dissertation PDF.' in page.locator('body').inner_text()
+                page.go_back()
+                page.wait_for_url('**/?error=*')
+                assert posts == before
+            assert not (tmp_path/'worker.json').exists()
+            assert not list((tmp_path/'jobs').glob('*/upload.pdf'))
+            assert attempts == []
+        finally:
+            browser.close()

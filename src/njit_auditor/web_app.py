@@ -24,8 +24,8 @@ from pathlib import Path
 from typing import Any
 from weakref import WeakValueDictionary
 
-from fastapi import BackgroundTasks, FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import BackgroundTasks, FastAPI, File, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from njit_auditor.audit_runner import (
@@ -89,36 +89,13 @@ from njit_auditor.upload_handling import (
     sanitize_upload_filename,
     validate_upload_path,
 )
-from njit_auditor.web_fetch_error import FetchError
 from njit_auditor.windows_download import windows_download
-
-
-def list_builtin_samples() -> list[Any]:
-    from njit_auditor.web_samples import list_builtin_samples
-
-    return list_builtin_samples()
-
-
-def get_builtin_sample(sample_id: str) -> Any:
-    from njit_auditor.web_samples import get_builtin_sample
-
-    return get_builtin_sample(sample_id)
-
-
-def copy_builtin_sample_to_job(sample_id: str, destination: Path) -> None:
-    from njit_auditor.web_samples import copy_builtin_sample_to_job
-
-    copy_builtin_sample_to_job(sample_id, destination)
-
-
-def fetch_pdf_url(url: str, destination: Path, max_bytes: int) -> None:
-    from njit_auditor.web_url_fetch import fetch_pdf_url
-
-    fetch_pdf_url(url, destination, max_bytes)
 
 # ---------------------------------------------------------------------------
 # Configuration from environment
 # ---------------------------------------------------------------------------
+
+_UPLOAD_REQUIRED_ERROR = "Please upload your document to start an audit."
 
 _DEFAULT_RUNTIME = Path(".runtime") / "web_audits"
 _DEFAULT_JOB_TTL_SECONDS = 86400
@@ -2008,24 +1985,21 @@ def _submission_error(error: str, status_code: int = 400) -> RedirectResponse:
 
 
 def _index_error(request: Request, error: str, status_code: int = 400) -> HTMLResponse:
-    samples = [] if getattr(request.app.state, "offline_mode", False) else list_builtin_samples()
     return _render(
         request,
         "index.html",
-        {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": samples},
+        {"error": error, "max_upload_mb": MAX_UPLOAD_MB},
         status_code=status_code,
     )
 
 
 def _index_notice(request: Request, notice: str, status_code: int = 404) -> HTMLResponse:
-    samples = [] if getattr(request.app.state, "offline_mode", False) else list_builtin_samples()
     return _render(
         request,
         "index.html",
         {
             "notice": notice,
             "max_upload_mb": MAX_UPLOAD_MB,
-            "builtin_samples": samples,
         },
         status_code=status_code,
     )
@@ -2275,11 +2249,10 @@ async def index(
             )
         if active is not None:
             return RedirectResponse(url=f"/audits/{active}", status_code=303)
-    samples = [] if getattr(request.app.state, "offline_mode", False) else list_builtin_samples()
     return _render(
         request,
         "index.html",
-        {"error": error, "max_upload_mb": MAX_UPLOAD_MB, "builtin_samples": samples},
+        {"error": error, "max_upload_mb": MAX_UPLOAD_MB},
         status_code=(413 if error_status == 413 else 400) if error else 200,
     )
 
@@ -2288,8 +2261,18 @@ async def index(
 async def submit_audit(
     request: Request,
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(default=None),
 ) -> RedirectResponse | HTMLResponse:
+    # Reject old clients explicitly, even when they also attach a valid file.
+    # Inspect all values so duplicate legacy fields cannot bypass the policy.
+    form = await request.form()
+    if any(
+        str(value).strip()
+        for key, value in form.multi_items()
+        if key.lower() in {"pdf_url", "document_url", "doc_url", "url"}
+    ) or file is None:
+        return _submission_error(_UPLOAD_REQUIRED_ERROR)
+
     filename = file.filename or "upload.bin"
     ext = Path(filename).suffix.lower()
 
@@ -2330,88 +2313,22 @@ async def submit_audit(
 
 
 @app.post("/audits/url", response_model=None)
-async def submit_audit_url(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    pdf_url: str = Form(default=""),
-) -> RedirectResponse | HTMLResponse:
-    url = pdf_url.strip()
-    if not url:
-        return _submission_error("Please provide a PDF URL.")
-
-    job_id = _new_job_id()
-    jdir = _job_dir(job_id)
-    jdir.mkdir(parents=True, exist_ok=True)
-
-    try:
-        url_path = urllib.parse.urlparse(url).path
-        url_basename = Path(url_path).name
-        safe_name = (
-            sanitize_upload_filename(url_basename, default_ext=".pdf")
-            if url_basename.lower().endswith(".pdf")
-            else "url_download.pdf"
-        )
-    except Exception:
-        safe_name = "url_download.pdf"
-
-    try:
-        fetch_pdf_url(url, jdir / "upload.pdf", MAX_UPLOAD_BYTES)
-    except FetchError as exc:
-        shutil.rmtree(jdir, ignore_errors=True)
-        return _submission_error(str(exc))
-
-    job = JobState(
-        job_id=job_id,
-        state="pending",
-        created_at=datetime.now(timezone.utc).isoformat(),
-        file_name=safe_name,
-    )
-    _set_job(job)
-    background_tasks.add_task(_run_audit_task, job_id)
-    return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
-
-
 @app.post("/audits/sample", response_model=None)
-async def submit_audit_sample(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    sample_id: str = Form(default=""),
-) -> RedirectResponse | HTMLResponse:
-    sid = sample_id.strip()
-    if not sid:
-        return _submission_error("Please select a built-in sample.")
+async def reject_shortcut_audit() -> RedirectResponse:
+    """Keep legacy clients on a refresh-safe error page without creating a job."""
+    return _submission_error(_UPLOAD_REQUIRED_ERROR)
 
-    try:
-        info = get_builtin_sample(sid)
-    except ValueError:
-        return _submission_error("Unknown or invalid sample selection.")
 
-    job_id = _new_job_id()
-    jdir = _job_dir(job_id)
-    jdir.mkdir(parents=True, exist_ok=True)
+@app.get("/sample.pdf")
+async def download_synthetic_sample() -> Response:
+    """Offer a local synthetic file to download and upload; never start an audit."""
+    from njit_auditor.synthetic_sample import sample_pdf
 
-    try:
-        copy_builtin_sample_to_job(sid, jdir / "upload.pdf")
-    except FileNotFoundError:
-        shutil.rmtree(jdir, ignore_errors=True)
-        return _submission_error("The selected sample file is not available on this server.")
-    except ValueError as exc:
-        shutil.rmtree(jdir, ignore_errors=True)
-        return _submission_error(str(exc))
-    except Exception:  # noqa: BLE001
-        shutil.rmtree(jdir, ignore_errors=True)
-        return _submission_error("An error occurred loading the sample file.")
-
-    safe_name = sanitize_upload_filename(Path(info.rel_path).name, default_ext=".pdf")
-    job = JobState(
-        job_id=job_id,
-        state="pending",
-        created_at=datetime.now(timezone.utc).isoformat(),
-        file_name=safe_name,
+    return Response(
+        sample_pdf(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="synthetic-example.pdf"'},
     )
-    _set_job(job)
-    background_tasks.add_task(_run_audit_task, job_id)
-    return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
 
 
 @app.get("/audits/url", response_model=None)

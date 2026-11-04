@@ -152,37 +152,6 @@
     white-space: nowrap;
     border: 0;
   }
-  .example-url-box {
-    margin-top: 1rem;
-    padding: 0.85rem 1rem;
-    background: #f0f7ff;
-    border: 1px solid #b8d4f0;
-    border-left: 4px solid var(--color-primary);
-    border-radius: var(--radius);
-  }
-  .example-url-box__eyebrow {
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    color: var(--color-primary);
-    margin: 0 0 0.35rem;
-  }
-  .example-url-box__desc {
-    font-size: 0.86rem;
-    color: var(--color-muted);
-    margin: 0 0 0.5rem;
-  }
-  .example-url-box__url {
-    display: block;
-    font-size: 0.78rem;
-    word-break: break-all;
-    color: var(--color-text);
-    background: #e8f0f9;
-    border-radius: 4px;
-    padding: 0.3rem 0.5rem;
-    font-family: ui-monospace, "Cascadia Code", monospace;
-  }
 </style>
 {% endblock %}
 
@@ -219,7 +188,7 @@
   The server's operational logs record requests and errors, not the contents of your file.
 </div>
 
-<div class="input-methods input-methods--triple section">
+<div class="input-methods section">
   <div class="card">
     <h2 style="margin-top:0;">Upload a file</h2>
     <form action="/audits" method="post" enctype="multipart/form-data">
@@ -268,51 +237,9 @@
   </div>
 
   <div class="card">
-    <h2 style="margin-top:0;">Audit a public PDF URL</h2>
-    <form action="/audits/url" method="post">
-      <label for="pdf_url">Public PDF URL</label>
-      <input type="url" id="pdf_url" name="pdf_url"
-             placeholder="https://example.com/thesis.pdf" required>
-      <p class="file-hint">
-        Works with direct public PDF links such as NJIT Digital Commons and arXiv.
-        Login-required or paywalled URLs are not supported.
-        For private dissertations, upload only if you are authorized.
-        Maximum {{ max_upload_mb }} MB.
-      </p>
-      <button type="submit">Audit PDF URL</button>
-    </form>
-    <div class="example-url-box" id="example-thesis-box">
-      <p class="example-url-box__eyebrow">Try an example</p>
-      <p class="example-url-box__desc">
-        This is a public NJIT Digital Commons thesis PDF. Use it to test the auditor without uploading private files.
-      </p>
-      <code class="example-url-box__url">https://digitalcommons.njit.edu/cgi/viewcontent.cgi?article=4387&amp;context=theses</code>
-      <br>
-      <button type="button" id="fill-example-url" class="btn btn-secondary"
-              style="margin-top:0.6rem;font-size:0.85rem;padding:0.4rem 0.9rem;">
-        Use this URL
-      </button>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2 style="margin-top:0;">Audit a built-in sample PDF</h2>
-    <form action="/audits/sample" method="post">
-      <label for="sample_id">Select sample</label>
-      {% if builtin_samples %}
-      <select id="sample_id" name="sample_id">
-        {% for sample in builtin_samples %}
-        <option value="{{ sample.sample_id }}">{{ sample.label }}</option>
-        {% endfor %}
-      </select>
-      <p class="file-hint">
-        Local evaluation files on this server. Use only if authorized.
-      </p>
-      <button type="submit">Audit Sample</button>
-      {% else %}
-      <p class="file-hint" style="color:#c0392b;">No built-in samples are available on this server.</p>
-      {% endif %}
-    </form>
+    <h2 style="margin-top:0;">Try a sample PDF</h2>
+    <p>Download a synthetic sample with no student material, then upload the saved PDF above to start an audit.</p>
+    <a href="/sample.pdf" class="btn btn-secondary" download>Download sample PDF</a>
   </div>
 </div>
 
@@ -509,18 +436,5 @@
 
     renderCurrentSelection();
   });
-</script>
-<script>
-  (function () {
-    var fillBtn = document.getElementById("fill-example-url");
-    var urlInput = document.getElementById("pdf_url");
-    if (!fillBtn || !urlInput) return;
-    fillBtn.addEventListener("click", function () {
-      urlInput.value = "https://digitalcommons.njit.edu/cgi/viewcontent.cgi?article=4387&context=theses";
-      urlInput.focus();
-      fillBtn.textContent = "URL filled — click “Audit PDF URL” to start";
-      fillBtn.disabled = true;
-    });
-  })();
 </script>
 {% endblock %}

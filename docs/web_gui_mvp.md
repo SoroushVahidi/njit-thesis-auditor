@@ -3,7 +3,7 @@
 - **Date:** 2026-06-16
 - **Baseline commit:** `9e54b7b` (PR #318 — mobile/desktop parity fixes)
 - **Scope:** Current public FastAPI web UI behavior and operations
-- **Current public input surface:** PDF upload, public PDF URL audit, built-in sample PDF audit
+- **Current public input surface:** PDF upload only
 
 ## 1. Current Stable Scope
 
@@ -12,8 +12,7 @@ The public web UI is **PDF-only**.
 It supports:
 
 - uploading a local PDF
-- auditing a direct public PDF URL
-- auditing a built-in sample PDF when samples are configured on the server
+- downloading a generated synthetic sample PDF to save and upload manually
 
 It does **not** currently expose TeX, ZIP, or DOCX inputs in the public browser UI.
 Those workflows remain separate CLI or internal tooling paths.
@@ -100,8 +99,10 @@ and Jinja registrations are created at import time.
 |---|---|---|
 | `GET` | `/` | Upload page |
 | `POST` | `/audits` | Start a PDF upload audit |
-| `POST` | `/audits/url` | Start a public PDF URL audit |
-| `POST` | `/audits/sample` | Start a built-in sample PDF audit |
+| `POST` | `/audits/url` | Reject legacy shortcut; 303 to upload-required error page |
+| `POST` | `/audits/sample` | Reject legacy shortcut; 303 to upload-required error page |
+| `GET` | `/sample.pdf` | Download synthetic PDF; no audit starts |
+| `GET` | `/audits/url` | Guard redirect back to `/` |
 | `GET` | `/audits/sample` | Guard redirect back to `/` |
 | `GET` | `/audits/{job_id}` | Pending/running/completed/failed job page |
 | `GET` | `/audits/{job_id}/status` | JSON polling endpoint |
@@ -123,8 +124,7 @@ and Jinja registrations are created at import time.
 The home page includes:
 
 - PDF upload form
-- public PDF URL form
-- built-in sample PDF form
+- sample PDF download link (save, then upload)
 - supported-input wording that states the site is PDF-only
 - privacy/local-processing wording
 - navigation to `/help` and `/rules`
@@ -174,8 +174,10 @@ Browser-native preview behavior can still vary by device, browser, extension, or
 - A student's own report may quote short document excerpts (TOC, list, and heading entries,
   flagged words); the UI says so and does not claim otherwise.
 - JSON/Markdown downloads use basename-only paths.
-- Public URL fetches are SSRF-guarded.
-- Built-in samples should not be exposed publicly unless authorized.
+- Document-URL submissions are rejected without network access or worker creation, including
+  legacy fields on `/audits` and requests containing both a file and a nonempty URL.
+- Rejections use a 303 redirect to a stable GET error page with upload instructions.
+- Samples are generated synthetic downloads; private evaluation samples are not listed.
 
 Recommended cleanup before a live restart:
 

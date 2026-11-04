@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hmac
-import io
 import os
 import secrets
 import shutil
@@ -15,7 +14,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI, Request, UploadFile
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from jinja2 import TemplateNotFound
@@ -360,15 +359,7 @@ def create_offline_app(
         return FileResponse(resource_path("assets", "icons", "njit-auditor.ico"),
                             media_type="image/vnd.microsoft.icon")
 
-    @offline.post("/audits/sample", response_model=None)
-    async def synthetic_example(request: Request, background_tasks: BackgroundTasks):
-        from njit_auditor.synthetic_sample import sample_pdf
-
-        upload = UploadFile(filename="synthetic-example.pdf", file=io.BytesIO(sample_pdf()))
-        try:
-            return await web_app.submit_audit(request, background_tasks, upload)
-        finally:
-            await upload.close()
+    offline.add_api_route("/audits/sample", web_app.reject_shortcut_audit, methods=["POST"])
 
     @offline.post("/audits/{job_id}/cancel")
     async def cancel_audit(job_id: str):

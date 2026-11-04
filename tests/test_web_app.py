@@ -2853,193 +2853,86 @@ def test_fetch_pdf_url_custom_user_agent_regression() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_index_contains_url_form(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.get("/")
-    assert b"pdf_url" in resp.content
-    assert b"/audits/url" in resp.content
-
-
-def test_url_audit_missing_url_rejected(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.post("/audits/url", data={}, follow_redirects=True)
-    assert resp.status_code == 400
-    assert b"PDF URL" in resp.content or b"provide" in resp.content.lower()
-
-
-def test_url_audit_whitespace_url_rejected(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.post("/audits/url", data={"pdf_url": "   "}, follow_redirects=True)
-    assert resp.status_code == 400
-
-
-def test_url_audit_non_http_scheme_rejected(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.post(
-        "/audits/url",
-        data={"pdf_url": "file:///etc/passwd"},
-        follow_redirects=True,
-    )
-    assert resp.status_code == 400
-    assert b"http" in resp.content.lower()
-
-
-def test_url_audit_localhost_rejected(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.post(
-        "/audits/url",
-        data={"pdf_url": "http://localhost/thesis.pdf"},
-        follow_redirects=True,
-    )
-    assert resp.status_code == 400
-
-
-def test_url_audit_loopback_ip_rejected(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.post(
-        "/audits/url",
-        data={"pdf_url": "http://127.0.0.1/thesis.pdf"},
-        follow_redirects=True,
-    )
-    assert resp.status_code == 400
-
-
-def test_url_audit_private_ip_rejected(client: tuple[TestClient, Any]) -> None:
-    c, _ = client
-    resp = c.post(
-        "/audits/url",
-        data={"pdf_url": "http://10.0.0.1/thesis.pdf"},
-        follow_redirects=True,
-    )
-    assert resp.status_code == 400
-
-
-def test_url_audit_resolves_to_private_rejected(
-    client: tuple[TestClient, Any], monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("endpoint", ["/audits", "/audits/url", "/audits/sample"])
+@pytest.mark.parametrize("field", ["pdf_url", "document_url", "doc_url", "url"])
+@pytest.mark.parametrize("with_file", [False, True])
+def test_document_url_submissions_never_fetch_or_create_workers(
+    client: tuple[TestClient, Any], monkeypatch: pytest.MonkeyPatch,
+    endpoint: str, field: str, with_file: bool,
 ) -> None:
     import socket
+    import urllib.request
 
-    original = socket.getaddrinfo
+    from njit_auditor import web_samples, web_url_fetch
 
-    def fake_getaddrinfo(host: str, port: Any, *args: Any, **kwargs: Any) -> Any:
-        if "evil" in host:
-            return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("192.168.99.1", 0))]
-        return original(host, port, *args, **kwargs)
+    c, wa = client
+    def forbidden(*args: Any, **kwargs: Any) -> None:
+        pytest.fail("URL submission attempted network, sample access, or worker creation")
 
-    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
-    c, _ = client
-    resp = c.post(
-        "/audits/url",
-        data={"pdf_url": "http://evil.internal.corp/thesis.pdf"},
-        follow_redirects=True,
-    )
-    assert resp.status_code == 400
+    for module, names in [
+        (socket, ["getaddrinfo", "create_connection"]),
+        (urllib.request, ["urlopen", "build_opener"]),
+        (web_url_fetch, ["fetch_pdf_url"]),
+        (web_samples, ["list_builtin_samples", "get_builtin_sample", "copy_builtin_sample_to_job"]),
+        (wa, ["_new_job_id", "_set_job", "_run_audit_task"]),
+    ]:
+        for name in names:
+            monkeypatch.setattr(module, name, forbidden)
+    monkeypatch.setattr(wa.app.state, "prepare_audit", forbidden, raising=False)
+    monkeypatch.setattr(wa.app.state, "audit_executor", forbidden, raising=False)
+    files = {"file": ("thesis.pdf", _MINIMAL_PDF, "application/pdf")} if with_file else None
+    response = c.post(endpoint, data={field: "https://example.invalid/thesis.pdf"},
+                      files=files, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/?error=")
+    assert "example.invalid" not in response.headers["location"]
+    for _ in range(2):  # Following the redirect and refreshing are both safe GETs.
+        error_page = c.get(response.headers["location"])
+        assert error_page.status_code == 400
+        assert "Please upload your document to start an audit." in error_page.text
+        assert 'action="/audits"' in error_page.text
+    assert not wa._jobs
+    assert not wa.RUNTIME_DIR.exists() or not list(wa.RUNTIME_DIR.iterdir())
 
 
-def test_url_audit_valid_public_url_creates_job(
-    client: tuple[TestClient, Any],
+@pytest.mark.parametrize("endpoint", ["/audits", "/audits/url", "/audits/sample"])
+@pytest.mark.parametrize("data", [{}, {"pdf_url": "   "}, {"sample_id": "ester_sample_a"}])
+def test_file_required_errors_are_refresh_safe(
+    client: tuple[TestClient, Any], endpoint: str, data: dict[str, str],
 ) -> None:
     c, wa = client
-
-    def _fake_fetch(url: str, dest: Path, max_bytes: int) -> None:
-        dest.write_bytes(_MINIMAL_PDF)
-
-    with patch.object(wa, "fetch_pdf_url", _fake_fetch):
-        with patch.object(wa, "_run_audit_task", lambda job_id: None):
-            resp = c.post(
-                "/audits/url",
-                data={"pdf_url": "https://example.com/thesis.pdf"},
-                follow_redirects=False,
-            )
-    assert resp.status_code == 303
-    assert resp.headers["location"].startswith("/audits/")
+    response = c.post(endpoint, data=data, follow_redirects=True)
+    assert response.history[0].status_code == 303
+    assert response.request.method == "GET"
+    assert response.status_code == 400
+    assert "Please upload your document to start an audit." in response.text
+    refreshed = c.get(str(response.url))
+    assert refreshed.status_code == 400
+    assert refreshed.text == response.text
+    assert not wa._jobs
 
 
-def test_url_audit_fetch_error_shows_error(
-    client: tuple[TestClient, Any],
-) -> None:
+def test_duplicate_url_field_cannot_bypass_policy(client: tuple[TestClient, Any]) -> None:
     c, wa = client
-    from njit_auditor.web_url_fetch import FetchError
-
-    def _raise(url: str, dest: Path, max_bytes: int) -> None:
-        raise FetchError("The URL does not point to a valid PDF file.")
-
-    with patch.object(wa, "fetch_pdf_url", _raise):
-        resp = c.post(
-            "/audits/url",
-            data={"pdf_url": "https://example.com/fake.bin"},
-            follow_redirects=True,
-        )
-    assert resp.status_code == 400
-    assert b"does not point to a valid PDF" in resp.content
+    response = c.post("/audits", files=[
+        ("file", ("thesis.pdf", _MINIMAL_PDF, "application/pdf")),
+        ("pdf_url", (None, "")),
+        ("pdf_url", (None, "https://example.invalid/thesis.pdf")),
+    ], follow_redirects=True)
+    assert response.status_code == 400
+    assert "Please upload your document" in response.text
+    assert not wa._jobs
 
 
-def test_url_audit_oversized_shows_error(
-    client: tuple[TestClient, Any],
-) -> None:
+def test_upload_with_blank_legacy_url_field_still_works(client: tuple[TestClient, Any]) -> None:
     c, wa = client
-    from njit_auditor.web_url_fetch import FetchError
-
-    def _raise(url: str, dest: Path, max_bytes: int) -> None:
-        raise FetchError("Download exceeds the maximum allowed size.")
-
-    with patch.object(wa, "fetch_pdf_url", _raise):
-        resp = c.post(
-            "/audits/url",
-            data={"pdf_url": "https://example.com/huge.pdf"},
-            follow_redirects=True,
-        )
-    assert resp.status_code == 400
-    assert b"exceeds" in resp.content.lower()
-
-
-def test_url_audit_job_download_json(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    """URL-created job uses same download endpoints as file-upload jobs."""
-    c, wa = client
-    job_id = _inject_complete_job(wa, tmp_path)
-    resp = c.get(f"/audits/{job_id}/download/json")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "findings" in data
-
-
-def test_url_audit_job_download_markdown(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    c, wa = client
-    job_id = _inject_complete_job(wa, tmp_path)
-    resp = c.get(f"/audits/{job_id}/download/markdown")
-    assert resp.status_code == 200
-    ct = resp.headers["content-type"]
-    assert "text/markdown" in ct or "text/plain" in ct
-
-
-def test_url_audit_fetch_error_cleans_up_dir(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    """Failed URL fetch removes the job directory (no orphaned dirs)."""
-    c, wa = client
-    from njit_auditor.web_url_fetch import FetchError
-
-    runtime_dir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"])
-
-    def _raise(url: str, dest: Path, max_bytes: int) -> None:
-        raise FetchError("not a PDF")
-
-    with patch.object(wa, "fetch_pdf_url", _raise):
-        c.post(
-            "/audits/url",
-            data={"pdf_url": "https://example.com/fake.bin"},
-            follow_redirects=False,
-        )
-
-    if runtime_dir.exists():
-        job_dirs = list(runtime_dir.iterdir())
-        # Any dir left should have at least upload.pdf (a completed job from earlier)
-        for jdir in job_dirs:
-            assert (jdir / "upload.pdf").exists(), f"Orphaned dir without upload: {jdir}"
+    with patch.object(wa, "_run_audit_task", lambda job_id: None):
+        response = c.post("/audits", data={"pdf_url": "   "},
+                          files={"file": ("thesis.pdf", _MINIMAL_PDF, "application/pdf")},
+                          follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/audits/")
+    assert len(wa._jobs) == 1
 
 
 def test_runtime_files_not_in_ls_files(tmp_path: Path) -> None:
@@ -3160,199 +3053,6 @@ def test_web_samples_copy_raises_for_missing_file(
 # ---------------------------------------------------------------------------
 # /audits/sample route tests
 # ---------------------------------------------------------------------------
-
-
-def _fake_sample_info() -> Any:
-    from njit_auditor.web_samples import SampleInfo
-
-    return SampleInfo(
-        sample_id="ester_sample_a",
-        label="Sample A — first review (EF-annotated)",
-        rel_path="data/raw/ester/250218 Cibaku Elson First Review.pdf",
-    )
-
-
-def test_index_contains_sample_form(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-    with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        resp = c.get("/")
-    assert b"sample_id" in resp.content
-    assert b"/audits/sample" in resp.content
-
-
-def test_index_shows_three_input_methods(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-    with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        resp = c.get("/")
-    # File upload
-    assert b'type="file"' in resp.content
-    # URL input
-    assert b"pdf_url" in resp.content
-    # Sample dropdown
-    assert b"sample_id" in resp.content
-
-
-def test_sample_audit_missing_sample_id_rejected(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-    with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        resp = c.post("/audits/sample", data={}, follow_redirects=True)
-    assert resp.status_code == 400
-    assert b"select" in resp.content.lower() or b"sample" in resp.content.lower()
-
-
-def test_sample_audit_empty_sample_id_rejected(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-    with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        resp = c.post("/audits/sample", data={"sample_id": "   "}, follow_redirects=True)
-    assert resp.status_code == 400
-
-
-def test_sample_audit_unknown_sample_id_rejected(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-    with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        resp = c.post("/audits/sample", data={"sample_id": "bad_id_xyz"}, follow_redirects=True)
-    assert resp.status_code == 400
-    assert b"Unknown" in resp.content or b"invalid" in resp.content.lower()
-
-
-def test_sample_audit_path_traversal_rejected(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-    for bad_id in ["../../etc/passwd", "../secret", "data/raw/ester/x.pdf"]:
-        with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-            resp = c.post(
-                "/audits/sample",
-                data={"sample_id": bad_id},
-                follow_redirects=True,
-            )
-        assert resp.status_code == 400, f"Expected 400 for bad_id={bad_id!r}"
-
-
-def test_sample_audit_valid_sample_creates_job(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-
-    def fake_copy(sample_id: str, dest: Path) -> None:
-        dest.write_bytes(_MINIMAL_PDF)
-
-    with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        with patch.object(wa, "get_builtin_sample", lambda sid: _fake_sample_info()):
-            with patch.object(wa, "copy_builtin_sample_to_job", fake_copy):
-                with patch.object(wa, "_run_audit_task", lambda job_id: None):
-                    resp = c.post(
-                        "/audits/sample",
-                        data={"sample_id": "ester_sample_a"},
-                        follow_redirects=False,
-                    )
-    assert resp.status_code == 303
-    assert resp.headers["location"].startswith("/audits/")
-
-
-def test_sample_audit_uses_runtime_dir(
-    client: tuple[TestClient, Any], tmp_path: Path
-) -> None:
-    c, wa = client
-    created_dirs: list[Path] = []
-
-    def fake_copy(sample_id: str, dest: Path) -> None:
-        created_dirs.append(dest.parent)
-        dest.write_bytes(_MINIMAL_PDF)
-
-    with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        with patch.object(wa, "get_builtin_sample", lambda sid: _fake_sample_info()):
-            with patch.object(wa, "copy_builtin_sample_to_job", fake_copy):
-                with patch.object(wa, "_run_audit_task", lambda job_id: None):
-                    c.post(
-                        "/audits/sample",
-                        data={"sample_id": "ester_sample_a"},
-                        follow_redirects=False,
-                    )
-
-    runtime_root = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"])
-    assert len(created_dirs) == 1
-    assert str(created_dirs[0]).startswith(str(runtime_root))
-
-
-def test_sample_audit_redirects_to_job_page(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-
-    def fake_copy(sample_id: str, dest: Path) -> None:
-        dest.write_bytes(_MINIMAL_PDF)
-
-    with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        with patch.object(wa, "get_builtin_sample", lambda sid: _fake_sample_info()):
-            with patch.object(wa, "copy_builtin_sample_to_job", fake_copy):
-                with patch.object(wa, "_run_audit_task", lambda job_id: None):
-                    resp = c.post(
-                        "/audits/sample",
-                        data={"sample_id": "ester_sample_a"},
-                        follow_redirects=True,
-                    )
-    assert resp.status_code == 200
-    assert b"Audit" in resp.content
-
-
-def test_sample_audit_missing_file_shows_error(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-
-    def raise_fnf(sample_id: str, dest: Path) -> None:
-        raise FileNotFoundError("Sample file not found on this server.")
-
-    with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        with patch.object(wa, "get_builtin_sample", lambda sid: _fake_sample_info()):
-            with patch.object(wa, "copy_builtin_sample_to_job", raise_fnf):
-                resp = c.post(
-                    "/audits/sample",
-                    data={"sample_id": "ester_sample_a"},
-                    follow_redirects=True,
-                )
-    assert resp.status_code == 400
-    assert b"not available" in resp.content or b"not found" in resp.content.lower()
-
-
-def test_sample_audit_invalid_pdf_shows_error(client: tuple[TestClient, Any]) -> None:
-    c, wa = client
-
-    def raise_val(sample_id: str, dest: Path) -> None:
-        raise ValueError("Sample file is not a valid PDF.")
-
-    with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        with patch.object(wa, "get_builtin_sample", lambda sid: _fake_sample_info()):
-            with patch.object(wa, "copy_builtin_sample_to_job", raise_val):
-                resp = c.post(
-                    "/audits/sample",
-                    data={"sample_id": "ester_sample_a"},
-                    follow_redirects=True,
-                )
-    assert resp.status_code == 400
-    assert b"valid PDF" in resp.content or b"PDF" in resp.content
-
-
-def test_sample_job_download_json(client: tuple[TestClient, Any], tmp_path: Path) -> None:
-    """Sample-created job uses same download endpoints as file-upload jobs."""
-    c, wa = client
-    job_id = _inject_complete_job(wa, tmp_path)
-    resp = c.get(f"/audits/{job_id}/download/json")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "findings" in data
-
-
-def test_sample_job_download_markdown(client: tuple[TestClient, Any], tmp_path: Path) -> None:
-    c, wa = client
-    job_id = _inject_complete_job(wa, tmp_path)
-    resp = c.get(f"/audits/{job_id}/download/markdown")
-    assert resp.status_code == 200
-    ct = resp.headers["content-type"]
-    assert "text/markdown" in ct or "text/plain" in ct
-
-
-def test_sample_audit_no_private_text_in_response(client: tuple[TestClient, Any]) -> None:
-    """Error responses must not contain dissertation content — only UI text."""
-    c, wa = client
-    with patch.object(wa, "list_builtin_samples", lambda: [_fake_sample_info()]):
-        resp = c.post("/audits/sample", data={"sample_id": "bad_id_xyz"}, follow_redirects=True)
-    assert resp.status_code == 400
-    # Response should be a normal HTML page with a short error message
-    assert b"<html" in resp.content or b"<!DOCTYPE" in resp.content
 
 
 # ---------------------------------------------------------------------------
@@ -5090,55 +4790,23 @@ def test_runtime_dir_cleared_then_new_job_still_produces_valid_pdf_links(
 # Example-thesis URL box on the upload page
 # ---------------------------------------------------------------------------
 
-_EXAMPLE_URL = "https://digitalcommons.njit.edu/cgi/viewcontent.cgi?article=4387&context=theses"
-
-
-def test_index_page_has_example_thesis_box(client: tuple[TestClient, Any]) -> None:
-    """Upload page must include the example-thesis box with its stable id."""
-    c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    assert b"example-thesis-box" in resp.content
-
-
-def test_index_page_example_url_is_present(client: tuple[TestClient, Any]) -> None:
-    """The Digital Commons example URL must appear on the upload page."""
-    c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    # URL appears HTML-encoded (&amp; for &) inside a <code> element
-    assert b"digitalcommons.njit.edu" in resp.content
-    assert b"article=4387" in resp.content
-
-
-def test_index_page_has_fill_example_url_button(client: tuple[TestClient, Any]) -> None:
-    """Upload page must include the fill-example-url button with its stable id."""
-    c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    assert b"fill-example-url" in resp.content
-
-
-def test_index_page_url_help_text_mentions_direct_public_links(
+def test_home_and_help_offer_uploads_and_sample_download_only(
     client: tuple[TestClient, Any],
 ) -> None:
-    """URL help text must mention NJIT Digital Commons and arXiv as supported sources."""
-    c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    assert b"Digital Commons" in resp.content
-    assert b"arXiv" in resp.content
-
-
-def test_index_page_url_help_text_mentions_login_paywalled(
-    client: tuple[TestClient, Any],
-) -> None:
-    """URL help text must state that login-required or paywalled URLs are not supported."""
-    c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    body = resp.content
-    assert b"paywalled" in body or b"Login-required" in body or b"login-required" in body
+    c, wa = client
+    for path in ["/", "/help"]:
+        response = c.get(path)
+        assert response.status_code == 200
+        for obsolete in ["pdf_url", 'type="url"', 'action="/audits/url"',
+                         'action="/audits/sample"', "fill-example-url",
+                         "Audit PDF URL", "public PDF URL", "built-in sample"]:
+            assert obsolete not in response.text
+    assert 'href="/sample.pdf"' in c.get("/").text
+    sample = c.get("/sample.pdf")
+    assert sample.status_code == 200
+    assert sample.content.startswith(b"%PDF-")
+    assert "attachment" in sample.headers["content-disposition"]
+    assert not wa._jobs
 
 
 # ---------------------------------------------------------------------------
@@ -5176,31 +4844,6 @@ def test_get_audits_sample_does_not_show_job_not_found(client: tuple[TestClient,
     resp = c.get("/audits/sample", follow_redirects=True)
     assert b"was not found" not in resp.content
     assert b"job" not in resp.content.lower() or b"job 'sample'" not in resp.content.lower()
-
-
-def test_url_form_uses_post_method(client: tuple[TestClient, Any]) -> None:
-    """The URL-audit form on the upload page must use method=\"post\"."""
-    c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    # Both the action and method must appear near each other in the rendered HTML
-    assert b'action="/audits/url"' in resp.content
-    assert b'method="post"' in resp.content
-
-
-def test_fill_example_url_button_has_type_button(client: tuple[TestClient, Any]) -> None:
-    """The fill-example-url button must be type=\"button\" so it never submits the form."""
-    c, _ = client
-    resp = c.get("/")
-    assert resp.status_code == 200
-    # type="button" must appear alongside the fill-example-url id
-    body = resp.content.decode()
-    assert 'id="fill-example-url"' in body
-    # Locate the button tag containing the id and verify type="button"
-    import re as _re
-    btn_match = _re.search(r'<button[^>]*id="fill-example-url"[^>]*>', body)
-    assert btn_match is not None, "fill-example-url button not found"
-    assert 'type="button"' in btn_match.group(0)
 
 
 def test_footer_attribution_and_contact(client: tuple[TestClient, Any]) -> None:

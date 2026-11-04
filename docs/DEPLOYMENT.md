@@ -116,9 +116,10 @@ A bare `kill -TERM <pid>` will **not** stay down — `Restart=always` relaunches
    As verified on 2026-10-12, the live unit sets this variable and `/version` reports
    `"production"`.
 3. `GET /` and `GET /rules` → `200`.
-4. Run one built-in sample audit (`POST /audits/sample` with a known `sample_id`) and confirm the
-   job page loads and produces findings — this catches import-time/route-table regressions that a
-   bare `/healthz` won't.
+4. Download `/sample.pdf`, then upload it with `POST /audits` and confirm the job completes
+   and reports download. Confirm legacy URL/sample POSTs and mixed file/URL submissions redirect
+   to the upload-required error page without creating a job. Check Help, Rules, About, and the
+   unchanged published Windows installer link.
 
 ## Rollback
 

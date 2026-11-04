@@ -11,7 +11,10 @@ Windows 11 x64 is the target; clean Windows 11 and installer-lifecycle qualifica
 remain unperformed. The published beta's actual hosted test limits are in the release record.
 
 The app opens a browser interface served on `127.0.0.1` at an available port.
-Select a PDF or use **Audit synthetic example**. Help and Rule Reference are
+The current shared source accepts uploaded PDFs only. Select a PDF, or choose
+**Download sample PDF**, save it, and select the saved file. The published rc.3
+installer retains its original **Audit synthetic example** shortcut until a new
+version is built; this task does not rebuild Windows. Help and Rule Reference are
 bundled locally. Use **Quit** when finished. If the launcher window is available,
 it also offers Open auditor and Quit. The application's audit processing is local;
 the browser, extensions and operating system have their own behavior.
