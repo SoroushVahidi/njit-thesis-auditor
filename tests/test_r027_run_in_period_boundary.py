@@ -60,6 +60,86 @@ def _issues(doc: PdfDocument) -> list[str]:
     return [f.details["issue_type"] for f in check_pdf_heading_level_styles(doc)]
 
 
+def _continued_title(
+    number: str, continuation: str, *, split_number: bool,
+    packed_prefix: bool = False, body: str = "", whitespace: str = " ",
+) -> PdfDocument:
+    doc = _document(number, "Synthetic heading e.g.", tail=continuation,
+                    split_number=split_number)
+    line = doc.pages[0].text_blocks[-1].lines[0]
+    if packed_prefix:
+        prefix = line.spans[:-1]
+        line.spans[:-1] = [PdfTextSpan(
+            text=("" if split_number else number + " ") + "Synthetic heading e.g.",
+            font="Times-Bold", size=12, bold=True,
+            bbox=BBox(x0=prefix[0].bbox.x0, y0=300,
+                      x1=prefix[-1].bbox.x1, y1=312),
+        )]
+    tail = line.spans[-1]
+    tail.bold = True
+    tail.font = "Times-Bold"
+    line.spans.insert(-1, PdfTextSpan(
+        text=whitespace, font="Times-Roman", size=12,
+        bbox=BBox(x0=line.spans[-2].bbox.x1, y0=300, x1=tail.bbox.x0, y1=312),
+    ))
+    if body:
+        line.spans.append(PdfTextSpan(
+            text=body, font="Times-Roman", size=12,
+            bbox=BBox(x0=tail.bbox.x1 + 5, y0=300,
+                      x1=tail.bbox.x1 + 5 + 4 * len(body), y1=312),
+        ))
+        line.text += " " + body
+        line.bbox.x1 = line.spans[-1].bbox.x1
+    return doc
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("split_number", [False, True])
+@pytest.mark.parametrize("packed_prefix", [False, True])
+def test_regular_whitespace_does_not_end_a_bold_heading(
+    number: str, split_number: bool, packed_prefix: bool,
+) -> None:
+    issues = _issues(_continued_title(
+        number, "continued heading", split_number=split_number,
+        packed_prefix=packed_prefix,
+    ))
+    assert any("punctuation" in issue for issue in issues)
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("split_number", [False, True])
+@pytest.mark.parametrize("packed_prefix", [False, True])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("whitespace", [" ", "\u00a0", "\t"])
+def test_only_the_complete_bold_title_controls_the_period_before_body(
+    number: str, split_number: bool, packed_prefix: bool,
+    terminal_period: bool, whitespace: str,
+) -> None:
+    continuation = "continued heading" + ("." if terminal_period else "")
+    issues = _issues(_continued_title(
+        number, continuation, split_number=split_number, whitespace=whitespace,
+        packed_prefix=packed_prefix,
+        body="ordinary paragraph body continues here",
+    ))
+    assert any("punctuation" in issue for issue in issues) is not terminal_period
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+def test_body_emphasis_does_not_extend_the_completed_heading(number: str) -> None:
+    doc = _continued_title(
+        number, "continued heading.", split_number=True,
+        body="ordinary paragraph body continues here",
+    )
+    line = doc.pages[0].text_blocks[-1].lines[0]
+    line.spans.append(PdfTextSpan(
+        text="emphasized body words", font="Times-Bold", size=12, bold=True,
+        bbox=BBox(x0=line.bbox.x1 + 5, y0=300, x1=line.bbox.x1 + 100, y1=312),
+    ))
+    line.text += " emphasized body words"
+    line.bbox.x1 = line.spans[-1].bbox.x1
+    assert not any("punctuation" in issue for issue in _issues(doc))
+
+
 @pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
 @pytest.mark.parametrize("split_number", [False, True])
 def test_existing_heading_period_before_regular_body_is_not_missing(

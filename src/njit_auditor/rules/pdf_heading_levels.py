@@ -313,14 +313,17 @@ def _is_qualified_heading(text: str) -> bool:
 
 def _bold_run_in_has_terminal_period(line: PdfTextLine, pattern: re.Pattern[str]) -> bool:
     """Read a run-in heading's period when raw span text omits word spaces."""
-    bold_spans = []
+    prefix_end = 0
     for span in line.spans:
-        if not span.bold:
+        # Whitespace has no title/body role, regardless of its font. Only
+        # nonblank regular text can end the bold heading run.
+        if not span.bold and span.text.strip():
             break
-        bold_spans.append(span)
-    if not bold_spans or len(bold_spans) == len(line.spans):
+        prefix_end += 1
+    bold_spans = line.spans[:prefix_end]
+    if not bold_spans or prefix_end == len(line.spans):
         return False
-    tail = line.spans[len(bold_spans):]
+    tail = line.spans[prefix_end:]
     first_tail = next((span for span in tail if span.text.strip()), None)
     if first_tail is None or first_tail.italic:
         return False
@@ -414,7 +417,7 @@ def _check_line(
             # not the body text that follows its terminal period.
             bold_prefix = ""
             for span in line.spans:
-                if not span.bold:
+                if not span.bold and span.text.strip():
                     break
                 bold_prefix += span.text
             bold_match = pattern.match(" ".join(bold_prefix.split()))
