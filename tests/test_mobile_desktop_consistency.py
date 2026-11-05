@@ -356,7 +356,7 @@ def test_result_page_content_parity(client: tuple[TestClient, Any]) -> None:
         "Rules flagged",
         "Findings in page order",
         "Download JSON",
-        "Download Full Student Report",
+        "Download Comments PDF",
         "View original PDF",
         "Privacy note",
         "Audit another file",

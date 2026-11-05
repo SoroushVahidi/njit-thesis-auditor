@@ -19,3 +19,36 @@ The report lives in the audit job's runtime directory and expires with that job.
 `student_pdf_report.build_combined_student_pdf_report()` accepts numbered student findings and per-problem boxes selected by the existing web highlight path. It first makes a temporary annotated copy through `pdf_highlight.build_highlighted_pdf()`, generates a ReportLab report section, then inserts both into a new PyMuPDF document without rasterizing the thesis. The finished file replaces the job cache atomically. A signature over the current findings, source, and report input controls regeneration. The result records visible, highlighted, unhighlighted, and document-level finding counts, as well as boxes, pages, and badges drawn; these counts are stored in `student-report-metadata.json` inside the expiring runtime job directory. Existing highlight endpoints retain their 100-box per-page request cap; the combined report draws every validated box.
 
 The PDF has **Thesis** and **Formatting Problems** bookmarks. For zero findings, it retains all thesis pages and appends one report page stating only that the implemented checks detected no formatting problems. The automated report does not establish full compliance with NJIT requirements.
+
+## Standalone comments PDF
+
+**Download Comments PDF** replaces the student-facing text download in the shared
+website and desktop results template. `GET /audits/{job_id}/download/comments.pdf`
+returns `application/pdf` with an attachment filename such as
+`thesis_NJIT_Comments.pdf`. The Complete PDF Report endpoint, renderer, and cache
+are unchanged. Markdown and JSON exports are unchanged. The older
+`/download/text` endpoint remains available to existing clients.
+
+`comments_pdf_report.render_comments_pdf_report()` formats the job's existing
+UTF-8 `report.txt`, produced by `render_student_report_text()`. This preserves
+student-visible wording, page order, problem numbers, public rule references,
+explanations, corrections, confidence, coverage disclosure, incomplete-audit
+notices, and findings without highlight coordinates. Only layout, a descriptive
+subtitle, and numbered report footers are added. Long paragraphs and unbroken
+words wrap across pages. Headings stay with the following paragraph.
+
+The renderer accepts text only: it never opens, copies, embeds, attaches, or
+rasterizes the uploaded dissertation. Report text can still quote short flagged
+snippets, as before. Generation happens locally on request without persistent
+PDF caching. It uses existing ReportLab and PyMuPDF dependencies, the already
+bundled DejaVu font, and PyMuPDF's built-in CJK fallback. No new package, font
+asset, license dependency, or network request is introduced. Supplementary-plane
+Unicode mappings are corrected within the new PDF only, preserving emoji text
+extraction without changing ReportLab globally or the Complete PDF Report.
+
+Focused checks are in `tests/test_comments_pdf_report.py`, the comments route
+checks in `tests/test_web_app.py`, and `tests/test_offline_desktop.py`. The synthetic
+upload workflow in `tests/test_browser_audit_workflow.py` clicks the actual button,
+checks the HTTP response and browser filename, extracts text with two PDF readers,
+compares it with the legacy text report, rejects original-page sentinel content,
+and verifies that downloading comments leaves the Complete PDF byte-identical.

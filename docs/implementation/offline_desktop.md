@@ -31,6 +31,12 @@ Host/Origin validation and CSRF checks. Source development on Linux uses
 [PR #645 wording](../STUDENT_WORDING_USABILITY.md),
 [About Us and PR #647's acknowledgment correction](../ABOUT_US_CONTENT.md) are
 implemented in the website/shared desktop source and await another installer.
+The shared source also includes **Download Comments PDF**, a standalone comments-only
+PDF using the same findings and wording as the legacy text export. It generates
+locally with network connections blocked and includes findings without highlights.
+The Complete PDF Report remains separate and unchanged. These changes will appear
+in the next desktop build; no Windows installer was rebuilt or published for this change.
+
 They are not retroactively added to rc.3. Current source bundles seven shared
 HTML templates, including About Us, plus the local upload page, rule resources,
 font and license. Source About renders without automatic external requests;

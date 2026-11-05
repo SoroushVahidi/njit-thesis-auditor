@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 import httpx
 import pymupdf
 import pytest
+from comments_pdf_helpers import assert_comments_pdf_parity
 from desktop_session_support import wait_state
 from test_about_browser import guard_external
 
@@ -95,6 +96,8 @@ def test_refresh_preserves_worker_and_actual_pdf_links(tmp_path: Path):
     # Generated in memory: no checked-in/LFS/private PDF, public release or production service.
     with pymupdf.open(stream=sample_pdf(), filetype='pdf') as document:
         document[0].insert_text((12, 180), 'Synthetic margin-crossing example only.', fontsize=12)
+        for number, original_page in enumerate(document, 1):
+            original_page.insert_text((72, 400), f'ORIGINAL_DISSERTATION_PAGE_{number}')
         upload = document.tobytes()
         upload_pages = document.page_count
     with gated_website(tmp_path) as origin, api.sync_playwright() as runner:
@@ -157,6 +160,32 @@ def test_refresh_preserves_worker_and_actual_pdf_links(tmp_path: Path):
             download.save_as(target)
             with pymupdf.open(target) as document:
                 assert document.page_count>upload_pages
+            comments_link = page.get_by_role('link', name='Download Comments PDF', exact=True)
+            assert comments_link.is_visible()
+            assert page.locator('a[href$="/download/text"]').count() == 0
+            responses = []
+            context.on('response', lambda response: responses.append(response)
+                       if response.url.endswith('/download/comments.pdf') else None)
+            with page.expect_download() as pending:
+                comments_link.click()
+            comments_download = pending.value
+            assert comments_download.failure() is None
+            assert comments_download.suggested_filename == 'synthetic-workflow_NJIT_Comments.pdf'
+            comments_target = tmp_path/'comments.pdf'
+            comments_download.save_as(comments_target)
+            assert len(responses) == 1
+            assert responses[0].status == 200
+            assert responses[0].headers['content-type'] == 'application/pdf'
+            canonical = context.request.get(origin+job+'/download/text')
+            assert canonical.status == 200
+            assert 'Problem #1' in canonical.text()
+            assert_comments_pdf_parity(comments_target.read_bytes(), canonical.text())
+            with pymupdf.open(comments_target) as document:
+                assert 'ORIGINAL_DISSERTATION_PAGE_' not in ''.join(
+                    report_page.get_text() for report_page in document)
+            # Requesting comments must leave the cached Complete PDF byte-identical.
+            assert context.request.get(origin+job+'/download/student-report.pdf').body() == (
+                target.read_bytes())
             assert attempts == [], 'This workflow must never contact external services'
         finally:
             browser.close()

@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 import fitz
 import pytest
+from comments_pdf_helpers import assert_comments_pdf_parity
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -139,6 +140,9 @@ def test_online_offline_parity(kind: str) -> None:
             online_pdf = online.get(online_url + "/pdf")
             online_combined = online.get(online_url + "/download/student-report.pdf")
             online_text = online.get(online_url + "/download/text").content
+            online_comments = online.get(online_url + "/download/comments.pdf")
+            assert online_comments.status_code == 200
+            assert_comments_pdf_parity(online_comments.content, online_text.decode())
             online_md = online.get(online_url + "/download/markdown").content
             online_highlight = online.get(online_url + "/highlighted-page.pdf?page=1")
             assert online_pdf.status_code == online_combined.status_code == 200
@@ -157,6 +161,15 @@ def test_online_offline_parity(kind: str) -> None:
             offline_pdf = offline.get(offline_url + "/pdf")
             offline_combined = offline.get(offline_url + "/download/student-report.pdf")
             offline_text = offline.get(offline_url + "/download/text").content
+            offline_comments = offline.get(offline_url + "/download/comments.pdf")
+            assert offline_comments.status_code == 200
+            assert_comments_pdf_parity(offline_comments.content, offline_text.decode())
+            assert _report_pdf_content(online_comments.content) == _report_pdf_content(
+                offline_comments.content
+            )
+            assert "Download Comments PDF" in online_page
+            assert "Download Comments PDF" in offline_page
+            assert f'href="{offline_url}/download/text"' not in offline_page
             offline_md = offline.get(offline_url + "/download/markdown").content
             offline_highlight = offline.get(offline_url + "/highlighted-page.pdf?page=1")
             assert offline_pdf.status_code == offline_combined.status_code == 200
@@ -314,6 +327,12 @@ def test_audit_with_connections_denied(monkeypatch: pytest.MonkeyPatch, kind: st
             else:
                 url = _upload(client, _pdf(kind), csrf=app.state.csrf_token)
                 assert client.get(url + "/status").json()["state"] == "complete"
+                comments = client.get(url + "/download/comments.pdf")
+                assert comments.status_code == 200
+                assert comments.headers["content-type"] == "application/pdf"
+                canonical = client.get(url + "/download/text").text
+                assert_comments_pdf_parity(comments.content, canonical)
+                assert client.get(url + "/download/student-report.pdf").status_code == 200
     assert attempts == []
 
 

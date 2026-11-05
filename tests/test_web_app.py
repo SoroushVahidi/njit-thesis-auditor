@@ -4872,3 +4872,94 @@ def test_validation_error_redirects_to_refreshable_get(client: tuple[TestClient,
         assert page.status_code == 400
         assert 'Could not start audit' in page.text
     assert not wa._jobs
+
+
+def test_comments_pdf_route_preserves_text_and_complete_report(
+    client: tuple[TestClient, Any], tmp_path: Path,
+) -> None:
+    from comments_pdf_helpers import assert_comments_pdf_parity
+
+    from njit_auditor.student_pdf_report import render_student_report_text
+
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path,
+        findings=[_p012_annotation_finding_with_bbox(page=3)],
+        file_name="synthetic résumé.pdf", audit_type="pdf",
+    )
+    job = wa._get_job(job_id)
+    job.failed_check_count = 2
+    job.findings.append({
+        "problem_number": 2, "page": None, "rule_id": "P012",
+        "polished_comment": "Synthetic document-level finding without coordinates.",
+        "suggested_fix": "Check the synthetic document.",
+    })
+    base = f"/audits/{job_id}"
+    jdir = wa._job_dir(job_id)
+    (jdir / "report.txt").write_text(render_student_report_text(
+        job.findings, file_name=job.file_name, failed_check_count=2,
+    ), encoding="utf-8")
+    original = (jdir / "upload.pdf").read_bytes()
+    complete = c.get(base + "/download/student-report.pdf")
+    assert complete.status_code == 200
+    cached = {path.name: path.read_bytes() for path in jdir.glob("student-report*")}
+    text_before = c.get(base + "/download/text")
+    json_before = c.get(base + "/download/json").content
+    md_before = c.get(base + "/download/markdown").content
+    response = c.get(base + "/download/comments.pdf")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"] == (
+        "attachment; filename*=utf-8''synthetic_r_sum__NJIT_Comments.pdf"
+    )
+    assert_comments_pdf_parity(response.content, text_before.text)
+    page = c.get(base).text
+    assert "Download Comments PDF" in page
+    assert f'href="{base}/download/comments.pdf"' in page
+    assert f'href="{base}/download/text"' not in page
+    assert "Download Full Student Report" not in page
+    assert c.get(base + "/download/student-report.pdf").content == complete.content
+    assert {path.name: path.read_bytes() for path in jdir.glob("student-report*")} == cached
+    assert (jdir / "upload.pdf").read_bytes() == original
+    assert c.get(base + "/download/text").content == text_before.content
+    assert c.get(base + "/download/json").content == json_before
+    assert c.get(base + "/download/markdown").content == md_before
+    # This export requires no source PDF at all.
+    (jdir / "upload.pdf").unlink()
+    assert c.get(base + "/download/comments.pdf").status_code == 200
+
+
+def test_comments_pdf_unavailable_jobs_and_missing_text_return_html(
+    client: tuple[TestClient, Any], tmp_path: Path,
+) -> None:
+    c, wa = client
+    assert c.get("/audits/missing/download/comments.pdf").status_code == 404
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=[], file_name="synthetic.pdf", audit_type="pdf",
+    )
+    url = f"/audits/{job_id}/download/comments.pdf"
+    job = wa._get_job(job_id)
+    for state in ["pending", "running", "failed"]:
+        job.state = state
+        assert c.get(url).status_code == 404
+    job.state = "complete"
+    (wa._job_dir(job_id) / "report.txt").unlink()
+    response = c.get(url)
+    assert response.status_code == 404
+    assert response.headers["content-type"].startswith("text/html")
+
+
+def test_comments_pdf_generation_error_is_friendly_and_does_not_log_content(
+    client: tuple[TestClient, Any], tmp_path: Path, caplog: pytest.LogCaptureFixture,
+) -> None:
+    c, wa = client
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=[], file_name="synthetic.pdf", audit_type="pdf",
+    )
+    with patch.object(
+        wa, "render_comments_pdf_report", side_effect=RuntimeError("PRIVATE_SENTINEL"),
+    ):
+        response = c.get(f"/audits/{job_id}/download/comments.pdf")
+    assert response.status_code == 500
+    assert "The comments PDF could not be prepared. Please try again." in response.text
+    assert "PRIVATE_SENTINEL" not in response.text + caplog.text

@@ -46,8 +46,10 @@ Results include summary cards, findings by topic, findings in page order, client
 (rule/category/page/confidence), privacy-safe polished comments per finding, and a **Complete PDF
 Report** download. That PDF contains the entire thesis with reliable formatting locations
 highlighted, followed by page-ordered explanations for every student-visible finding. Findings
-without an exact highlight still appear in the appended report. Plain text, Markdown, and JSON
-downloads remain available. Treat downloaded complete reports as private thesis content. See
+without an exact highlight still appear in the appended report. **Download Comments PDF** provides
+the same page-ordered student comments in a standalone PDF without original document pages.
+Markdown and JSON downloads remain available; the older text endpoint is retained for compatibility.
+Treat downloaded complete reports as private thesis content. See
 [the complete report guide](docs/features/combined_student_pdf_report.md). Web exports use
 basename-only paths and strip several private-detail fields (see
 **Privacy statement** below); CLI exports are not sanitized.

@@ -33,6 +33,7 @@ from njit_auditor.audit_runner import (
     classify_pdf_text_layer,
     run_audit_for_uploaded_file,
 )
+from njit_auditor.comments_pdf_report import render_comments_pdf_report
 from njit_auditor.coverage_disclosure import (
     COVERAGE_AREAS,
     COVERAGE_HEADING,
@@ -2620,6 +2621,34 @@ async def download_text(job_id: str) -> FileResponse | JSONResponse:
         path=str(report_path),
         media_type="text/plain; charset=utf-8",
         filename=f"thesis_audit_report_{job_id[:8]}.txt",
+    )
+
+
+@app.get("/audits/{job_id}/download/comments.pdf", response_model=None)
+async def download_comments_pdf(request: Request, job_id: str) -> Response:
+    """Download only student comments; never load or embed dissertation pages."""
+    cleanup_expired_jobs()
+    job = _get_job(job_id)
+    if job is None or job.state != "complete":
+        return _index_notice(request, _expired_job_notice(), status_code=404)
+    report_path = _job_dir(job_id) / "report.txt"
+    if not _is_under_runtime(report_path) or not report_path.is_file():
+        return _index_notice(request, _expired_job_notice(), status_code=404)
+    try:
+        payload = render_comments_pdf_report(report_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        _logger.warning("Comments PDF generation failed (%s).", type(exc).__name__)
+        return _index_notice(
+            request,
+            "The comments PDF could not be prepared. Please try again.",
+            status_code=500,
+        )
+    safe_name = sanitize_upload_filename(job.file_name or "thesis.pdf")
+    filename = urllib.parse.quote(f"{Path(safe_name).stem}_NJIT_Comments.pdf")
+    return Response(
+        content=payload,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename*=utf-8''{filename}"},
     )
 
 
