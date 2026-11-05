@@ -311,6 +311,30 @@ def _is_qualified_heading(text: str) -> bool:
     return True
 
 
+def _bold_run_in_has_terminal_period(line: PdfTextLine, pattern: re.Pattern[str]) -> bool:
+    """Read a run-in heading's period when raw span text omits word spaces."""
+    bold_spans = []
+    for span in line.spans:
+        if not span.bold:
+            break
+        bold_spans.append(span)
+    if not bold_spans or len(bold_spans) == len(line.spans):
+        return False
+    tail = line.spans[len(bold_spans):]
+    first_tail = next((span for span in tail if span.text.strip()), None)
+    if first_tail is None or first_tail.italic:
+        return False
+    # An italic continuation or a short math fragment is still heading content,
+    # not enough evidence of an ordinary body sentence after the bold title.
+    if not _is_qualified_heading(join_content_span_texts(tail)):
+        return False
+    match = pattern.match(" ".join(join_content_span_texts(bold_spans).split()))
+    if match is None:
+        return False
+    title = match.group(2).strip()
+    return _is_qualified_heading(title) and title.endswith(".")
+
+
 def _finding(
     page_number: int,
     issue_type: str,
@@ -458,7 +482,11 @@ def _check_line(
                     finding.details["corrected_from"] = original
                 results.append(finding)
             # Level 4/5: heading text should end with a period.
-            if level in (4, 5) and not heading_text.rstrip().endswith("."):
+            if (
+                level in (4, 5)
+                and not heading_text.rstrip().endswith(".")
+                and not _bold_run_in_has_terminal_period(line, pattern)
+            ):
                 results.append(_finding(
                     page.page_number,
                     issue_type=f"level{level}_sentence_case_or_punctuation_issue",
