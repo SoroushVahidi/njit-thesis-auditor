@@ -18,10 +18,19 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from jinja2 import TemplateNotFound
+from starlette.exceptions import HTTPException
+from starlette.requests import ClientDisconnect
 from starlette.routing import Route
 
 from njit_auditor import web_app
 from njit_auditor.desktop_executor import DesktopExecutor
+from njit_auditor.request_body_limit import (
+    BODY_TOO_LARGE,
+    INVALID_BODY,
+    MULTIPART_OVERHEAD_BYTES,
+    RequestBodyLimitMiddleware,
+    read_csrf_token,
+)
 from njit_auditor.resource_paths import resource_path
 
 SESSION_SECONDS = 8 * 60 * 60
@@ -311,11 +320,28 @@ def create_offline_app(
             if request.method not in ("GET", "HEAD", "OPTIONS"):
                 if origin != allowed_origin:
                     return JSONResponse({"error": "origin required"}, status_code=403)
-                # Cache the body before parsing; Starlette must replay it to the
-                # existing upload endpoint after middleware checks the form.
-                await request.body()
-                form = await request.form()
-                submitted = str(form.get("csrf_token", ""))
+                # The outer ASGI receive guard bounds bytes before this cache.
+                # Keep body() for Starlette's downstream replay, and close this
+                # separate CSRF parse's temporary files before the endpoint runs.
+                try:
+                    await request.body()
+                    submitted = await read_csrf_token(request)
+                except (HTTPException, ClientDisconnect) as exc:
+                    status = exc.status_code if isinstance(exc, HTTPException) else 400
+                    message = BODY_TOO_LARGE if status == 413 else INVALID_BODY
+                    return HTMLResponse(
+                        '<!doctype html><html lang="en"><meta charset="utf-8">'
+                        '<title>Upload unavailable</title><main><h1>Could not start audit</h1>'
+                        f'<p>{message}</p><p><a href="/">Return to the auditor</a></p>'
+                        '</main></html>',
+                        status_code=status,
+                        headers={
+                            "Cache-Control": "no-store",
+                            "Referrer-Policy": "no-referrer",
+                            "X-Content-Type-Options": "nosniff",
+                            "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+                        },
+                    )
                 if not hmac.compare_digest(submitted, csrf):
                     return JSONResponse({"error": "invalid CSRF token"}, status_code=403)
             last_activity = time.monotonic()
@@ -387,4 +413,10 @@ def create_offline_app(
             )
         return HTMLResponse("<p>Auditor closed. You may close this tab.</p>")
 
+    # add_middleware inserts at the outside of the existing security middleware,
+    # so its receive wrapper runs before Request.body() can accumulate a chunk.
+    offline.add_middleware(
+        RequestBodyLimitMiddleware,
+        max_body_bytes=web_app.MAX_UPLOAD_BYTES + MULTIPART_OVERHEAD_BYTES,
+    )
     return offline
