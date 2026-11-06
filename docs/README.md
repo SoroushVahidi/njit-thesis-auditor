@@ -6,7 +6,8 @@ claim as current.
 
 | Need | Start here |
 |---|---|
-| Current deployed SHA, validation, and next evaluation task | [Current status](status/CURRENT_STATUS.md) |
+| Dated deployment/validation snapshots and next evaluation task | [Current status](status/CURRENT_STATUS.md); verify live state before acting |
+| Repository layout, worktrees, environments and artifact retention | [Development guide](DEVELOPMENT.md) |
 | Direction and unresolved work | [Roadmap](ROADMAP.md) |
 | Rule IDs, detector categories, and source metadata | [Rule architecture](RULE_ARCHITECTURE.md) and [rule inventory](rules/rule_inventory.md) |
 | Local setup, CI, private gates, and packaging | [Reproducibility](REPRODUCIBILITY.md) |

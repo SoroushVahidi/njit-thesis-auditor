@@ -2,7 +2,9 @@
 
 Published bytes, exact source pin, build run and actual test limits: [rc.3 release record](releases/windows-0.2.0-rc.3.md). This document is the build/publication procedure; current source changes do not replace the published executable.
 
-Public distribution, installer publication, integration and deployment are authorized.
+The rc.3 release task authorized public installer distribution, integration and
+deployment. That historical authorization does not authorize a future release or
+deployment merely because this procedure is available or checks pass.
 Keep `SoroushVahidi/njit-thesis-auditor` private. Only the selected installer,
 its byte metadata/checksum and brief release documentation belong in the separate
 public distribution repository `SoroushVahidi/njit-thesis-auditor-desktop`.
@@ -10,6 +12,12 @@ Never copy a source checkout, Git history, credentials, student PDFs or audit ou
 into that repository.
 
 ## Recovered source and new build
+
+**Historical rc.3 context:** the source history and versioned commands below
+document rc.3. For a future authorized release, use a new version and record its
+own source and validation;
+never overwrite the published rc.3 bytes. For development worktree and output
+conventions, see the [development guide](DEVELOPMENT.md).
 
 The release branch starts from `7069363583ddeafc910f91c62c0845cc415b7bd0`, which
 includes the Windows loopback, concurrent PDF publication and UTF-8/LF export fixes.
