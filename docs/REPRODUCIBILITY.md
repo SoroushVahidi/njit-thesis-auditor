@@ -30,6 +30,12 @@ public. The 136-case reviewer replay and 19-PDF evaluation additionally
 depend on authorized private inputs and cannot be reproduced from a public
 source snapshot or ordinary CI alone.
 
+For checkout roles, saved path dependencies and output retention, start with the
+[development guide](DEVELOPMENT.md). Keep environment installation confined to
+your development worktree; do not reinstall into a production or saved validation
+environment. Documentation-only work does not require materializing private LFS
+inputs or running the full application suite.
+
 ## Standard checks and exact commits
 
 From the repository root, record the commit and tree being checked before

@@ -22,10 +22,14 @@ This project is:
 
 ## Quick install
 
+Use Python 3.10 or newer in an authorized private checkout. See
+[development and worktrees](docs/DEVELOPMENT.md) before using a shared host, and
+[reproducibility](docs/REPRODUCIBILITY.md) for Git LFS fixtures and CI versions.
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
 
 ## Web UI
@@ -176,12 +180,29 @@ Designed for local processing only — keep thesis/dissertation files on your ow
 - **Not every `P###` is a standalone student-visible rule** — some are reporting-only
   infrastructure or experimental/opt-in; see [docs/RULE_ARCHITECTURE.md](docs/RULE_ARCHITECTURE.md).
 
+## Repository layout
+
+| Path | Purpose |
+|---|---|
+| `src/njit_auditor/` | Shared Python application, CLI, web and desktop entry points; rules and templates. |
+| `tests/`, `examples/` | Automated checks, fixtures and synthetic examples. |
+| `data/specs/`, `data/processed/` | Private institutional specifications and application metadata; not disposable build output. |
+| `data/raw/` | Protected source and research inputs; not a public sample directory. |
+| `docs/` | Guides, plans, dated validation and historical evidence. |
+| `scripts/`, `.github/workflows/` | Development, validation, packaging and CI tooling. |
+| `packaging/`, `assets/` | Desktop packaging definitions and runtime fonts/icons. |
+| `.runtime/`, `results/`, `build/`, `dist/` | Ignored local outputs; retention depends on their contents. |
+
+See [development and artifact conventions](docs/DEVELOPMENT.md) for checkout
+roles, private notes, environment paths and evidence retention.
+
 ## Documentation map
 
 | Doc | Purpose |
 |---|---|
 | [docs/README.md](docs/README.md) | Navigate current guides and dated research records. |
-| [docs/status/CURRENT_STATUS.md](docs/status/CURRENT_STATUS.md) | Current SHA, test count, open PRs, next actions — the canonical "what's true right now." |
+| [docs/status/CURRENT_STATUS.md](docs/status/CURRENT_STATUS.md) | Dated SHA, validation and next-task snapshots; verify live Git/PR/deployment state before acting. |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Checkout roles, worktree safety, repository layout and artifact retention. |
 | [docs/PUBLIC_WINDOWS_RELEASE.md](docs/PUBLIC_WINDOWS_RELEASE.md) and [rc.3 record](docs/releases/windows-0.2.0-rc.3.md) | Build/publication procedure, immutable installer provenance and actual test limits. |
 | [docs/ABOUT_US_CONTENT.md](docs/ABOUT_US_CONTENT.md) | Verified About Us facts and pending desktop inclusion. |
 | [docs/STUDENT_WORDING_USABILITY.md](docs/STUDENT_WORDING_USABILITY.md) | Website/shared-source wording changes awaiting another installer. |
@@ -197,6 +218,9 @@ Designed for local processing only — keep thesis/dissertation files on your ow
 
 ## Development
 
+Run checks appropriate to the change from your own development worktree. For
+application changes, the standard checks are:
+
 ```bash
 ruff check .
 mypy src
@@ -205,3 +229,5 @@ python -m pytest
 
 See [reproducibility](docs/REPRODUCIBILITY.md) for the tested Python versions,
 Git LFS setup, private-data-dependent skips, and exact-SHA validation.
+For documentation-only changes, see the lightweight checks in the
+[development guide](docs/DEVELOPMENT.md#checks-and-review).
