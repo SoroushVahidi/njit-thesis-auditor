@@ -58,6 +58,7 @@ from njit_auditor.pdf_highlight import (
     get_pdf_page_sizes,
     is_drawable_bbox,
 )
+from njit_auditor.pdf_publication import complete_pdf
 from njit_auditor.report_outputs import (
     _high_volume_pattern_note,
     _websafe_rule_text,
@@ -232,6 +233,8 @@ class JobState:
 
 _jobs: dict[str, JobState] = {}
 _jobs_lock = threading.Lock()
+# Active desktop export leases prevent retention/deletion from erasing live inputs.
+_export_leases: dict[str, int] = {}
 _student_pdf_locks: WeakValueDictionary[str, LockType] = WeakValueDictionary()
 
 
@@ -315,6 +318,9 @@ def _delete_job_workspace(job_id: str) -> bool:
 
     Returns False only when a deletable workspace could not be removed.
     """
+    with _jobs_lock:
+        if _export_leases.get(job_id):
+            return False
     return _remove_workspace(_job_dir(job_id))
 
 
@@ -338,7 +344,7 @@ def cleanup_expired_jobs(now: datetime | None = None) -> int:
     expired_ids: list[str] = []
     with _jobs_lock:
         for job_id, job in list(_jobs.items()):
-            if job.state in ("pending", "running"):
+            if job.state in ("pending", "running") or _export_leases.get(job_id):
                 continue
             created = _parse_job_timestamp(job.created_at)
             if (now - created).total_seconds() > JOB_TTL_SECONDS:
@@ -2320,12 +2326,13 @@ async def reject_shortcut_audit() -> RedirectResponse:
 
 
 @app.get("/sample.pdf")
-async def download_synthetic_sample() -> Response:
+async def download_synthetic_sample(request: Request) -> Response:
     """Offer a local synthetic file to download and upload; never start an audit."""
     from njit_auditor.synthetic_sample import sample_pdf
 
+    prepared = getattr(request.app.state, "synthetic_sample_pdf", None)
     return Response(
-        sample_pdf(),
+        prepared if prepared is not None else sample_pdf(),
         media_type="application/pdf",
         headers={"Content-Disposition": 'attachment; filename="synthetic-example.pdf"'},
     )
@@ -2625,8 +2632,17 @@ async def download_text(job_id: str) -> FileResponse | JSONResponse:
 
 @app.get("/audits/{job_id}/download/student-report.pdf", response_model=None)
 async def download_student_pdf_report(request: Request, job_id: str) -> FileResponse | HTMLResponse:
-    """Download the complete thesis followed by numbered formatting problems."""
     cleanup_expired_jobs()
+    manager = getattr(request.app.state, "pdf_export_executor", None)
+    if manager is not None:
+        return await manager.response(request, job_id, "student", {})
+    return _prepare_student_pdf(request, job_id)
+
+
+def _prepare_student_pdf(
+    request: Request, job_id: str, *, output_dir: Path | None = None
+) -> FileResponse | HTMLResponse:
+    """Download the complete thesis followed by numbered formatting problems."""
     job = _get_job(job_id)
     if job is None or job.state != "complete":
         return _index_notice(request, _expired_job_notice(), status_code=404)
@@ -2636,6 +2652,7 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
         )
     jdir = _job_dir(job_id)
     source = _job_pdf_path(jdir)
+    jdir = output_dir or jdir
     output = jdir / "student-report.pdf"
     stamp = jdir / "student-report.sha256"
     if not all(_is_under_runtime(path) for path in (source, output, stamp)) or not source.exists():
@@ -2940,6 +2957,27 @@ async def serve_job_pdf_highlighted(
     finding_id: str = "",
     finding_index: int | None = None,
 ) -> FileResponse | HTMLResponse:
+    cleanup_expired_jobs()
+    params: dict[str, Any] = dict(page=page, rule_id=rule_id, issue_type=issue_type,
+                  finding_id=finding_id, finding_index=finding_index)
+    manager = getattr(request.app.state, "pdf_export_executor", None)
+    if manager is not None:
+        return await manager.response(request, job_id, "highlighted", params)
+    with _student_pdf_lock(job_id):
+        return _prepare_highlighted_pdf(request, job_id, **params)
+
+
+def _prepare_highlighted_pdf(
+    request: Request,
+    job_id: str,
+    page: int | None = None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_id: str = "",
+    finding_index: int | None = None,
+    *,
+    output_dir: Path | None = None,
+) -> FileResponse | HTMLResponse:
     """Serve the uploaded PDF inline with a highlight for a specific finding.
 
     Falls back to the plain (unhighlighted) PDF when the matched finding(s)
@@ -2951,7 +2989,6 @@ async def serve_job_pdf_highlighted(
     following/rendering it inline, which broke this student-facing route in
     production.
     """
-    cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None or job.state != "complete":
         return _index_notice(request, _expired_job_notice(), status_code=404)
@@ -2962,6 +2999,7 @@ async def serve_job_pdf_highlighted(
 
     jdir = _job_dir(job_id)
     pdf_path = _job_pdf_path(jdir)
+    jdir = output_dir or jdir
     if not _is_under_runtime(pdf_path) or not pdf_path.exists():
         return _index_notice(request, _expired_job_notice(), status_code=404)
 
@@ -3001,7 +3039,7 @@ async def serve_job_pdf_highlighted(
         if not _is_under_runtime(cache_path):
             return plain_response
 
-        if not cache_path.exists():
+        if not complete_pdf(cache_path):
             result = build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
             if not result.has_highlight:
                 _logger.warning(
@@ -3010,7 +3048,7 @@ async def serve_job_pdf_highlighted(
                     len(matches),
                     result.skipped_count,
                 )
-        if not cache_path.exists():
+        if not complete_pdf(cache_path):
             return plain_response
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
@@ -3032,6 +3070,27 @@ async def serve_job_highlighted_page_pdf(
     finding_id: str = "",
     finding_index: int | None = None,
 ) -> FileResponse | HTMLResponse:
+    cleanup_expired_jobs()
+    params: dict[str, Any] = dict(page=page, rule_id=rule_id, issue_type=issue_type,
+                  finding_id=finding_id, finding_index=finding_index)
+    manager = getattr(request.app.state, "pdf_export_executor", None)
+    if manager is not None:
+        return await manager.response(request, job_id, "page", params)
+    with _student_pdf_lock(job_id):
+        return _prepare_highlighted_page_pdf(request, job_id, **params)
+
+
+def _prepare_highlighted_page_pdf(
+    request: Request,
+    job_id: str,
+    page: int | None = None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_id: str = "",
+    finding_index: int | None = None,
+    *,
+    output_dir: Path | None = None,
+) -> FileResponse | HTMLResponse:
     """Serve a one-page highlighted PDF for per-finding report links.
 
     Errors return an HTML notice, never JSON: mobile browsers (notably
@@ -3039,7 +3098,6 @@ async def serve_job_highlighted_page_pdf(
     following/rendering it inline, which broke this student-facing route in
     production.
     """
-    cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None or job.state != "complete":
         return _index_notice(request, _expired_job_notice(), status_code=404)
@@ -3054,6 +3112,7 @@ async def serve_job_highlighted_page_pdf(
 
     jdir = _job_dir(job_id)
     pdf_path = _job_pdf_path(jdir)
+    jdir = output_dir or jdir
     if not _is_under_runtime(pdf_path) or not pdf_path.exists():
         return _index_notice(request, _expired_job_notice(), status_code=404)
 
@@ -3074,12 +3133,17 @@ async def serve_job_highlighted_page_pdf(
         """Best-effort plain single-page extract, used when highlight-aware
         generation fails for any reason -- this route must always try to
         hand back a usable PDF rather than a bare error."""
-        if cache_path.exists() and _is_under_runtime(cache_path):
+        if complete_pdf(cache_path) and _is_under_runtime(cache_path):
             return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-        if _is_under_runtime(cache_path) and build_single_page_pdf(
-            pdf_path, cache_path, source_page_number=page
-        ):
-            return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
+        try:
+            if _is_under_runtime(cache_path) and build_single_page_pdf(
+                pdf_path, cache_path, source_page_number=page
+            ):
+                return FileResponse(
+                    path=str(cache_path), media_type="application/pdf", headers=headers
+                )
+        except Exception:
+            pass
         return _index_notice(
             request, f"Page {page} could not be extracted from this audit PDF.", status_code=404
         )
@@ -3099,7 +3163,7 @@ async def serve_job_highlighted_page_pdf(
         if not _is_under_runtime(cache_path):
             return _extract_plain_single_page()
 
-        if not cache_path.exists():
+        if not complete_pdf(cache_path):
             if page_boxes:
                 result = build_highlighted_single_page_pdf(
                     pdf_path,
@@ -3115,7 +3179,7 @@ async def serve_job_highlighted_page_pdf(
                         len(matches),
                         result.skipped_count,
                     )
-            if not cache_path.exists() and not build_single_page_pdf(
+            if not complete_pdf(cache_path) and not build_single_page_pdf(
                 pdf_path, cache_path, source_page_number=page
             ):
                 return _index_notice(

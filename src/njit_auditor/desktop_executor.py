@@ -33,6 +33,35 @@ def worker_command(request: Path) -> list[str]:
     return [sys.executable, "-m", "njit_auditor.desktop_worker", str(request)]
 
 
+def start_worker(
+    request: Path, command: Callable[[Path], list[str]]
+) -> tuple[subprocess.Popen[bytes], ProcessTree]:
+    """Start and contain a worker; its owner must then release the ready gate."""
+    env = os.environ.copy()
+    env["FASTAPI_OTEL_AUTO_CONFIGURE"] = "false"
+    if not getattr(sys, "frozen", False):
+        env["PYTHONPATH"] = os.pathsep.join(
+            [str(resource_root() / "src"), env.get("PYTHONPATH", "")]
+        )
+    process = subprocess.Popen(
+        command(request), env=env, stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        start_new_session=os.name != "nt",
+        creationflags=0x08000000 if os.name == "nt" else 0,
+    )
+    tree = None
+    try:
+        tree = ProcessTree(process)
+        return process, tree
+    except BaseException:
+        if tree is not None:
+            tree.stop()
+        else:
+            process.kill()
+            process.wait(timeout=2)
+        raise
+
+
 class DesktopExecutor:
     def __init__(
         self,
@@ -152,33 +181,12 @@ class DesktopExecutor:
                 ),
                 encoding="utf-8",
             )
-            env = os.environ.copy()
-            env["FASTAPI_OTEL_AUTO_CONFIGURE"] = "false"
-            if not getattr(sys, "frozen", False):
-                env["PYTHONPATH"] = os.pathsep.join(
-                    [str(resource_root() / "src"), env.get("PYTHONPATH", "")]
-                )
             with self._lock:
                 if self._closing.is_set() or cancel.is_set():
                     failure = CANCEL_MESSAGE
                     return
-                process = subprocess.Popen(
-                    self._command(request),
-                    env=env,
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    start_new_session=os.name != "nt",
-                    creationflags=0x08000000 if os.name == "nt" else 0,  # CREATE_NO_WINDOW
-                )
-                try:
-                    tree = ProcessTree(process)
-                except BaseException:
-                    process.kill()
-                    process.wait(timeout=2)
-                    raise
+                process, tree = start_worker(request, self._command)
                 self._trees[job_id] = tree
-                # The worker cannot import/run the audit until tree containment exists.
                 ready.touch()
             while process.poll() is None:
                 if cancel.is_set() or self._closing.is_set():
