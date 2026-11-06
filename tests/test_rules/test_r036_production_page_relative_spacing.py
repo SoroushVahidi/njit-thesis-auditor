@@ -7,9 +7,8 @@ These tests pin the *production* R036 semantics introduced by
 * SUPPRESS when the gap matches normal local page rhythm;
 * ABSTAIN when context is unreliable (sparse page, ambiguous reconstruction,
   untrustworthy neighborhood);
-* REPORT only under a strong multi-signal gate that is intentionally DISABLED
-  (``suppression_abstention_only``) because no Ester-confirmed R036 true
-  positive exists to validate positive detection.
+* REPORT only under the active strong multi-signal gate; the original
+  suppression-only mode remains available for diagnostic comparisons.
 
 The retired fixed 1.6 ratio must not produce findings, and all 24
 Ester-confirmed false positives must be suppressed or abstained (never
@@ -372,12 +371,7 @@ def test_clean_wrapped_lof_neighborhood_suppressed() -> None:
 
 
 def test_synthetic_isolated_tight_gap_abstains_under_selected_gate() -> None:
-    """A page with a uniform 22pt rhythm except one isolated 15pt gap:
-    under the selected ``suppression_abstention_only`` gate the candidate is
-    NOT reported (no real true positive validated) -- it abstains. This is
-    the production answer to 'the synthetic algorithm can detect an isolated
-    tight gap': the detection is real, but production does not surface it
-    until a true positive is confirmed."""
+    """A 15pt gap among 22pt peers is not strong enough to report."""
     lines = []
     y = 150.0
     # Establish rhythm: 150 -> 172 -> 194 (22pt gaps).
@@ -402,7 +396,7 @@ def test_synthetic_isolated_tight_gap_abstains_under_selected_gate() -> None:
         r for r in records if abs(r["pitch_pt"] - 15.0) < 0.5
     ]
     assert tight, "expected the isolated 15pt gap to be present as a candidate"
-    # Under the selected gate it abstains (tight but reporting is disabled).
+    # Moderate deviation alone remains insufficient evidence.
     assert all(
         r["outcome"].outcome is ProductionOutcome.ABSTAIN
         and r["outcome"].abstain_reason.value == "unreliable_neighborhood"

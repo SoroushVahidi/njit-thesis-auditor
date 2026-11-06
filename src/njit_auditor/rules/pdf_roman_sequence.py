@@ -74,13 +74,13 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
         if page_step <= 0:
             prev = cand
             continue
-        # Expect visible roman numerals to increase by one across consecutive
-        # visible numbered front-matter pages. This flags non-consecutive visible
-        # numerals (i, iii) as a gap. Skipped no-number pages are handled by
-        # excluding those pages from candidate lists; if an intermediate page is
-        # a recognized no-number page, a following visible numeral that equals
-        # previous+1 will still pass.
-        expected = (prev.value or 0) + 1
+        # Unreadable/missing folios still occupy physical numbered pages. Do not
+        # invent a gap merely because an intermediate numeral was not extracted.
+        # Explicit no-number pages remain exempt, as in the historical policy.
+        numbered_step = sum(
+            p not in no_number_pages for p in range(prev.page_number + 1, cand.page_number + 1)
+        )
+        expected = (prev.value or 0) + numbered_step
         issue_type = None
         confidence = "medium"
 

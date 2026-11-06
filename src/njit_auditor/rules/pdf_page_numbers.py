@@ -678,7 +678,7 @@ def _is_expected_frontmatter_to_body_style_transition(
 ) -> bool:
     """Return True when mixed styles are just the NJIT front-matter/body split.
 
-    Roman numerals in front matter followed by Arabic page 1 at the CHAPTER 1
+    Roman numerals in front matter followed by Arabic numbers at the CHAPTER 1
     landmark is expected document structure. P019 should still report sequence
     defects and per-page candidate problems, but it must not emit the old
     document-wide "mixed numbering styles" warning for that normal transition.
@@ -697,8 +697,8 @@ def _is_expected_frontmatter_to_body_style_transition(
         return False
     if prev_style != "roman_lower" or new_style != "arabic":
         return False
-    primary = _primary_plausible_candidate(filtered_by_page.get(new_page, []))
-    return primary is not None and primary.value == 1
+    # A wrong starting value is a numeric defect, not an invalid style transition.
+    return True
 
 
 def _is_unresolved_roman_to_arabic_body_landmark_transition(
@@ -1015,9 +1015,12 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
         if _primary_plausible_candidate(page_candidates) is not None:
             pages_with_plausible_primary.add(page)
 
+    # Missing extraction on an outlined/scanned page is not evidence of absence.
+    unreadable_pages = {p.page_number for p in pdf_doc.pages if p.text_extraction_unavailable}
+
     # Missing page number where neighboring pages both have plausible candidates.
     for page in range(2, len(pdf_doc.pages)):
-        if page in pages_with_plausible_primary:
+        if page in pages_with_plausible_primary or page in unreadable_pages:
             continue
         if (page - 1) in pages_with_plausible_primary and (
             page + 1

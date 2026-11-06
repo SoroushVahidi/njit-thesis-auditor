@@ -155,6 +155,8 @@ def _check_lof_terminal_punctuation_page(
             "bbox": format_bbox_detail(entry.line.bbox),
             "terminal_punctuation_required": "., ?, or !",
             "triage_tier": "medium",
+            "confidence": "medium",
+            "confidence_reason": "layout_inferred_entry_end",
             "source_q_rule_id": "Q075",
         }
         findings.append(
