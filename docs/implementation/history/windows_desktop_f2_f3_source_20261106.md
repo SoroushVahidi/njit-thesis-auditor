@@ -40,7 +40,10 @@ audits; there is no new multiprocessing bootstrap or worker listener.
 Configuration is explicit through the executor constructor and app injection:
 
 ```python
-exports = PdfExportExecutor(deadline=120.0, max_active=2)
+exports = PdfExportExecutor(
+    deadline=120.0, max_active=2,
+    max_cached_exports=256, max_cache_bytes=512 * 1024 * 1024,
+)
 app = create_offline_app(..., export_executor=exports)
 ```
 
@@ -140,6 +143,50 @@ Local validation commands and evidence are in the worktree's ignored
 `pinned.log`, `pinned.xml`, `pdf_parity.py`, `pdf-parity.json`). The installed and
 pinned pytest invocations explicitly exclude `sample_audit_pdf_links` from
 `test_highlight_pdf_student_routes.py`; no broad default pytest run is used.
+
+## Final integration review
+
+The review against unchanged remote main `b6d3dbbb247fe3722e19401ea09d37929419d180`
+identified one confirmed source defect: distinct queries, changed findings and
+quarantined corrupt generations could accumulate immutable caches without an
+explicit storage bound. The correction adds configurable per-audit admission and
+publication limits, defaulting to 256 retained generations and 512 MiB. Both valid
+and quarantined generations count, including their completion/metadata files.
+Checks run under the existing per-job writer lock, before worker startup and
+again before atomic publication. A cache hit remains available at the limit.
+
+Reaching a limit refuses a new cache entry with a safe HTML notice explaining how
+to save reports, delete the local audit and re-upload. It does not evict or replace
+files that a downloader may hold open. A rejected staged output is cleaned by its
+supervisor. Job deletion/retention/startup cleanup still removes the complete
+workspace. This bounds retained export caches, not the filesystem consumption of
+a worker while it is rendering; existing worker deadlines/concurrency apply to
+that temporary work. It adds no machine-wide storage policy or changes to other
+audit findings.
+
+Six additional regression cases cover count/byte bounds, quarantine accounting,
+continued existing downloads, invalid configuration, retry after a rejected
+publication, and refusal to reuse a cache after deletion (56 new cases overall).
+The review found no substantial architectural blocker. Hosted rendering still
+uses its established path; F1, rule/detector code, thresholds and baselines are
+unchanged. Full-highlight fallback, successful PDF contents/geometry and download
+filenames retain their reviewed contracts. No multiprocessing bootstrap, network
+policy, Windows containment implementation, packaging or release metadata changed.
+
+Final validation after the correction: **553 passed, 1 skipped, 2 deselected**
+on the installed stack and **546 passed, 1 skipped, 2 deselected** on the same
+read-only pinned overlay. Test selection and the seven-case browser/session
+difference are as described above. Ruff, mypy (160 source files), diff checks and
+all **32 PDF baseline comparisons** passed again. The F1 `protect` middleware AST
+is identical to main; the receive limiter, its regression tests, process
+containment, network restrictions, frozen launcher and PyInstaller spec are
+byte-identical to main.
+
+Final rerun evidence is recorded separately in the ignored worktree directory
+`.runtime/f2-f3-integration-review/`, preserving the original implementation logs.
+No workflows were edited or dispatched. Both commits retain `[skip ci]` because
+the default push/PR workflow uses private dissertation fixtures; the Linux
+synthetic results above are the validation evidence for this source-only PR.
 
 ## Native Windows qualification still required
 

@@ -32,6 +32,8 @@ from njit_auditor.pdf_publication import complete_pdf
 
 EXPORT_DEADLINE_SECONDS = 120.0
 MAX_ACTIVE_EXPORTS = 2
+MAX_CACHED_EXPORTS_PER_AUDIT = 256
+MAX_CACHED_EXPORT_BYTES_PER_AUDIT = 512 * 1024 * 1024
 
 
 def file_digest(path: Path) -> str:
@@ -97,17 +99,27 @@ class ExportUnavailable(Exception):
     pass
 
 
+class ExportCacheLimit(ExportUnavailable):
+    pass
+
+
 class PdfExportExecutor:
     def __init__(
         self,
         *,
         deadline: float = EXPORT_DEADLINE_SECONDS,
         max_active: int = MAX_ACTIVE_EXPORTS,
+        max_cached_exports: int = MAX_CACHED_EXPORTS_PER_AUDIT,
+        max_cache_bytes: int = MAX_CACHED_EXPORT_BYTES_PER_AUDIT,
         command: Callable[[Path], list[str]] = worker_command,
     ) -> None:
         if not math.isfinite(deadline) or deadline <= 0 or max_active < 1:
             raise ValueError("Positive finite export limits are required")
+        if max_cached_exports < 1 or max_cache_bytes < 1:
+            raise ValueError("Positive export cache limits are required")
         prepare_containment()
+        self.max_cached_exports = max_cached_exports
+        self.max_cache_bytes = max_cache_bytes
         self.deadline = deadline
         self._command = command
         self._pool = ThreadPoolExecutor(max_workers=max_active, thread_name_prefix="pdf-export")
@@ -201,6 +213,34 @@ class PdfExportExecutor:
         except (OSError, ValueError, KeyError, TypeError):
             return None
 
+    @staticmethod
+    def _directory_bytes(directory: Path) -> int:
+        total = 0
+        for path in directory.rglob("*"):
+            if path.is_symlink():
+                raise ExportUnavailable("Invalid export cache")
+            if path.is_file():
+                total += path.stat().st_size
+        return total
+
+    def _check_cache_budget(self, directory: Path, additional_bytes: int = 0) -> None:
+        # Called under the per-job writer lock. Include old and quarantined
+        # generations: neither may grow indefinitely or be deleted under a reader.
+        count = size = 0
+        for child in directory.iterdir():
+            if child.name.startswith(".export-tmp-") or not child.name.startswith(
+                (".export-", ".invalid-export-")
+            ):
+                continue
+            if child.is_symlink() or not child.is_dir():
+                raise ExportUnavailable("Invalid export cache")
+            count += 1
+            size += self._directory_bytes(child)
+        if count >= self.max_cached_exports or size + additional_bytes > self.max_cache_bytes:
+            raise ExportCacheLimit()
+        if additional_bytes == 0 and size >= self.max_cache_bytes:
+            raise ExportCacheLimit()
+
     def _run(
         self, operation: Operation, kind: str, params: dict[str, Any]
     ) -> tuple[Path, dict[str, str]]:
@@ -240,6 +280,7 @@ class PdfExportExecutor:
             if cached is not None:
                 self._check(operation)
                 return cached
+            self._check_cache_budget(directory)
             # Never overwrite a download already in progress, even when a cache
             # fails its checksum. A new immutable generation gets a fresh pathname.
             if final.exists():
@@ -269,6 +310,7 @@ class PdfExportExecutor:
                 return generated
             request.unlink()
             request.with_name(".desktop-ready").unlink()
+            self._check_cache_budget(directory, self._directory_bytes(operation.directory))
             with self._lock:
                 # Cancellation and publication share this boundary. A cancellation
                 # accepted before this point cannot publish; after it, the artifact
@@ -335,6 +377,14 @@ class PdfExportExecutor:
             if web_app._get_job(job_id) is None or operation.cancel.is_set():
                 raise ExportUnavailable()
             return FileResponse(path, media_type="application/pdf", headers=headers)
+        except ExportCacheLimit:
+            return web_app._index_notice(
+                request,
+                "This audit has reached its local PDF export storage limit. "
+                "Existing downloads remain available. Save your reports, then delete "
+                "this local audit and upload the PDF again if you need more exports.",
+                status_code=503,
+            )
         except Exception:
             # No worker output, paths, document text, or job IDs enter logs/errors.
             job = web_app._get_job(job_id)

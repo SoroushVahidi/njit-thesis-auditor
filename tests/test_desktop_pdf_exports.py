@@ -520,3 +520,72 @@ def test_plain_fallback_after_worker_highlight_failure_is_not_cached(setup):
     with fitz.open(second.path) as document:
         page = document[0]
         assert list(page.annots())
+
+
+def test_immutable_cache_count_is_bounded_and_existing_download_still_works(setup, monkeypatch):
+    processes, _ = track(monkeypatch)
+    manager, app, job_id = setup(deadline=15, max_cached_exports=2)
+    first = asyncio.run(manager.response(request(app), job_id, "page", {"page": 1}))
+    second = asyncio.run(manager.response(request(app), job_id, "page", {"page": 2}))
+    assert isinstance(second, FileResponse)
+    with Path(first.path).open("rb") as reader:
+        for rule in ("synthetic-a", "synthetic-b", "synthetic-c"):
+            denied = asyncio.run(
+                manager.response(request(app), job_id, "page", {"page": 1, "rule_id": rule})
+            )
+            assert denied.status_code == 503
+            assert b"storage limit" in denied.body
+        cached = asyncio.run(manager.response(request(app), job_id, "page", {"page": 1}))
+        assert Path(cached.path).read_bytes() == reader.read()
+    assert len(processes) == 2
+    assert len(list(web_app._job_dir(job_id).glob(".export-*"))) == 2
+
+
+def test_cache_byte_limit_rejects_publication_and_preserves_prior_generation(setup):
+    manager, app, job_id = setup(deadline=15)
+    first = asyncio.run(manager.response(request(app), job_id, "page", {"page": 1}))
+    previous = Path(first.path).read_bytes()
+    # Leave room for admission, but not for a new PDF plus its completion manifest.
+    manager.max_cache_bytes = manager._directory_bytes(Path(first.path).parent) + 1
+    denied = asyncio.run(manager.response(request(app), job_id, "page", {"page": 2}))
+    assert denied.status_code == 503 and b"storage limit" in denied.body
+    assert Path(first.path).read_bytes() == previous
+    assert len(list(web_app._job_dir(job_id).glob(".export-*"))) == 1
+    assert not list(web_app._job_dir(job_id).glob(".export-tmp-*"))
+    manager.max_cache_bytes *= 10
+    assert isinstance(
+        asyncio.run(manager.response(request(app), job_id, "page", {"page": 2})), FileResponse
+    )
+
+
+def test_quarantined_generations_count_toward_storage_limit(setup, monkeypatch):
+    processes, _ = track(monkeypatch)
+    manager, app, job_id = setup(deadline=15, max_cached_exports=2)
+    first = asyncio.run(manager.response(request(app), job_id, "page", {"page": 1}))
+    Path(first.path).write_bytes(b"partial")
+    second = asyncio.run(manager.response(request(app), job_id, "page", {"page": 1}))
+    Path(second.path).write_bytes(b"partial")
+    denied = asyncio.run(manager.response(request(app), job_id, "page", {"page": 1}))
+    assert denied.status_code == 503 and b"storage limit" in denied.body
+    assert len(processes) == 2
+    assert len(list(web_app._job_dir(job_id).glob(".invalid-export-*"))) == 1
+
+
+def test_completed_export_cache_cannot_be_reused_after_deletion(setup, monkeypatch):
+    from njit_auditor.offline_app import _delete_job
+
+    processes, _ = track(monkeypatch)
+    manager, app, job_id = setup(deadline=15)
+    exported = asyncio.run(manager.response(request(app), job_id, "student", {}))
+    assert isinstance(exported, FileResponse)
+    assert _delete_job(job_id) == "deleted"
+    assert not Path(exported.path).exists()
+    response = asyncio.run(manager.response(request(app), job_id, "student", {}))
+    assert response.status_code == 404 and len(processes) == 1
+    assert not web_app._job_dir(job_id).exists()
+
+
+@pytest.mark.parametrize("kwargs", [{"max_cached_exports": 0}, {"max_cache_bytes": 0}])
+def test_nonpositive_cache_limits_rejected(kwargs):
+    with pytest.raises(ValueError):
+        PdfExportExecutor(**kwargs)
