@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pymupdf
 import pytest
 
+from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
@@ -202,9 +206,13 @@ def test_existing_heading_period_before_regular_body_is_not_missing(
 
 
 @pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
-def test_genuine_missing_heading_period_still_warns(number: str) -> None:
+@pytest.mark.parametrize("split_number", [False, True])
+def test_genuine_missing_heading_period_still_warns(number: str, split_number: bool) -> None:
     assert any(
-        "punctuation" in issue for issue in _issues(_document(number, "Synthetic heading boundary"))
+        "punctuation" in issue
+        for issue in _issues(
+            _document(number, "Synthetic heading boundary", split_number=split_number)
+        )
     )
 
 
@@ -247,3 +255,158 @@ def test_fully_bold_heading_with_period_remains_valid(number: str) -> None:
         "punctuation" in issue
         for issue in _issues(_document(number, "Synthetic heading boundary.", tail=""))
     )
+
+
+@pytest.mark.parametrize("numbered", [False, True])
+def test_run_in_heading_keeps_numbered_and_unnumbered_rule_ownership(numbered: bool) -> None:
+    from test_p086_unnumbered_bold_heading import (
+        _block,
+        _doc,
+        _following_body,
+        _page,
+        _run_in_row,
+    )
+
+    from njit_auditor.rules.pdf_unnumbered_bold_heading import check_pdf_unnumbered_bold_heading
+
+    title = "Synthetic Comparison Discussion Heading"
+    if numbered:
+        title = "2.3.4.5 " + title
+    lead, tail = _run_in_row(
+        title, "continues in regular style on the same row", y0=220.0, y1=232.0
+    )
+    doc = _doc(_page(12, _block(lead, tail, *_following_body(244.0))))
+    issues = _issues(doc)
+    assert any("punctuation" in issue for issue in issues) is numbered
+    if not numbered:
+        assert issues == []  # R027 must not infer a level for an unnumbered phrase.
+    assert bool(check_pdf_unnumbered_bold_heading(doc)) is not numbered
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6", ""])
+@pytest.mark.parametrize(
+    ("abbreviation", "expression"),
+    [
+        ("e.g.", "sin x + cos y"),
+        ("e.g.", "log x + exp y"),
+        ("i.e.", "f(x, y) + g(z)"),
+        ("e.g.", "alpha = 1.5 + beta"),
+    ],
+)
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("italic", [False, True])
+@pytest.mark.parametrize("capitalization_error", [False, True])
+def test_generated_mathematical_heading_continuation(
+    number: str,
+    abbreviation: str,
+    expression: str,
+    terminal_period: bool,
+    italic: bool,
+    capitalization_error: bool,
+    tmp_path: Path,
+) -> None:
+    # These include all 16 reviewer controls. The whole row is a heading;
+    # an upright formula is not a paragraph merely because it contains letters.
+    path = tmp_path / "math-heading.pdf"
+    words = ("Synthetic Heading Boundary" if capitalization_error else "Synthetic heading").split()
+    words.append(abbreviation)
+    if number:
+        words.insert(0, number)
+    with pymupdf.open() as pdf:
+        page = pdf.new_page(width=612, height=792)
+        x = 108.0
+        for index, word in enumerate(words):
+            page.insert_text((x, 300), word, fontname="tibo", fontsize=12)
+            x += pymupdf.get_text_length(word, fontname="tibo", fontsize=12)
+            x += 15 if number and index == 0 else 5
+        page.insert_text(
+            (x, 300),
+            expression + ("." if terminal_period else ""),
+            fontname="tiit" if italic else "tiro",
+            fontsize=12,
+        )
+        pdf.save(path)
+    issues = _issues(load_pdf_layout(str(path)))
+    if not number:
+        assert issues == []  # R027 must not take ownership of unnumbered headings.
+        return
+    level = len(number.split("."))
+    expected = []
+    if capitalization_error:
+        expected.append(f"level{level}_sentence_case_issue")
+    if not terminal_period:
+        expected.append(f"level{level}_sentence_case_or_punctuation_issue")
+    assert issues == expected
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("split_number", [False, True])
+@pytest.mark.parametrize("packed_prefix", [False, True])
+@pytest.mark.parametrize("terminal_period", [False, True])
+def test_math_boundary_does_not_depend_on_literal_prefix_spaces(
+    number: str, split_number: bool, packed_prefix: bool, terminal_period: bool
+) -> None:
+    doc = _document(
+        number,
+        "Synthetic heading e.g.",
+        split_number=split_number,
+        tail="alpha + beta" + ("." if terminal_period else ""),
+    )
+    line = doc.pages[0].text_blocks[-1].lines[0]
+    if packed_prefix:
+        prefix = line.spans[:-1]
+        line.spans[:-1] = [
+            PdfTextSpan(
+                text=("" if split_number else number + " ") + "Synthetic heading e.g.",
+                font="Times-Bold",
+                size=12,
+                bold=True,
+                bbox=BBox(x0=prefix[0].bbox.x0, y0=300, x1=prefix[-1].bbox.x1, y1=312),
+            )
+        ]
+    level = len(number.split("."))
+    assert _issues(doc) == (
+        [] if terminal_period else [f"level{level}_sentence_case_or_punctuation_issue"]
+    )
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize(
+    "body",
+    [
+        "Ordinary paragraph text follows here",
+        "We compare alpha + beta in this paragraph",
+        "The state-of-the-art method follows here",
+        "The measured value is 1.5 in this paragraph",
+        "For x > 0, the result increases",
+        "Values alpha + beta are compared here",
+    ],
+)
+def test_genuine_body_text_keeps_heading_punctuation_and_capitalization(
+    number: str, terminal_period: bool, body: str
+) -> None:
+    # Operators, hyphens and decimal punctuation later in prose are not evidence
+    # that the regular-font suffix starts with a mathematical heading continuation.
+    doc = _document(
+        number, "Synthetic Heading Boundary" + ("." if terminal_period else ""), tail=body
+    )
+    level = len(number.split("."))
+    expected = [f"level{level}_sentence_case_issue"]
+    if not terminal_period:
+        expected.append(f"level{level}_sentence_case_or_punctuation_issue")
+    assert _issues(doc) == expected
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("split_number", [False, True])
+def test_complete_heading_can_be_followed_by_expression_only_body(
+    number: str, split_number: bool
+) -> None:
+    # Mathematical syntax alone cannot turn an ordinary terminal period into
+    # an abbreviation's internal period. Keep this established body boundary.
+    assert _issues(
+        _document(
+            number, "Synthetic heading boundary.", split_number=split_number, tail="alpha + beta"
+        )
+    ) == []

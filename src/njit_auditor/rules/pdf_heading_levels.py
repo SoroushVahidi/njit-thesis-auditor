@@ -311,6 +311,26 @@ def _is_qualified_heading(text: str) -> bool:
     return True
 
 
+def _period_precedes_math_continuation(prefix: str, text: str) -> bool:
+    """A dotted abbreviation followed by an expression is not a proven boundary.
+
+    Upright identifiers and function applications can continue a heading after
+    an abbreviation. Recognize their syntax, not particular function names.
+    Require the complete suffix to have expression syntax: prose containing an
+    equation does not undo an otherwise valid bold-to-regular boundary. A hyphen
+    inside a word is not a subtraction operator. Without a dotted abbreviation,
+    retain the existing terminal-period boundary even for a body formula.
+    """
+    if re.search(r"[^\W\d]+\.[^\W\d]+\.\s*$", prefix) is None:
+        return False
+    atom = r"(?:[^\W\d]\w*(?:\([^()]*\))?|\d+(?:\.\d+)?)"
+    operand = rf"(?:{atom}\s+)?{atom}"
+    operator = r"(?:\s*[+*/=<>^−×÷±≤≥≠]\s*|\s+-\s+)"
+    return re.fullmatch(
+        rf"\s*{operand}(?:{operator}{operand})+\.?\s*", text
+    ) is not None
+
+
 def _bold_run_in_has_terminal_period(line: PdfTextLine, pattern: re.Pattern[str]) -> bool:
     """Read a run-in heading's period when raw span text omits word spaces."""
     prefix_end = 0
@@ -327,9 +347,12 @@ def _bold_run_in_has_terminal_period(line: PdfTextLine, pattern: re.Pattern[str]
     first_tail = next((span for span in tail if span.text.strip()), None)
     if first_tail is None or first_tail.italic:
         return False
-    # An italic continuation or a short math fragment is still heading content,
+    # An italic continuation or a mathematical expression is still heading content,
     # not enough evidence of an ordinary body sentence after the bold title.
-    if not _is_qualified_heading(join_content_span_texts(tail)):
+    tail_text = join_content_span_texts(tail)
+    if not _is_qualified_heading(tail_text) or _period_precedes_math_continuation(
+        join_content_span_texts(bold_spans), tail_text
+    ):
         return False
     match = pattern.match(" ".join(join_content_span_texts(bold_spans).split()))
     if match is None:
@@ -416,12 +439,20 @@ def _check_line(
             # following ordinary body sentence. Check the bold heading run,
             # not the body text that follows its terminal period.
             bold_prefix = ""
+            prefix_end = 0
             for span in line.spans:
                 if not span.bold and span.text.strip():
                     break
                 bold_prefix += span.text
+                prefix_end += 1
             bold_match = pattern.match(" ".join(bold_prefix.split()))
-            if bold_match and len(bold_prefix) < len(line.text):
+            if (
+                bold_match
+                and len(bold_prefix) < len(line.text)
+                and not _period_precedes_math_continuation(
+                    bold_prefix, join_content_span_texts(line.spans[prefix_end:])
+                )
+            ):
                 heading_text = bold_match.group(2).strip()
                 last_line = line
         finding_bbox = (
