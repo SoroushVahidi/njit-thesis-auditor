@@ -12,9 +12,12 @@ This is the canonical, consolidated deployment doc. The older
 superseded manual-tmux fallback procedure and dated verification snapshots) and is kept for
 reference, but this file is what to follow.
 
-**This audit (2026-07-13) did not touch the live server or port 8000** — that was an explicit
-constraint of the task that produced this document. Nothing below was executed as part of this
-pass; it is a cleaned-up transcription of already-established, working procedure.
+**Historical provenance:** the 2026-07-13 documentation audit transcribed the
+established procedure without touching the live server or port 8000. That dated
+statement is not evidence of the current deployment. Use the checks below when
+performing an authorized deployment; documentation edits or passing checks alone
+do not authorize a restart or release. For isolated development and checkout roles,
+see the [development guide](DEVELOPMENT.md).
 
 ## Supervision model
 
