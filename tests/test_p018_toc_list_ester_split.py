@@ -121,7 +121,7 @@ def test_broad_p018_is_not_public(client: tuple[TestClient, object]) -> None:
     assert "P039" not in visible_ids
 
 
-def test_active_inter_entry_spacing_cards_preserve_requirements(
+def test_disabled_inter_entry_spacing_cards_disclose_manual_review(
     client: tuple[TestClient, object],
 ) -> None:
     web_client, wa = client
@@ -133,15 +133,11 @@ def test_active_inter_entry_spacing_cards_preserve_requirements(
         for rule_id, rule in catalog.items()
         if rule.get("manual_review_only")
     }
-    # D25 retains the double-between/single-within policy. The supported R036
-    # positive path is now active, so these cards are no longer manual-only.
-    assert manual_ids == set()
+    assert manual_ids == {"P018I", "P018L", "P018O"}
     body = web_client.get("/rules").text
-    for rule_id in {"P018I", "P018L", "P018O"}:
-        assert catalog[rule_id]["manual_review_only"] is False
+    for rule_id in manual_ids:
         assert f'id="{rule_id}"' in body
-        assert catalog[rule_id]["title"] == _P018_ESTER_QUESTIONS[rule_id]
-    assert "Manual review — no automated finding" not in body
+    assert body.count("Manual review — no automated finding") == 3
 
 
 def test_p018_atomic_cards_are_public(client: tuple[TestClient, object]) -> None:

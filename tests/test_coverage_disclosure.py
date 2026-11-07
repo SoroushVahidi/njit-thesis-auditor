@@ -87,7 +87,7 @@ def test_every_area_has_a_status_and_student_guidance() -> None:
 
 
 def test_every_cited_rule_is_implemented_by_a_pdf_rule_module() -> None:
-    source = "\n".join(path.read_text(encoding="utf-8") for path in RULES_DIR.glob("*.py"))
+    source = "\n".join(path.read_text(encoding="utf-8") for path in RULES_DIR.glob("pdf_*.py"))
     for area in COVERAGE_AREAS:
         for rule_id in area.rule_ids:
             assert f'"{rule_id}"' in source, (area.key, rule_id)
@@ -293,7 +293,7 @@ def test_no_area_claims_full_coverage() -> None:
     assert all(area.status != "checked" for area in COVERAGE_AREAS)
 
 
-def test_toc_list_spacing_claims_match_p032_and_bounded_r036() -> None:
+def test_toc_list_spacing_claims_match_p032_and_disabled_r036() -> None:
     from njit_auditor.rules import pdf_toc_list_wrapped_spacing as p032
     from njit_auditor.rules import r036_production_page_relative_spacing as r036
 
@@ -304,19 +304,8 @@ def test_toc_list_spacing_claims_match_p032_and_bounded_r036() -> None:
     for area in (toc, lot):
         assert "single-spaced wrapped titles" not in area.checked
         assert "large gap" in area.checked
-    # R036 detects only clear isolated anomalies; full double spacing stays manual.
-    assert r036.PRODUCTION_REPORTING_GATE == "strong_multi_signal"
-    for area in (toc, lot, lof):
-        assert "isolated tight gaps" in area.checked
+    # R036 (spacing between entries) has no reporting path while its gate is off.
+    assert r036.PRODUCTION_REPORTING_GATE == "suppression_abstention_only"
     for area in (toc, lot):
         assert "Double spacing between entries" in area.manual
     assert "double-spaced" in lof.manual
-
-
-def test_active_spacing_requirement_cards_are_not_manual_only():
-    from njit_auditor.web_app import _atomic_public_card_dict
-
-    for rule_id in ("P018I", "P018L", "P018O"):
-        card = _atomic_public_card_dict({}, {"id": rule_id, "title": "Spacing",
-                                            "how_to_correct": "Double between entries"})
-        assert card["manual_review_only"] is False

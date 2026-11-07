@@ -157,7 +157,7 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         checked=(
             'Heading and "(Continued)" headings; chapter titles in all caps; level-2 '
             "titles in title case; clear level-3 Title Case violations; wrapped titles "
-            "with a large gap between their lines; isolated tight gaps between entries; "
+            "with a large gap between their lines; "
             "indentation; leaders; right-aligned page numbers in order."
         ),
         manual=(
@@ -165,7 +165,7 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
             "ambiguous level-3 sentence case; level-4 and level-5 titles not listed; "
             "each page number matches the page where the section begins."
         ),
-        rule_ids=("P014", "P018", "P024", "P030", "P032", "P036", "P038", "P039", "P058", "P075"),
+        rule_ids=("P014", "P018", "P024", "P030", "P032", "P038", "P039", "P058", "P075"),
     ),
     CoverageArea(
         key="list_of_tables",
@@ -173,14 +173,13 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         status="partial",
         checked=(
             'Title case; the word "Table" before each number; wrapped titles with a '
-            "large gap between their lines; isolated tight gaps between entries; "
-            "leaders and page-number alignment."
+            "large gap between their lines; leaders and page-number alignment."
         ),
         manual=(
             "Double spacing between entries, with wrapped titles fully single-spaced; "
             "each page number matches the page where the table begins."
         ),
-        rule_ids=("P018", "P024", "P032", "P036", "P055"),
+        rule_ids=("P018", "P024", "P032", "P055"),
     ),
     CoverageArea(
         key="list_of_figures",
@@ -188,8 +187,7 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
         status="guidance_differs",
         checked=(
             'The word "Figure" before each number; ending punctuation; title case, '
-            "following current Graduate Studies reviewer guidance; "
-            "isolated tight gaps between entries."
+            "following current Graduate Studies reviewer guidance."
         ),
         manual=(
             "The self-assessment sheet describes sentence case for figure descriptions; "
@@ -197,7 +195,7 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
             "that figure part letters are consistently upper- or lowercase, and that "
             "entries are double-spaced with wrapped titles single-spaced."
         ),
-        rule_ids=("P024", "P036", "P040", "P055"),
+        rule_ids=("P024", "P040", "P055"),
     ),
     CoverageArea(
         key="spacing_paragraphs",

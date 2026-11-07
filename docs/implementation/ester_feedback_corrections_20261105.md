@@ -1,7 +1,7 @@
 # Historical feedback corrections, November 5, 2026
 
 This implementation addresses the four verified false-positive mechanisms from
-Ester Flaim's historical-feedback audit, bounded R036 reporting, the existing
+Ester Flaim's historical-feedback audit, the existing
 R027/R055 candidates, and missing R039/R040/R045 confidence. It does not claim
 completion of the audit's broader semantic/manual-check backlog.
 
@@ -22,27 +22,28 @@ No unanswered November 5 question is treated as a decision.
 | R055 list prefixes | Reuses PR #650, head `2ccc598`. Applies the literal Table/Figure policy to singleton and appendix entries; supplies stable entry identity and geometry. High requires an exact prefix and a separate unambiguous numeric folio; uncertain geometry stays Medium. |
 | R039/R040/R045 confidence | Assigns explicit canonical Medium to hierarchy, list-ending and publication-spacing heuristics, with a reason. Reviewer agreement and high triage priority do not establish universal High reliability. Existing R045 numbering confidence remains unchanged. |
 
-## Bounded R036 restoration
+## R036 activation deferred
 
 Ester requires single spacing within wrapped titles and double spacing between
-entries. The rejected fixed-ratio detector cannot safely be restored: 24 approved
-examples contradicted its cutoff. The existing strong multi-signal gate is now
-active, with no numerical threshold changes, for clear isolated tight gaps on
-sufficiently populated pages. Reporting additionally requires a clean same-level
-entry pair and clean normal support on both sides. Diagnostic gate overrides are
-per-call, avoiding process-global mutation during concurrent audits.
+entries. The September production design and decision D25 require a real,
+independently validated positive example before enabling R036 reporting. The
+historical corpus has no such adjudicated positive. Synthetic geometry controls
+cannot satisfy that requirement or authorize activation.
 
-Controlled positive tests demonstrate emission for TOC, LoT and LoF. Historical
-rejections, uniform rhythm, sparse pages, one-sided evidence, moderate anomalies
-and reconstructed/wrapped ambiguity remain negative controls. Reporting confidence
-is Medium. Uniformly single-spaced pages cannot be distinguished reliably from
-accepted layouts using this page-relative evidence alone; they remain outside
-this detector's validated reporting scope. This is partial, functioning coverage,
-not a universal double-spacing certification. The original corpus contains no
-Ester-adjudicated R036 positive; no such endorsement is claimed.
+This candidate preserves current main's R036 implementation and
+`suppression_abstention_only` gate, together with its coverage disclosure and
+manual-review requirement cards. The original fixed-ratio detector remains
+retired. A regression test confirms that even a synthetic case detected by the
+diagnostic comparator produces no production finding. The activation and its
+associated algorithm changes are deferred pending appropriate real-example
+feedback from Ester or Dr. Ziavras; they are not prerequisites for integrating
+the independently validated corrections described above.
 
-The shared coverage disclosure and requirement-card status now describe active
-partial reporting. Historical reports describing disabled reporting are preserved.
+The R027 correction additionally preserves missing-period detection when a dotted
+abbreviation is followed by a mathematical heading continuation. It uses expression
+syntax rather than named functions, and retains controls for ordinary body prose,
+body formulas after a complete heading, whitespace and heading case. These
+synthetic controls do not resolve source-specific institutional judgments.
 
 ## Verification and delivery
 

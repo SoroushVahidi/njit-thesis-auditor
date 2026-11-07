@@ -32,12 +32,12 @@ emit nothing:
     fallen back on.
 
 ``REPORT``
-    Active only for an isolated, extreme tight gap between clean same-level
-    entries with trustworthy normal neighbors on both sides and supporting
-    page-tail/absolute geometry. This is bounded coverage of Ester's explicit
-    double-between-entries policy, not a universal PDF line-spacing inference.
-    Uniform/sparse/ambiguous layouts still suppress or abstain. The historical
-    corpus supplies rejection controls, not a real adjudicated true positive.
+    Reserved for exceptionally clear, multi-signal-confirmed cases. Because
+    no Ester-confirmed R036 *true positive* exists in the evaluation corpus,
+    this path is intentionally conservative and, in the selected production
+    design (see ``PRODUCTION_REPORTING_GATE``), disabled until a real true
+    positive is validated. The gate machinery is kept so that enabling
+    reporting later is a one-constant change, not a redesign.
 
 Confidence separation
 ---------------------
@@ -57,6 +57,7 @@ as retired.
 
 from __future__ import annotations
 
+import contextlib
 from enum import Enum
 
 from njit_auditor.pdf_models import PdfDocument
@@ -98,10 +99,23 @@ CONTINUATION_INDENT_OFFSET_PT = 12.0
 WRAP_Y0_TOLERANCE_PT = 2.0
 
 # ---------------------------------------------------------------------------
-# Reporting gate. Historical suppression-only mode remains available for
-# explicit diagnostic comparisons. Production uses the existing strong gate,
-# with structural safeguards and Medium confidence; no numeric threshold changes.
-PRODUCTION_REPORTING_GATE: str = "strong_multi_signal"
+# Reporting gate.
+#
+# PRODUCTION_REPORTING_GATE selects the production reporting behavior:
+#   * "suppression_abstention_only"  -> Design 0: never report. The
+#     REPORT outcome is unreachable; the rule emits findings only if a real
+#     true positive is later validated and this is changed. This is the
+#     selected production design because there is no Ester-confirmed R036
+#     true positive, so positive-detection capability is unvalidated on
+#     real ground truth.
+#   * "strong_multi_signal"          -> Designs 1-3 comparator: report only
+#     when multiple independent signals agree (extreme local deviation AND
+#     page-tail confirmation AND two-sided clean neighbors AND an absolute
+#     sanity floor). Kept as the future extension point; not selected.
+PRODUCTION_REPORTING_GATE: str = "suppression_abstention_only"
+# Parameters for the "strong_multi_signal" gate (Designs 1-3). These are NOT
+# active under the selected gate; they are retained so enabling reporting
+# later is a one-line change to PRODUCTION_REPORTING_GATE.
 STRONG_LOCAL_ANOMALY_FLOOR = 0.65
 STRONG_PAGE_TAIL_PERCENTILE = 0.05
 STRONG_MIN_TWO_SIDED_NEIGHBORS = 2
@@ -285,7 +299,6 @@ def _evaluate_candidate(
     candidate: dict,
     page_candidates: list[dict],
     index: int,
-    reporting_gate: str,
 ) -> CandidateOutcome:
     """Classify one candidate gap under the production policy."""
     page_gap_count = len(page_candidates)
@@ -352,7 +365,7 @@ def _evaluate_candidate(
     # The candidate is materially tighter than its reliable local rhythm.
     # Under the selected gate (Design 0) this still abstains: positive
     # detection is unvalidated on real ground truth, so we do not report.
-    if reporting_gate == "suppression_abstention_only":
+    if PRODUCTION_REPORTING_GATE == "suppression_abstention_only":
         return CandidateOutcome(
             ProductionOutcome.ABSTAIN,
             entry_pair_index=candidate["entry_pair_index"],
@@ -366,26 +379,12 @@ def _evaluate_candidate(
             page_gap_count=page_gap_count,
         )
 
-    # Strong reporting requires actual clean support on each side. A count
-    # of two neighbors on one side is not two-sided evidence.
+    # Strong multi-signal gate (Designs 1-3 comparator; not selected).
     page_pitches = [c["pitch_pt"] for c in page_candidates]
     page_tail = _rank_percentile(page_pitches, candidate["pitch_pt"])
-    def clean_peer(peer: dict) -> bool:
-        return (
-            not peer["previous_wraps"] and not peer["next_wraps"]
-            and not peer["previous_entry_is_reconstructed"]
-            and peer["previous_level"] == peer["next_level"] == candidate["previous_level"]
-            and peer["pitch_pt"] >= NORMAL_NEIGHBOR_FLOOR * neighbor_median
-        )
-
     two_sided = (
-        any(clean_peer(peer) for peer in page_candidates[:index])
-        and any(clean_peer(peer) for peer in page_candidates[index + 1:])
-        and len(neighbors) >= STRONG_MIN_TWO_SIDED_NEIGHBORS
-    )
-    clean_candidate = (
-        not candidate["previous_wraps"] and not candidate["next_wraps"]
-        and candidate["previous_level"] == candidate["next_level"]
+        len([n for n in neighbors if n >= candidate["pitch_pt"]])
+        >= STRONG_MIN_TWO_SIDED_NEIGHBORS
     )
     absolute_ok = (
         candidate["pitch_pt"]
@@ -395,7 +394,6 @@ def _evaluate_candidate(
         local_ratio <= STRONG_LOCAL_ANOMALY_FLOOR
         and page_tail <= STRONG_PAGE_TAIL_PERCENTILE
         and two_sided
-        and clean_candidate
         and absolute_ok
     ):
         return CandidateOutcome(
@@ -425,7 +423,7 @@ def _evaluate_candidate(
 
 
 def classify_r036_spacing_candidates(
-    pdf_document: PdfDocument, *, document_name: str = "", reporting_gate: str | None = None
+    pdf_document: PdfDocument, *, document_name: str = ""
 ) -> list[dict]:
     """Run the production page-relative R036 policy over every eligible gap.
 
@@ -433,9 +431,6 @@ def classify_r036_spacing_candidates(
     plus the geometry needed to build a finding (if REPORT). This is the
     decision core; :func:`run_r036_production` wraps it into findings.
     """
-    gate = reporting_gate if reporting_gate is not None else PRODUCTION_REPORTING_GATE
-    if gate not in {"strong_multi_signal", "suppression_abstention_only"}:
-        raise ValueError(f"Unknown R036 reporting gate: {gate}")
     records: list[dict] = []
     for context in detect_toc_like_pages(pdf_document):
         lines = _collect_entry_region_lines(context)
@@ -504,7 +499,7 @@ def classify_r036_spacing_candidates(
             )
 
         for index, candidate in enumerate(page_candidates):
-            outcome = _evaluate_candidate(candidate, page_candidates, index, gate)
+            outcome = _evaluate_candidate(candidate, page_candidates, index)
             records.append({**candidate, "outcome": outcome})
     return records
 
@@ -525,7 +520,9 @@ def run_r036_production(
     single call (used by the design-comparison evaluation); it is restored
     afterward.
     """
-    records = classify_r036_spacing_candidates(pdf_document, reporting_gate=reporting_gate)
+    gate = reporting_gate if reporting_gate is not None else PRODUCTION_REPORTING_GATE
+    with _gate_override(gate):
+        records = classify_r036_spacing_candidates(pdf_document)
 
     findings = [
         _build_finding(record)
@@ -534,6 +531,20 @@ def run_r036_production(
     ]
     return findings, records
 
+
+@contextlib.contextmanager
+def _gate_override(gate: str):
+    """Temporarily set ``PRODUCTION_REPORTING_GATE`` for the duration of the
+    block, restoring the previous value on exit. Module-global mutation is
+    confined to this helper so the decision core stays pure."""
+    import njit_auditor.rules.r036_production_page_relative_spacing as self_module
+
+    previous = self_module.PRODUCTION_REPORTING_GATE
+    self_module.PRODUCTION_REPORTING_GATE = gate
+    try:
+        yield
+    finally:
+        self_module.PRODUCTION_REPORTING_GATE = previous
 
 
 def _build_finding(record: dict):
@@ -563,8 +574,6 @@ def _build_finding(record: dict):
         "local_single_line_pitch_points": f"{local_single_line_pitch:.1f}",
         "gap_ratio": f"{record['normalized_ratio']:.2f}",
         "triage_tier": "high",
-        "confidence": "medium",
-        "confidence_reason": "clean_two_sided_page_relative_spacing_anomaly",
         "source_q_rule_ids": SOURCE_Q_RULE_IDS_BY_SECTION[section_type],
     }
     if previous_preview:

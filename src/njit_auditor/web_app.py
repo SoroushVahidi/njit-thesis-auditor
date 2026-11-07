@@ -1287,9 +1287,10 @@ def _atomic_public_card_dict(
     card["parent_rule_id"] = spec.get("parent_rule_id", "")
     card["source_q_rule_ids"] = list(spec.get("source_q_rule_ids", ()) or ())
     card["issue_types"] = list(spec.get("issue_types", ()) or ())
-    # R036 now reports clear isolated gaps. Coverage remains partial (see the
-    # shared disclosure); these requirements are no longer manual-only.
-    card["manual_review_only"] = False
+    # The R036 inter-entry spacing REPORT path is disabled after Ester's
+    # rejected findings. Preserve these requirement cards without implying
+    # that a PDF audit currently checks them.
+    card["manual_review_only"] = spec["id"] in {"P018I", "P018L", "P018O"}
     return card
 
 

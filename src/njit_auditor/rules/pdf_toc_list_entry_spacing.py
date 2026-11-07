@@ -277,9 +277,13 @@ def check_pdf_toc_list_entry_spacing(pdf_document: PdfDocument) -> list[AuditFin
     retired as the decisive reporting rule; it is no longer consulted to
     decide whether a finding is emitted.
 
-    The strong reporting gate is active for clear isolated anomalies only.
-    Uniform, sparse and ambiguously reconstructed pages still abstain/suppress;
-    this is partial detection, not a universal double-spacing measurement.
+    Under the currently selected gate (``suppression_abstention_only``) the
+    function emits no findings until a real Ester-confirmed R036 true
+    positive is validated and the reporting gate is enabled, because no
+    true positive exists in the evaluation corpus to validate positive
+    detection. This is intentional: suppression and abstention are
+    empirically supported; positive detection on real dissertations is not
+    yet validated.
     """
     from njit_auditor.rules.r036_production_page_relative_spacing import (
         run_r036_production,
