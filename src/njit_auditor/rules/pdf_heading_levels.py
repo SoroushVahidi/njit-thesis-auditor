@@ -342,6 +342,12 @@ def _period_precedes_math_continuation(prefix: str, text: str) -> bool:
     def identifier(token: str) -> bool:
         return bool(token) and token[0].isalpha()
 
+    def numeric(token: str) -> bool:
+        return bool(token) and (
+            token[0].isdigit()
+            or (token.startswith(".") and len(token) > 1 and token[1].isdigit())
+        )
+
     def group(*, arguments: bool = False) -> bool:
         nonlocal position, mathematical
         end = closing[peek()]
@@ -355,32 +361,58 @@ def _period_precedes_math_continuation(prefix: str, text: str) -> bool:
         if peek() != end:
             return False
         position += 1
-        mathematical = True
+        # Parentheses alone do not distinguish a variable from a prose aside
+        # such as `(continued)`. Calls and operators provide stronger evidence.
+        mathematical |= arguments
         return True
 
-    def operand() -> tuple[bool, bool]:
+    def primary() -> tuple[bool, str]:
         nonlocal position, mathematical
         while peek() in {"+", "-", "−", "±"}:
             position += 1
             mathematical = True
         token = peek()
         if token in closing:
-            return group(), False
-        if not token or not (
-            identifier(token) or token[0].isdigit()
-            or (token.startswith(".") and len(token) > 1 and token[1].isdigit())
-        ):
-            return False, False
+            return group(), "group"
+        if not (identifier(token) or numeric(token)):
+            return False, ""
         position += 1
         if identifier(token):
             if peek() == "(" and tokens[position - 1].end() == tokens[position].start():
-                return group(arguments=True), False
-            # Retain unparenthesized notation such as `sin x + cos y`, but
-            # never consume arbitrary sequences of words as an operand.
-            if identifier(peek()) and tokens[position - 1].end() < tokens[position].start():
-                position += 1
-                return True, True
-        return True, False
+                return group(arguments=True), "call"
+            return True, "identifier"
+        return True, "number"
+
+    def operand() -> tuple[bool, bool]:
+        nonlocal mathematical
+        valid, first = primary()
+        if not valid:
+            return False, False
+        separated = position < len(tokens) and tokens[position - 1].end() < tokens[position].start()
+        # Preserve the previous two-atom grammar (including numeric atoms),
+        # without accepting an unbounded run of adjacent prose words. Also
+        # recognize coefficient/group juxtaposition such as 2(alpha + beta).
+        adjacent = (
+            separated and (identifier(peek()) or numeric(peek()) or peek() in closing)
+        ) or (
+            not separated and (
+                first == "number" and (identifier(peek()) or peek() in closing)
+                or first in {"group", "call"} and peek() in closing
+            )
+        )
+        if not adjacent:
+            return True, False
+        valid, second = primary()
+        if not valid:
+            return False, False
+        structural_product = (
+            not separated or "call" in {first, second}
+            or (first == "number" and second == "group")
+        )
+        mathematical |= structural_product
+        # Space-only pairs like `log 2`, `2 alpha`, or `ordinary prose` still
+        # need a binary operator in their expression to establish mathematics.
+        return True, not structural_product
 
     def expression() -> bool:
         nonlocal position, mathematical
@@ -391,11 +423,12 @@ def _period_precedes_math_continuation(prefix: str, text: str) -> bool:
         while peek() in {"+", "-", "*", "/", "=", "<", ">", "^", "−", "×", "÷",
                          "±", "≤", "≥", "≠", "<=", ">=", "!=", "==", "**"}:
             operator = tokens[position]
-            # Preserve hyphenated prose; ASCII subtraction needs surrounding
-            # whitespace. Unary negatives above do not have this restriction.
+            # Preserve hyphenated prose. A separated minus before a numeric
+            # operand is also mathematical (`log -2 + alpha`), not a word join.
             if operator.group() == "-" and not (
                 text[operator.start() - 1].isspace()
-                and text[operator.end():operator.end() + 1].isspace()
+                and (text[operator.end():operator.end() + 1].isspace()
+                     or (position + 1 < len(tokens) and numeric(tokens[position + 1].group())))
             ):
                 return False
             position += 1

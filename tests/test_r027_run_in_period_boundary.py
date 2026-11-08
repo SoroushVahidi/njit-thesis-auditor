@@ -493,3 +493,144 @@ def test_incomplete_or_prose_suffix_is_not_certified_as_mathematics(text: str) -
 @pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
 def test_abbreviation_at_end_of_heading_without_continuation_is_valid(number: str) -> None:
     assert _issues(_document(number, "Synthetic heading e.g.", tail="")) == []
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("expression", ["log 2 + alpha", "2 alpha + beta"])
+def test_numeric_implicit_operand_regressions_through_pdf(
+    tmp_path: Path, number: str, terminal_period: bool, expression: str,
+) -> None:
+    test_generated_mathematical_heading_continuation(
+        number, "e.g.", expression, terminal_period, False, False, tmp_path,
+    )
+
+
+def _render_math_tree(tree):
+    """Test-only notation grammar; no production tokenizer or matcher is used."""
+    kind, *parts = tree
+    if kind in {"identifier", "number"}:
+        return parts[0]
+    if kind == "unary":
+        return parts[0] + _render_math_tree(parts[1])
+    if kind == "binary":
+        operator, left, right = parts
+        return f"{_render_math_tree(left)} {operator} {_render_math_tree(right)}"
+    if kind == "group":
+        return "(" + _render_math_tree(parts[0]) + ")"
+    if kind == "call":
+        return parts[0] + "(" + ", ".join(map(_render_math_tree, parts[1])) + ")"
+    if kind == "implicit":
+        left, separator, right = parts
+        return _render_math_tree(left) + separator + _render_math_tree(right)
+    raise AssertionError(f"Unknown test grammar production: {kind}")
+
+
+def _numeric_math_grammar_cases():
+    """Bounded two-level derivations with independently known mathematical roles.
+
+    Space-only atom pairs get a binary context: an isolated pair could be prose.
+    Calls and coefficient/group juxtaposition also exercise standalone forms.
+    Every generated row is a heading, so the period flag alone defines its
+    expected punctuation result, independently of implementation recognition.
+    """
+    cases = set()
+    omega = ("identifier", "omega")
+    for name in ("alpha", "beta"):
+        for literal in ("2", "1.5"):
+            identifier = ("identifier", name)
+            number = ("number", literal)
+            addition = ("binary", "+", identifier, number)
+            group = ("group", addition)
+            call = ("call", "f", (identifier,))
+            kernels = (
+                addition,
+                ("unary", "+", group),
+                ("unary", "-", group),
+                ("implicit", identifier, " ", number),
+                ("implicit", number, " ", identifier),
+                ("implicit", number, "", identifier),
+                ("implicit", number, "", group),
+                ("implicit", number, " ", call),
+                ("call", "h", (group, ("call", "g", (number,)))),
+                ("implicit", group, "", ("group", ("binary", "*", identifier, omega))),
+            )
+            for index, kernel in enumerate(kernels):
+                operator = ("+", "-", "*", "/", "^", "=")[index % 6]
+                root = ("binary", operator, kernel, omega)
+                cases.add(_render_math_tree(root))
+                cases.add(_render_math_tree(("call", "g", (("group", root),))))
+            for sign in ("+", "-"):
+                signed = ("unary", sign, number)
+                cases.add(_render_math_tree(("binary", "+",
+                    ("implicit", ("identifier", "log"), " ", signed), omega)))
+                cases.add(_render_math_tree(("binary", "*",
+                    ("implicit", signed, " ", identifier), omega)))
+            cases.add(_render_math_tree(("implicit", number, "", group)))
+            cases.add(_render_math_tree(("implicit", number, "", identifier)))
+            cases.add(_render_math_tree(call))
+    # The earlier two-atom notation admitted identifiers, numbers, and calls
+    # in either position. Cover the whole small cross-product independently.
+    atoms = (("identifier", "alpha"), ("number", "2"),
+             ("call", "f", (("identifier", "beta"),)))
+    for left in atoms:
+        for right in atoms:
+            cases.add(_render_math_tree(("binary", "+",
+                ("implicit", left, " ", right), omega)))
+    assert len(cases) <= 128
+    assert all(len(case) < 95 for case in cases)
+    return tuple(sorted(cases))
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("expression", _numeric_math_grammar_cases())
+def test_bounded_math_grammar_through_pdf(
+    tmp_path: Path, number: str, terminal_period: bool, expression: str,
+) -> None:
+    # Reuse only the PDF writer and public detector assertion, never the parser
+    # helper as an oracle. Both levels and both terminal states use extraction.
+    test_generated_mathematical_heading_continuation(
+        number, "e.g.", expression, terminal_period, False, False, tmp_path,
+    )
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("abbreviation", ["e.g.", "i.e."])
+@pytest.mark.parametrize("body", [
+    "(continued)", "(optional)", "((continued))", "ordinary prose",
+    "There are 2 groups in this paragraph", "Results 2 are discussed here",
+    "2 results", "Chapter 2", "The method (with options) follows here",
+    "alpha + (beta", "alpha +", "method(alpha,)", "alpha + [beta)",
+    "alpha + beta are discussed here", "method(alpha); ordinary prose follows",
+])
+def test_numeric_grammar_does_not_absorb_prose_or_ambiguous_suffixes_through_pdf(
+    tmp_path: Path, number: str, abbreviation: str, body: str,
+) -> None:
+    # In these independently specified controls the bold abbreviation ends the
+    # heading; the regular suffix is body text or insufficient evidence to
+    # override that boundary. A terminal heading period must not be requested.
+    path = tmp_path / "body-boundary.pdf"
+    with pymupdf.open() as pdf:
+        page = pdf.new_page(width=612, height=792)
+        x = 108.0
+        for index, word in enumerate([number, "Synthetic", "heading", abbreviation]):
+            page.insert_text((x, 300), word, fontname="tibo", fontsize=12)
+            x += pymupdf.get_text_length(word, fontname="tibo", fontsize=12)
+            x += 15 if index == 0 else 5
+        page.insert_text((x, 300), body, fontname="tiro", fontsize=12)
+        pdf.save(path)
+    assert _issues(load_pdf_layout(str(path))) == []
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("(" * 70 + "alpha + 1" + ")" * 70, True),
+    ("(" * 149 + "x", False),
+    ("f(" * 49 + "x" + ")" * 49, True),
+    ("(" * 1000 + "alpha" + ")" * 1000, False),
+    ("alpha + " + "beta" * 1000, False),
+])
+def test_numeric_grammar_depth_and_length_are_bounded(text: str, expected: bool) -> None:
+    from njit_auditor.rules.pdf_heading_levels import _period_precedes_math_continuation
+
+    assert _period_precedes_math_continuation("Synthetic heading e.g.", text) is expected
