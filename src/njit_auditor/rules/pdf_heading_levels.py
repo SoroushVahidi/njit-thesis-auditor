@@ -406,12 +406,12 @@ def _period_precedes_math_continuation(prefix: str, text: str) -> bool:
         if not valid:
             return False, False
         structural_product = (
-            not separated or "call" in {first, second}
-            or (first == "number" and second == "group")
+            not separated or (first == "number" and second in {"group", "call"})
         )
         mathematical |= structural_product
         # Space-only pairs like `log 2`, `2 alpha`, or `ordinary prose` still
         # need a binary operator in their expression to establish mathematics.
+        # A call beside a word is not sufficient: `sin(x) increases` is prose.
         return True, not structural_product
 
     def expression() -> bool:

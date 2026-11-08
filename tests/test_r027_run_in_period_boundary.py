@@ -566,8 +566,10 @@ def _numeric_math_grammar_cases():
                     ("implicit", ("identifier", "log"), " ", signed), omega)))
                 cases.add(_render_math_tree(("binary", "*",
                     ("implicit", signed, " ", identifier), omega)))
+                cases.add(_render_math_tree(("implicit", signed, " ", call)))
             cases.add(_render_math_tree(("implicit", number, "", group)))
             cases.add(_render_math_tree(("implicit", number, "", identifier)))
+            cases.add(_render_math_tree(("implicit", number, " ", call)))
             cases.add(_render_math_tree(call))
     # The earlier two-atom notation admitted identifiers, numbers, and calls
     # in either position. Cover the whole small cross-product independently.
@@ -601,6 +603,7 @@ def test_bounded_math_grammar_through_pdf(
     "(continued)", "(optional)", "((continued))", "ordinary prose",
     "There are 2 groups in this paragraph", "Results 2 are discussed here",
     "2 results", "Chapter 2", "The method (with options) follows here",
+    "sin(x) increases", "Evaluate f(x)",
     "alpha + (beta", "alpha +", "method(alpha,)", "alpha + [beta)",
     "alpha + beta are discussed here", "method(alpha); ordinary prose follows",
 ])
