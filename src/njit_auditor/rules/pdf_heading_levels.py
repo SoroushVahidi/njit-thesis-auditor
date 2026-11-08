@@ -323,12 +323,93 @@ def _period_precedes_math_continuation(prefix: str, text: str) -> bool:
     """
     if re.search(r"[^\W\d]+\.[^\W\d]+\.\s*$", prefix) is None:
         return False
-    atom = r"(?:[^\W\d]\w*(?:\([^()]*\))?|\d+(?:\.\d+)?)"
-    operand = rf"(?:{atom}\s+)?{atom}"
-    operator = r"(?:\s*[+*/=<>^−×÷±≤≥≠]\s*|\s+-\s+)"
-    return re.fullmatch(
-        rf"\s*{operand}(?:{operator}{operand})+\.?\s*", text
-    ) is not None
+    # Recognize balanced expression syntax, without evaluating it. A flat regex
+    # cannot distinguish nested operands from prose or handle unary operators.
+    text = text.strip().removesuffix(".")
+    if not text or len(text) > _MAX_HEADING_LINE_LEN:
+        return False
+    tokens = list(re.finditer(
+        r"(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?|[^\W\d]\w*|<=|>=|!=|==|\*\*|[^\s]",
+        text,
+    ))
+    position = 0
+    mathematical = False
+    closing = {"(": ")", "[": "]", "{": "}"}
+
+    def peek() -> str:
+        return tokens[position].group() if position < len(tokens) else ""
+
+    def identifier(token: str) -> bool:
+        return bool(token) and token[0].isalpha()
+
+    def group(*, arguments: bool = False) -> bool:
+        nonlocal position, mathematical
+        end = closing[peek()]
+        position += 1
+        if not expression():
+            return False
+        while arguments and peek() == ",":
+            position += 1
+            if not expression():
+                return False
+        if peek() != end:
+            return False
+        position += 1
+        mathematical = True
+        return True
+
+    def operand() -> tuple[bool, bool]:
+        nonlocal position, mathematical
+        while peek() in {"+", "-", "−", "±"}:
+            position += 1
+            mathematical = True
+        token = peek()
+        if token in closing:
+            return group(), False
+        if not token or not (
+            identifier(token) or token[0].isdigit()
+            or (token.startswith(".") and len(token) > 1 and token[1].isdigit())
+        ):
+            return False, False
+        position += 1
+        if identifier(token):
+            if peek() == "(" and tokens[position - 1].end() == tokens[position].start():
+                return group(arguments=True), False
+            # Retain unparenthesized notation such as `sin x + cos y`, but
+            # never consume arbitrary sequences of words as an operand.
+            if identifier(peek()) and tokens[position - 1].end() < tokens[position].start():
+                position += 1
+                return True, True
+        return True, False
+
+    def expression() -> bool:
+        nonlocal position, mathematical
+        valid, implicit_pair = operand()
+        if not valid:
+            return False
+        binary = False
+        while peek() in {"+", "-", "*", "/", "=", "<", ">", "^", "−", "×", "÷",
+                         "±", "≤", "≥", "≠", "<=", ">=", "!=", "==", "**"}:
+            operator = tokens[position]
+            # Preserve hyphenated prose; ASCII subtraction needs surrounding
+            # whitespace. Unary negatives above do not have this restriction.
+            if operator.group() == "-" and not (
+                text[operator.start() - 1].isspace()
+                and text[operator.end():operator.end() + 1].isspace()
+            ):
+                return False
+            position += 1
+            mathematical = True
+            binary = True
+            valid, implicit = operand()
+            implicit_pair |= implicit
+            if not valid:
+                return False
+        # A bare pair of words, including parenthetical prose, is not enough
+        # evidence. Preserve the existing `sin x + cos y` binary-expression case.
+        return not implicit_pair or binary
+
+    return expression() and position == len(tokens) and mathematical
 
 
 def _bold_run_in_has_terminal_period(line: PdfTextLine, pattern: re.Pattern[str]) -> bool:

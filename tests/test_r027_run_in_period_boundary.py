@@ -343,14 +343,17 @@ def test_generated_mathematical_heading_continuation(
 @pytest.mark.parametrize("split_number", [False, True])
 @pytest.mark.parametrize("packed_prefix", [False, True])
 @pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("expression", [
+    "alpha + beta", "alpha + (beta * gamma)", "alpha = -1", "sin(x)",
+])
 def test_math_boundary_does_not_depend_on_literal_prefix_spaces(
-    number: str, split_number: bool, packed_prefix: bool, terminal_period: bool
+    number: str, split_number: bool, packed_prefix: bool, terminal_period: bool, expression: str,
 ) -> None:
     doc = _document(
         number,
         "Synthetic heading e.g.",
         split_number=split_number,
-        tail="alpha + beta" + ("." if terminal_period else ""),
+        tail=expression + ("." if terminal_period else ""),
     )
     line = doc.pages[0].text_blocks[-1].lines[0]
     if packed_prefix:
@@ -410,3 +413,83 @@ def test_complete_heading_can_be_followed_by_expression_only_body(
             number, "Synthetic heading boundary.", split_number=split_number, tail="alpha + beta"
         )
     ) == []
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("expression", [
+    "alpha + (beta * gamma)",
+    "alpha = -1",
+    "sin(x)",
+    "alpha = +1.5",
+    "alpha = -.5",
+    "-sin(x)",
+    "f(x, g(y + 1))",
+    "f(g(x)) + h(y)",
+    "alpha * -(beta + gamma)",
+    "alpha / (beta - gamma)",
+    "(alpha + beta)^2",
+    "alpha = (-1 + beta)",
+    "alpha + [beta * {gamma + delta}]",
+    "(+alpha)",
+    "alpha >= -1",
+    "f(x)**2 + g(y)",
+])
+def test_generated_grouped_unary_and_function_heading_continuations(
+    tmp_path: Path, number: str, terminal_period: bool, expression: str,
+) -> None:
+    # Exercise real PDF extraction, including all six independently reproduced
+    # false negatives and their genuinely period-terminated counterparts.
+    test_generated_mathematical_heading_continuation(
+        number, "e.g.", expression, terminal_period, False, False, tmp_path
+    )
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("split_number", [False, True])
+@pytest.mark.parametrize("abbreviation", ["e.g.", "i.e."])
+@pytest.mark.parametrize("body", [
+    "Ordinary paragraph text follows here",
+    "We compare alpha + beta in this paragraph",
+    "The state-of-the-art method follows here",
+    "The measured value is -1.5 in this paragraph",
+    "For x > 0, the result increases",
+    "Values alpha + beta are compared here",
+    "The method (with grouping) follows here",
+    "sin(x) is used in this paragraph",
+    "alpha = -1 is the initial value",
+    "ordinary paragraph",
+    "(ordinary paragraph)",
+])
+def test_abbreviation_ending_before_prose_remains_a_valid_boundary(
+    number: str, split_number: bool, abbreviation: str, body: str,
+) -> None:
+    assert _issues(_document(
+        number, "Synthetic heading " + abbreviation, split_number=split_number, tail=body,
+    )) == []
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("expression", ["sin(x)", "alpha = -1", "alpha + (beta * gamma)"])
+def test_grouped_formula_body_does_not_extend_a_completed_nonabbreviated_heading(
+    number: str, expression: str,
+) -> None:
+    assert _issues(_document(number, "Synthetic heading boundary.", tail=expression)) == []
+
+
+@pytest.mark.parametrize("text", [
+    "alpha + (beta * gamma", "alpha + [beta)", "sin()", "sin(x,)",
+    "alpha + beta prose continues", "alpha + .", "alpha =", "alpha beta gamma + delta",
+    "state-of-the-art", "ordinary paragraph", "sin(x); prose", "sin(x)..",
+    "(ordinary paragraph)", "method(ordinary paragraph)",
+])
+def test_incomplete_or_prose_suffix_is_not_certified_as_mathematics(text: str) -> None:
+    from njit_auditor.rules.pdf_heading_levels import _period_precedes_math_continuation
+
+    # Malformed syntax must not cause arbitrary prose to be absorbed as a title.
+    assert not _period_precedes_math_continuation("Synthetic heading e.g.", text)
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+def test_abbreviation_at_end_of_heading_without_continuation_is_valid(number: str) -> None:
+    assert _issues(_document(number, "Synthetic heading e.g.", tail="")) == []
