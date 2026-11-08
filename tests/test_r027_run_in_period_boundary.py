@@ -848,3 +848,193 @@ def test_named_coefficient_and_existing_binary_operands_through_pdf(
 ) -> None:
     doc = _in_memory_expression_pdf(number, expression + ("." if terminal_period else ""))
     assert any("punctuation" in issue for issue in _issues(doc)) is not terminal_period
+
+
+_INDEXED_CALL_REGRESSIONS = (
+    "f(2 theta_i) + beta", "f(alpha_i beta_j) + gamma", "f(-3 sigma_k) + tau",
+    "f((2 theta_i)) + beta", "f(g(velocity) alpha) + beta", "f(alpha g(velocity)) + beta",
+    # These previously passed at the detector level despite parser rejection.
+    "f(2 x_i) + beta", "f(g(2 x_i)) + beta",
+)
+
+
+def _indexed_operand_grammar_cases():
+    """Independent symbolic AST derivations, including opaque argument names.
+
+    Symbol spelling is a base/index cross-product. Calls and binary expressions
+    are operands in their own right, so their parameter vocabulary must not
+    exclude them from multiplication. Expectations follow these declared roles.
+    """
+    cases = set(_INDEXED_CALL_REGRESSIONS)
+    named = ("identifier", "velocity")
+    another = ("identifier", "acceleration")
+    two = ("number", "2")
+    beta = ("identifier", "beta_j")
+    call = ("call", "g", (named,))
+    group = ("group", ("binary", "+", named, another))
+    for base in ("alpha", "theta", "x"):
+        for index in ("i", "12", "k2", "j_3"):
+            symbol = ("identifier", base + "_" + index)
+            kernels = (
+                ("implicit", two, " ", symbol),
+                ("implicit", ("unary", "-", two), " ", symbol),
+                ("implicit", symbol, " ", beta),
+                ("implicit", call, " ", symbol),
+                ("implicit", symbol, " ", call),
+                ("implicit", group, " ", symbol),
+                ("implicit", symbol, " ", group),
+            )
+            for kernel in kernels:
+                for tree in (
+                    ("call", "f", (kernel,)),
+                    ("call", "f", (("group", kernel),)),
+                    ("call", "f", (("call", "h", (kernel,)),)),
+                    ("binary", "+", ("group", kernel), beta),
+                    ("unary", "-", ("group", kernel)),
+                ):
+                    cases.add(_render_math_tree(tree))
+            # Mix explicit and implicit products and nest multiple named calls.
+            product = ("implicit", call, " ", ("call", "h", (another,)))
+            cases.add(_render_math_tree(("call", "f", (
+                ("binary", "*", symbol, product),))))
+            cases.add(_render_math_tree(("implicit", two, "", ("call", "f", (symbol, named)))))
+    cases.update((
+        "f(alpha_i)", "f(theta_2)", "f(sigma_k)", "f(x_12)", "f(beta_j)",
+        "f(g(velocity) alpha)", "f(alpha g(velocity))", "g(velocity) alpha",
+        "alpha g(velocity)", "f(g(alpha) beta)", "f(beta g(alpha))",
+        "f((velocity + acceleration) alpha)", "f(alpha (velocity + acceleration))",
+        "f(g(velocity) h(acceleration))", "f(-velocity alpha)",
+    ))
+    assert len(cases) < 480
+    assert all(len(case) < 100 for case in cases)
+    return tuple(sorted(cases))
+
+
+# Direct tests and PDF tests intentionally have separate parametrizations. A
+# parser failure must not prevent execution of the independently expected PDF
+# outcome, and a PDF warning must not count as proof of parser recognition.
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("expression", sorted(
+    set(_numeric_math_grammar_cases()) | set(_nested_math_grammar_cases())
+    | set(_indexed_operand_grammar_cases())
+))
+def test_generated_mathematical_syntax_directly(expression: str, terminal_period: bool) -> None:
+    from njit_auditor.rules.pdf_heading_levels import _period_precedes_math_continuation
+
+    assert _period_precedes_math_continuation(
+        "Synthetic heading e.g.", expression + ("." if terminal_period else ""),
+    )
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("expression", _indexed_operand_grammar_cases())
+def test_indexed_and_named_operand_grammar_pdf(
+    number: str, terminal_period: bool, expression: str,
+) -> None:
+    doc = _in_memory_expression_pdf(number, expression + ("." if terminal_period else ""))
+    level = len(number.split("."))
+    assert _issues(doc) == (
+        [] if terminal_period else [f"level{level}_sentence_case_or_punctuation_issue"]
+    )
+
+
+_SYMBOLIC_PROSE_CONTROLS = (
+    "ordinary_text", "ordinary_text follows", "(ordinary_text)", "2 (ordinary_text)",
+    "function (ordinary discussion)", "function(ordinary discussion)",
+    "f(ordinary_text follows)", "f(alpha_i ordinary_text)",
+    "g(velocity) increases", "g(velocity) increases steadily", "Evaluate g(velocity)",
+    "f(g(ordinary prose) alpha_i)", "f(alpha_i g(ordinary prose))",
+    "f(g(ordinary prose) alpha_i) + beta", "f(2 (continued)) + beta",
+    "f(g(velocity) ordinary_text)", "f(ordinary_text g(velocity))",
+    "(ordinary_text follows) + alpha", "f(ordinary prose, alpha_i)",
+    "f(alpha_i, ordinary prose)", "f(g(velocity), ordinary prose) + beta",
+    "f(2 theta_)", "f(2 theta__i)", "f(alpha_i beta_)", "f(_alpha)",
+    "f(theta_-1)", "f(theta_i,)", "f(,theta_i)", "f(theta_i beta_j gamma_k)",
+    "f((theta_i beta_j])", "f(theta_i) trailing words", "f(theta_i); text",
+    "g(velocity)..", "f(g(velocity) alpha_i) +", "function_name()",
+)
+
+
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("suffix", (*_AMBIGUOUS_NESTED_SUFFIXES, *_SYMBOLIC_PROSE_CONTROLS))
+def test_symbolic_ambiguity_and_invalid_syntax_directly(suffix: str, terminal_period: bool) -> None:
+    from njit_auditor.rules.pdf_heading_levels import _period_precedes_math_continuation
+
+    assert not _period_precedes_math_continuation(
+        "Synthetic heading e.g.", suffix + ("." if terminal_period else ""),
+    )
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("suffix", _SYMBOLIC_PROSE_CONTROLS)
+def test_symbolic_ambiguity_and_invalid_syntax_pdf(
+    number: str, terminal_period: bool, suffix: str,
+) -> None:
+    assert _issues(_in_memory_expression_pdf(
+        number, suffix + ("." if terminal_period else ""),
+    )) == []
+
+
+@pytest.mark.parametrize("expression,parser_expected,pdf_missing", [
+    ("f(x_)", False, True),  # Short malformed suffix cannot establish a body boundary.
+    ("f(2 x_i) + beta", True, True),  # A PDF fallback previously hid parser rejection.
+    ("f(" * 45 + "alpha_i" + ")" * 45, True, False),  # Complete heading exceeds 150.
+    ("f(" * 48 + "alpha_i" + ")" * 48, False, False),  # Expression itself exceeds 150.
+    ("(" * 74 + "x" + ")" * 74, False, False),  # Grouping alone supplies no math evidence.
+])
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+def test_parser_and_detector_have_distinct_boundary_expectations(
+    expression: str, parser_expected: bool, pdf_missing: bool,
+    number: str, terminal_period: bool,
+) -> None:
+    from njit_auditor.rules.pdf_heading_levels import _period_precedes_math_continuation
+
+    suffix = expression + ("." if terminal_period else "")
+    # Compute both before asserting either: parser success never defines the
+    # detector oracle. The eligibility/short-body gates have separate labels.
+    parser_result = _period_precedes_math_continuation("Synthetic heading e.g.", suffix)
+    detector_result = any("punctuation" in i for i in _issues(
+        _in_memory_expression_pdf(number, suffix),
+    ))
+    assert (parser_result, detector_result) == (
+        parser_expected, pdf_missing and not terminal_period,
+    )
+
+
+def test_balanced_expression_parser_stack_budget() -> None:
+    import sys
+
+    from njit_auditor.rules import pdf_heading_levels as rule
+
+    depth = peak = 0
+
+    def observe(frame, event, _value):
+        nonlocal depth, peak
+        if frame.f_code.co_filename == rule.__file__:
+            if event == "call":
+                depth += 1
+                peak = max(peak, depth)
+            elif event == "return":
+                depth -= 1
+
+    previous = sys.getprofile()
+    sys.setprofile(observe)
+    try:
+        assert rule._period_precedes_math_continuation(
+            "Synthetic heading e.g.", "(" * 74 + "+x" + ")" * 74,
+        )
+        assert not rule._period_precedes_math_continuation(
+            "Synthetic heading e.g.", "(" * 75 + ")" * 75,
+        )
+        assert not rule._period_precedes_math_continuation(
+            "Synthetic heading e.g.", "(" * 149 + "x",
+        )
+        assert not rule._period_precedes_math_continuation(
+            "Synthetic heading e.g.", "(" * 10000 + "x",
+        )
+    finally:
+        sys.setprofile(previous)
+    assert peak < 310  # Previously unbalanced input reached about 601 frames.
