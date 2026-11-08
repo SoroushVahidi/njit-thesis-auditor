@@ -21,6 +21,7 @@ Does NOT duplicate:
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_layout import join_content_span_texts
@@ -311,29 +312,51 @@ def _is_qualified_heading(text: str) -> bool:
     return True
 
 
-def _period_precedes_math_continuation(prefix: str, text: str) -> bool:
-    """A dotted abbreviation followed by an expression is not a proven boundary.
+@dataclass
+class _ExpressionEvidence:
+    """Evidence from parsed syntax, not a subtree acceptance decision.
 
-    Upright identifiers and function applications can continue a heading after
-    an abbreviation. Recognize their syntax, not particular function names.
-    Require the complete suffix to have expression syntax: prose containing an
-    equation does not undo an otherwise valid bold-to-regular boundary. A hyphen
-    inside a word is not a subtraction operator. Without a dotted abbreviation,
-    retain the existing terminal-period boundary even for a body formula.
+    Symbolic implicit operands can inherit mathematical context. Ordinary word
+    pairs need a binary operator at their own level; unresolved pairs inside a
+    group remain ambiguous even if an enclosing expression has an operator.
+    """
+
+    mathematical: bool = False
+    prose_pair: bool = False
+    ambiguous_group: bool = False
+    symbolic: bool = True
+    kind: str = ""
+
+
+# These names supply lexical evidence only for otherwise ambiguous juxtaposition
+# inside calls/groups. Explicit binary expressions retain arbitrary identifiers.
+_SYMBOLIC_NAMES = frozenset(
+    "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi "
+    "omicron pi rho sigma tau upsilon phi chi psi omega "
+    "sin cos tan cot sec csc sinh cosh tanh log ln exp sqrt".split()
+)
+
+
+def _period_precedes_math_continuation(prefix: str, text: str) -> bool:
+    """Recognize a bounded complete expression following a dotted abbreviation.
+
+    Recursive parsing checks syntax and carries unresolved implicit operands
+    outward. Calls can supply context for symbolic operands; binary operators
+    supply context for arbitrary identifiers. Neither a bare word pair nor a
+    call followed by prose proves that a heading continues.
     """
     if re.search(r"[^\W\d]+\.[^\W\d]+\.\s*$", prefix) is None:
         return False
-    # Recognize balanced expression syntax, without evaluating it. A flat regex
-    # cannot distinguish nested operands from prose or handle unary operators.
     text = text.strip().removesuffix(".")
     if not text or len(text) > _MAX_HEADING_LINE_LEN:
         return False
+    # Each recursive level consumes an opening delimiter. The 150-character
+    # bound therefore also bounds stack depth; token consumption never rewinds.
     tokens = list(re.finditer(
         r"(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?|[^\W\d]\w*|<=|>=|!=|==|\*\*|[^\s]",
         text,
     ))
     position = 0
-    mathematical = False
     closing = {"(": ")", "[": "]", "{": "}"}
 
     def peek() -> str:
@@ -348,101 +371,131 @@ def _period_precedes_math_continuation(prefix: str, text: str) -> bool:
             or (token.startswith(".") and len(token) > 1 and token[1].isdigit())
         )
 
-    def group(*, arguments: bool = False) -> bool:
-        nonlocal position, mathematical
+    def combine(left: _ExpressionEvidence, right: _ExpressionEvidence) -> None:
+        left.mathematical |= right.mathematical
+        left.prose_pair |= right.prose_pair
+        left.ambiguous_group |= right.ambiguous_group
+        left.symbolic &= right.symbolic
+
+    def group(*, arguments: bool = False) -> _ExpressionEvidence | None:
+        nonlocal position
         end = closing[peek()]
         position += 1
-        if not expression():
-            return False
+        result = expression()
+        if result is None:
+            return None
         while arguments and peek() == ",":
             position += 1
-            if not expression():
-                return False
+            argument = expression()
+            if argument is None:
+                return None
+            combine(result, argument)
         if peek() != end:
-            return False
+            return None
         position += 1
-        # Parentheses alone do not distinguish a variable from a prose aside
-        # such as `(continued)`. Calls and operators provide stronger evidence.
-        mathematical |= arguments
-        return True
+        if arguments:
+            result.mathematical = True
+            # f(alpha beta) has symbolic evidence; method(ordinary paragraph)
+            # has only word adjacency. Do not certify the latter as mathematics.
+        # An unresolved ordinary word pair enclosed as an aside must not gain
+        # mathematical meaning from an unrelated operator outside that group.
+        result.ambiguous_group |= result.prose_pair
+        result.prose_pair = False
+        result.kind = "call" if arguments else "group"
+        return result
 
-    def primary() -> tuple[bool, str]:
-        nonlocal position, mathematical
+    def primary() -> _ExpressionEvidence | None:
+        nonlocal position
+        unary = False
         while peek() in {"+", "-", "−", "±"}:
             position += 1
-            mathematical = True
+            unary = True
         token = peek()
         if token in closing:
-            return group(), "group"
-        if not (identifier(token) or numeric(token)):
-            return False, ""
-        position += 1
-        if identifier(token):
-            if peek() == "(" and tokens[position - 1].end() == tokens[position].start():
-                return group(arguments=True), "call"
-            return True, "identifier"
-        return True, "number"
+            result = group()
+        elif identifier(token) or numeric(token):
+            position += 1
+            if identifier(token) and peek() == "(" and (
+                tokens[position - 1].end() == tokens[position].start()
+            ):
+                result = group(arguments=True)
+            else:
+                stem = token.rstrip("_0123456789")
+                result = _ExpressionEvidence(
+                    symbolic=numeric(token) or len(stem) == 1 or stem.lower() in _SYMBOLIC_NAMES,
+                    kind="identifier" if identifier(token) else "number",
+                )
+        else:
+            return None
+        if result is not None:
+            result.mathematical |= unary
+        return result
 
-    def operand() -> tuple[bool, bool]:
-        nonlocal mathematical
-        valid, first = primary()
-        if not valid:
-            return False, False
+    def operand() -> _ExpressionEvidence | None:
+        result = primary()
+        if result is None:
+            return None
         separated = position < len(tokens) and tokens[position - 1].end() < tokens[position].start()
-        # Preserve the previous two-atom grammar (including numeric atoms),
-        # without accepting an unbounded run of adjacent prose words. Also
-        # recognize coefficient/group juxtaposition such as 2(alpha + beta).
+        # Keep the two-atom bound: an arbitrary sequence of words is not math.
         adjacent = (
             separated and (identifier(peek()) or numeric(peek()) or peek() in closing)
         ) or (
             not separated and (
-                first == "number" and (identifier(peek()) or peek() in closing)
-                or first in {"group", "call"} and peek() in closing
+                result.kind == "number" and (identifier(peek()) or peek() in closing)
+                or result.kind in {"group", "call"} and peek() in closing
             )
         )
         if not adjacent:
-            return True, False
-        valid, second = primary()
-        if not valid:
-            return False, False
+            return result
+        second = primary()
+        if second is None:
+            return None
         structural_product = (
-            not separated or (first == "number" and second in {"group", "call"})
+            not separated or (result.kind == "number" and second.kind in {"group", "call"})
+        ) and (
+            second.symbolic or second.mathematical
+            or (not separated and result.kind == "number" and second.kind == "identifier")
         )
-        mathematical |= structural_product
-        # Space-only pairs like `log 2`, `2 alpha`, or `ordinary prose` still
-        # need a binary operator in their expression to establish mathematics.
-        # A call beside a word is not sufficient: `sin(x) increases` is prose.
-        return True, not structural_product
+        combine(result, second)
+        result.mathematical |= structural_product
+        if not structural_product and not result.symbolic:
+            result.prose_pair = True
+        # In particular, a call's context must not escape onto a following word
+        # (sin(x) increases), or a coefficient certify an aside (2 (continued)).
+        return result
 
-    def expression() -> bool:
-        nonlocal position, mathematical
-        valid, implicit_pair = operand()
-        if not valid:
-            return False
+    def expression() -> _ExpressionEvidence | None:
+        nonlocal position
+        result = operand()
+        if result is None:
+            return None
         binary = False
         while peek() in {"+", "-", "*", "/", "=", "<", ">", "^", "−", "×", "÷",
                          "±", "≤", "≥", "≠", "<=", ">=", "!=", "==", "**"}:
             operator = tokens[position]
-            # Preserve hyphenated prose. A separated minus before a numeric
-            # operand is also mathematical (`log -2 + alpha`), not a word join.
+            # A hyphen joining words is not subtraction. A separated minus
+            # before a numeric operand remains valid (log -2 + alpha).
             if operator.group() == "-" and not (
                 text[operator.start() - 1].isspace()
                 and (text[operator.end():operator.end() + 1].isspace()
                      or (position + 1 < len(tokens) and numeric(tokens[position + 1].group())))
             ):
-                return False
+                return None
             position += 1
-            mathematical = True
             binary = True
-            valid, implicit = operand()
-            implicit_pair |= implicit
-            if not valid:
-                return False
-        # A bare pair of words, including parenthetical prose, is not enough
-        # evidence. Preserve the existing `sin x + cos y` binary-expression case.
-        return not implicit_pair or binary
+            right = operand()
+            if right is None:
+                return None
+            combine(result, right)
+        if binary:
+            result.mathematical = True
+            result.prose_pair = False
+        return result
 
-    return expression() and position == len(tokens) and mathematical
+    result = expression()
+    return bool(result is not None and position == len(tokens)
+                and result.mathematical
+                and not (result.prose_pair or result.ambiguous_group))
 
 
 def _bold_run_in_has_terminal_period(line: PdfTextLine, pattern: re.Pattern[str]) -> bool:

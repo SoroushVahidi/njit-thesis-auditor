@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pymupdf
 import pytest
@@ -557,6 +558,9 @@ def _numeric_math_grammar_cases():
             )
             for index, kernel in enumerate(kernels):
                 operator = ("+", "-", "*", "/", "^", "=")[index % 6]
+                # Nest the raw kernel, independently of binary context. This
+                # catches premature recursive rejection of implicit operands.
+                cases.add(_render_math_tree(("call", "f", (kernel,))))
                 root = ("binary", operator, kernel, omega)
                 cases.add(_render_math_tree(root))
                 cases.add(_render_math_tree(("call", "g", (("group", root),))))
@@ -579,7 +583,7 @@ def _numeric_math_grammar_cases():
         for right in atoms:
             cases.add(_render_math_tree(("binary", "+",
                 ("implicit", left, " ", right), omega)))
-    assert len(cases) <= 128
+    assert len(cases) <= 180
     assert all(len(case) < 95 for case in cases)
     return tuple(sorted(cases))
 
@@ -637,3 +641,210 @@ def test_numeric_grammar_depth_and_length_are_bounded(text: str, expected: bool)
     from njit_auditor.rules.pdf_heading_levels import _period_precedes_math_continuation
 
     assert _period_precedes_math_continuation("Synthetic heading e.g.", text) is expected
+
+
+def _in_memory_expression_pdf(
+    number: str, suffix: str, *, prefix: str = "Synthetic heading e.g.",
+) -> PdfDocument:
+    """Real PDF bytes and extraction; substitute only the file opener."""
+    with pymupdf.open() as pdf:
+        # Wide enough to avoid clipping adversarial 150-character expressions.
+        page = pdf.new_page(width=1200, height=1600)
+        x = 108.0
+        for index, word in enumerate([number, *prefix.split()]):
+            page.insert_text((x, 300), word, fontname="tibo", fontsize=12)
+            x += pymupdf.get_text_length(word, fontname="tibo", fontsize=12)
+            x += 15 if index == 0 else 5
+        page.insert_text((x, 300), suffix, fontname="tiro", fontsize=12)
+        extracted = pymupdf.open(stream=pdf.tobytes(), filetype="pdf")
+    with patch("njit_auditor.pdf_layout.fitz.open", return_value=extracted):
+        doc = load_pdf_layout("synthetic-expression.pdf")
+    assert suffix in " ".join(
+        line.text for block in doc.pages[0].text_blocks for line in block.lines
+    )
+    return doc
+
+
+def _nested_math_grammar_cases():
+    """Valid symbolic derivations selected without consulting production code.
+
+    Implicit products are nested BEFORE introducing any binary expression.
+    Calls, groups and signs are independent constructors. Unknown function and
+    argument names check that context is not limited to a list of call names.
+    """
+    alpha, beta = ("identifier", "alpha"), ("identifier", "beta")
+    gamma, two = ("identifier", "gamma"), ("number", "2")
+    kernels = (
+        ("implicit", alpha, " ", beta),
+        ("implicit", two, " ", alpha),
+        ("implicit", ("unary", "-", two), " ", alpha),
+        ("implicit", ("identifier", "log"), " ", two),
+        ("implicit", two, "", ("group", ("binary", "+", alpha, beta))),
+        ("implicit", two, "", ("group", ("implicit", alpha, " ", beta))),
+        ("implicit", ("identifier", "x_1"), " ", ("identifier", "theta2")),
+        ("implicit", two, "", ("identifier", "velocity")),
+        ("implicit", ("number", "3.5"), "", ("identifier", "capacity")),
+    )
+    cases = set()
+    for kernel in kernels:
+        for argument in (kernel, ("group", kernel), ("unary", "-", ("group", kernel))):
+            call = ("call", "f", (argument,))
+            forms = (
+                ("unary", "-", argument),
+                ("unary", "+", ("group", argument)),
+                call,
+                ("call", "transform", (argument,)),
+                ("call", "f", (("call", "g", (argument,)),)),
+                ("call", "f", (argument, ("identifier", "velocity"))),
+                ("call", "f", (("identifier", "velocity"), argument)),
+                ("binary", "+", call, gamma),
+                ("binary", "+", ("group", argument), gamma),
+                ("binary", "*", gamma, ("group", argument)),
+                ("implicit", two, "", call),
+                ("unary", "-", call),
+            )
+            cases.update(map(_render_math_tree, forms))
+    assert {
+        "f(alpha beta)", "f(2 alpha)", "f(-2 alpha)", "f(log 2)",
+        "f((2 alpha))", "f(g(2 alpha))", "f(2(alpha + beta))", "f(alpha beta) + gamma",
+    } <= cases
+    assert all(len(case) < 100 for case in cases)
+    return tuple(sorted(cases))
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("expression", _nested_math_grammar_cases())
+def test_nested_implicit_context_through_in_memory_pdf(
+    number: str, terminal_period: bool, expression: str,
+) -> None:
+    doc = _in_memory_expression_pdf(number, expression + ("." if terminal_period else ""))
+    level = len(number.split("."))
+    assert _issues(doc) == (
+        [] if terminal_period else [f"level{level}_sentence_case_or_punctuation_issue"]
+    )
+
+
+_AMBIGUOUS_NESTED_SUFFIXES = (
+    "(continued)", "2 (continued)", "2(continued)", "-2 (continued)",
+    "(ordinary prose)", "f(ordinary prose)", "method(ordinary paragraph)",
+    "-(ordinary prose)", "-ordinary prose", "-2 results", "-(2 results)",
+    "(alpha beta)", "2 alpha", "log 2",
+    "f((ordinary prose))", "f(g(ordinary prose))", "f(2 results)",
+    "f(ordinary prose, alpha beta)", "f(alpha beta, ordinary prose)",
+    "(ordinary prose) + notes", "f(ordinary prose) + notes",
+    "f((ordinary prose)) + alpha", "f(2 results) + alpha",
+    "f(alpha beta) increases", "f(alpha + beta) increases",
+    "2 (optional)", "2 ((continued))", "2 f(ordinary prose)",
+    "f(alpha) (continued)", "f(alpha) ordinary prose", "f(alpha) continues here",
+    "f(alpha beta) is useful", "Evaluate f(alpha beta)",
+    "alpha + (beta", "f(2 alpha", "f(2 alpha,)", "f(,2 alpha)",
+    "f((2 alpha])", "f(alpha beta gamma)", "function()", "function(())",
+    "f(alpha beta); prose", "f(alpha beta)..", "f(alpha beta) +", "f(alpha beta) **",
+)
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("abbreviation", ["e.g.", "i.e."])
+@pytest.mark.parametrize("suffix", _AMBIGUOUS_NESTED_SUFFIXES)
+def test_nested_prose_and_malformed_controls_through_pdf(
+    number: str, abbreviation: str, suffix: str,
+) -> None:
+    # Independently labelled body/ambiguous suffixes must not undo the bold
+    # heading's terminal period, including word pairs enclosed by a call.
+    assert _issues(_in_memory_expression_pdf(
+        number, suffix, prefix="Synthetic heading " + abbreviation,
+    )) == []
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("expression", [
+    "f(2 alpha) + beta", "f(-2 alpha) + beta", "f(log 2) + alpha",
+    "f(alpha beta) + gamma", "f((2 alpha))", "f(g(2 alpha))",
+])
+@pytest.mark.parametrize("split_number", [False, True])
+@pytest.mark.parametrize("packed_prefix", [False, True])
+def test_nested_context_on_both_heading_boundary_paths(
+    number: str, terminal_period: bool, expression: str,
+    split_number: bool, packed_prefix: bool,
+) -> None:
+    # Existing geometric model helper exercises the two bold-prefix paths in
+    # addition to the independently extracted PDF cases above.
+    test_math_boundary_does_not_depend_on_literal_prefix_spaces(
+        number, split_number, packed_prefix, terminal_period, expression,
+    )
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("extra", [-1, 0, 1])
+def test_nested_pdf_heading_length_boundary(
+    number: str, terminal_period: bool, extra: int,
+) -> None:
+    # The complete physical heading has its own 150-character gate. Construct
+    # exact lengths independently and keep enough letters for its alpha ratio.
+    prefix = "Synthetic heading e.g."
+    target = 150 + extra
+    size = target - len(number + " " + prefix + " ") - len("f(x +  alpha)")
+    size -= int(terminal_period)
+    expression = "f(x + " + "x" * size + " alpha)" + ("." if terminal_period else "")
+    doc = _in_memory_expression_pdf(number, expression)
+    assert len(number + " " + prefix + " " + expression) == target
+    issues = _issues(doc)
+    assert any("punctuation" in issue for issue in issues) is (
+        extra <= 0 and not terminal_period
+    )
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("f(" + "(" * 66 + "2 alpha" + ")" * 66 + ")", True),
+    ("f(" * 47 + "2 alpha" + ")" * 47, True),
+    ("f(" * 48 + "2 alpha" + ")" * 48, False),
+    ("(" * 74 + "x" + ")" * 74, False),
+    ("(" * 150, False),
+    ("f()", False),
+    ("velocity speed + alpha", True),
+    ("f(velocity speed + alpha)", True),
+    ("f(ordinary prose) + notes", False),
+    ("f(())", False),
+    ("+" * 149 + "x", True),
+    ("+" * 150 + "x", False),
+    ("f(" * 45 + "2 alpha" + ")" * 44 + "]", False),
+])
+def test_nested_parser_resource_boundary(text: str, expected: bool) -> None:
+    from njit_auditor.rules.pdf_heading_levels import _period_precedes_math_continuation
+
+    assert _period_precedes_math_continuation("Synthetic heading e.g.", text) is expected
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("depth", [1, 7, 15])
+def test_deep_nested_implicit_pdf(number: str, terminal_period: bool, depth: int) -> None:
+    expression = "f(" * depth + "alpha beta" + ")" * depth
+    doc = _in_memory_expression_pdf(number, expression + ("." if terminal_period else ""))
+    assert any("punctuation" in issue for issue in _issues(doc)) is not terminal_period
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+def test_deep_mismatched_group_pdf(number: str) -> None:
+    # Enough alphabetic content to exercise syntax rather than the independent
+    # minimum-alpha body-boundary gate; mismatch occurs at the outermost group.
+    suffix = "f(" * 20 + "alpha" * 10 + " beta" + ")" * 19 + "]"
+    assert _issues(_in_memory_expression_pdf(number, suffix)) == []
+
+
+
+@pytest.mark.parametrize("number", ["2.3.4.5", "2.3.4.5.6"])
+@pytest.mark.parametrize("terminal_period", [False, True])
+@pytest.mark.parametrize("expression", [
+    "2velocity", "3.5capacity", "f(2velocity)", "-2velocity", "f(-3.5capacity)",
+    "velocity speed + alpha", "f(velocity speed + alpha)",
+    "-(2 alpha)", "+(alpha beta)", "-2 alpha", "f(alpha) beta",
+])
+def test_named_coefficient_and_existing_binary_operands_through_pdf(
+    number: str, terminal_period: bool, expression: str,
+) -> None:
+    doc = _in_memory_expression_pdf(number, expression + ("." if terminal_period else ""))
+    assert any("punctuation" in issue for issue in _issues(doc)) is not terminal_period
