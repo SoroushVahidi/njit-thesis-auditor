@@ -59,9 +59,11 @@ The default suite may skip tests whose private PDFs are absent. Report passes,
 skips, SHA, and environment separately. The six skips on the PR #610 merge
 commit were private-PDF-dependent and were subsequently run and passed as a
 separate six-test job on that exact commit. Do not add those runs into one
-invented full-suite result. GitHub Actions checks out LFS objects and runs
-Ruff, mypy, and pytest on Python 3.10–3.12; its result is CI evidence, not a
-record of a locally run private gate.
+invented full-suite result. GitHub Actions runs Ruff, mypy and an explicit
+synthetic/nonconfidential selection on Python 3.10–3.12 without downloading LFS
+objects. See [CI privacy and test separation](CI_PRIVACY.md) for the inventory,
+checkout boundary and local reproduction. Hosted results do not replace the
+complete private local gate.
 
 ## Browser checks with synthetic local services
 
@@ -95,8 +97,9 @@ and loopback services; external browser requests are blocked. It never downloads
 public installer or contacts production. This tests current source on Ubuntu,
 not native Windows or the published rc.3 executable.
 
-The existing full Python 3.10–3.12 CI matrix, LFS fixture checkout and release-specific
-selection remain unchanged. In a default environment without the `browser` extra,
+The Python 3.10–3.12 matrix uses the reviewed hosted inventory for every branch;
+private and LFS-dependent tests remain in the complete local suite. In a default
+environment without the `browser` extra,
 optional browser tests may skip; those skips are not browser coverage. CI and local
 counts are separate evidence. The manifest's dated snapshot belongs to its recorded
 source SHA: use `NJITA_STRICT_STATUS_DRIFT=1` only when intentionally comparing a
