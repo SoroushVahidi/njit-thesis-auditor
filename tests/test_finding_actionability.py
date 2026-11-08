@@ -2225,9 +2225,9 @@ def test_p044_bbox_passthrough_present_and_valid(tmp_path: Path) -> None:
 
 
 def _make_batch1_p029_pdf(path: Path) -> None:
-    """Front-matter Roman sequence i, <skip>, iii -> roman_sequence_gap."""
+    """Adjacent front-matter pages i, iii have a genuine numeral jump."""
     doc = fitz.open()
-    texts: list[str | None] = ["i", None, "iii"]
+    texts: list[str | None] = ["i", "iii"]
     for idx, txt in enumerate(texts):
         page = doc.new_page(width=612, height=792)
         if txt is not None:

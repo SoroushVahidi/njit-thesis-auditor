@@ -13,7 +13,7 @@ selection in [tests.json](../.github/ci/tests.json). The separate Python 3.12
 browser job runs four explicit targets with generated PDFs and loopback services;
 zero tests or any browser skip fails that job.
 
-The inventory initially classifies 203 hosted modules and 16 local-only modules.
+The inventory classifies 208 hosted modules and 17 local-only modules.
 The latter include private replay/correctness/geometry tests, mixed modules with
 private cases, reviewer spreadsheets, a public guideline PDF, and four modules
 using authorized synthetic web-demo binaries stored in LFS. Those binaries are
@@ -94,8 +94,16 @@ passes/failures/skips and missing prerequisites. Keep inputs, full logs, finding
 and manuscript-derived artifacts local. No private assertion, detector rule,
 threshold, or report-generation code is changed by this separation.
 
-When integrating with #653, retain this workflow and classify its added test
-modules explicitly: synthetic corrections/R027/deferred-R036 tests may join
-hosted coverage after review; manifest-dependent private cases stay local.
-Revalidate the resulting integration SHA; the earlier local candidate and older
-GitHub checks do not certify that new commit.
+The six additional #653 modules are classified by fixture dependency:
+
+| Test module | Execution | Fixture dependency |
+|---|---|---|
+| `test_ester_audit_corrections_20261105.py` | Hosted | Generated PDFs and synthetic span models; imported builders are synthetic. |
+| `test_ester_explicit_confidence.py` | Hosted | Generated TOC/list/biosketch PDFs. |
+| `test_r027_run_in_period_boundary.py` | Hosted | Generated heading PDFs and in-memory text geometry. |
+| `test_r036_deferred_reporting.py` | Hosted | Synthetic page builders; imports only `_line` and `_make_doc` from the mixed R036 module. Import performs no private file reads; its private tests are not selected. |
+| `test_r055_evidence.py` | Hosted | In-memory synthetic list entries and geometry. |
+| `test_ester_audit_private_cases.py` | Local only | External private manifest, hashed dissertation PDFs and adjudicated findings. |
+
+The complete private suite still includes every module. Validate each integrated
+SHA independently; earlier candidate results do not certify the new commit.

@@ -21,6 +21,7 @@ Does NOT duplicate:
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_layout import join_content_span_texts
@@ -311,6 +312,263 @@ def _is_qualified_heading(text: str) -> bool:
     return True
 
 
+@dataclass(frozen=True)
+class _ExpressionSyntax:
+    """A parsed node; children precede parents in the flat syntax tree."""
+
+    kind: str
+    children: tuple[int, ...] = ()
+    symbolic: bool = False
+    structural_product: bool = False
+    compact_coefficient: bool = False
+
+
+@dataclass(frozen=True)
+class _ExpressionEvidence:
+    """Post-parse evidence, keeping operand roles separate from word vocabulary."""
+
+    mathematical: bool
+    operand: bool
+    local_prose: bool = False
+    nested_prose: bool = False
+
+
+_SYMBOLIC_NAMES = frozenset(
+    "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi "
+    "omicron pi rho sigma tau upsilon phi chi psi omega "
+    "sin cos tan cot sec csc sinh cosh tanh log ln exp sqrt".split()
+)
+# Identifiers have an alphabetic start and nonempty alphanumeric index segments.
+# This recognizes the notation grammar, not a list of particular indexed names.
+_EXPRESSION_IDENTIFIER_RE = re.compile(r"[^\W\d_][^\W_]*(?:_[^\W_]+)*")
+
+
+def _classify_expression(nodes: list[_ExpressionSyntax]) -> bool:
+    """Classify only after the complete suffix has parsed successfully.
+
+    Calls and explicit operations are mathematical operands even with named
+    arguments. Bare groups/word pairs supply no such evidence. Opaque word
+    pairs require an operator at their own expression level: an outside call
+    or operator cannot turn an ordinary prose aside into a symbolic operand.
+    No lexical ambiguity decision interrupts recursive syntax recognition.
+    """
+    evidence: list[_ExpressionEvidence] = []
+    for node in nodes:
+        if not node.children:
+            evidence.append(_ExpressionEvidence(False, node.symbolic))
+            continue
+        children = [evidence[index] for index in node.children]
+        mathematical = any(child.mathematical for child in children)
+        operands = all(child.operand for child in children)
+        local_prose = any(child.local_prose for child in children)
+        nested_prose = any(child.nested_prose for child in children)
+        if node.kind == "implicit":
+            structural = node.structural_product and (
+                children[1].operand or children[1].mathematical or node.compact_coefficient
+            )
+            mathematical |= structural
+            local_prose |= not structural and not operands
+        elif node.kind == "binary":
+            mathematical = True
+            local_prose = False
+        elif node.kind in {"group", "call"}:
+            nested_prose |= local_prose
+            local_prose = False
+            mathematical |= node.kind == "call"
+        elif node.kind == "unary":
+            mathematical = True
+        evidence.append(_ExpressionEvidence(
+            mathematical,
+            (operands or mathematical) and not (local_prose or nested_prose),
+            local_prose,
+            nested_prose,
+        ))
+    result = evidence[-1]
+    return result.mathematical and not (result.local_prose or result.nested_prose)
+
+
+def _period_precedes_math_continuation(prefix: str, text: str) -> bool:
+    """Recognize a bounded complete expression following a dotted abbreviation."""
+    if re.search(r"[^\W\d]+\.[^\W\d]+\.\s*$", prefix) is None:
+        return False
+    text = text.strip().removesuffix(".")
+    if not text or len(text) > _MAX_HEADING_LINE_LEN:
+        return False
+    tokens = list(re.finditer(
+        r"(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?|[^\W\d]\w*|<=|>=|!=|==|\*\*|[^\s]",
+        text,
+    ))
+    closing = {"(": ")", "[": "]", "{": "}"}
+    # Reject unmatched openers before recursion. Within 150 characters, balanced
+    # input has at most 74 nested groups with an operand (under 310 parser
+    # frames). Classification is iterative. No new depth cutoff excludes valid
+    # expressions, and neither phase rewinds tokens or evaluates mathematics.
+    ends: list[str] = []
+    for token in tokens:
+        value = token.group()
+        if value in closing:
+            ends.append(closing[value])
+        elif value in closing.values() and (not ends or ends.pop() != value):
+            return False
+    if ends:
+        return False
+    position = 0
+    nodes: list[_ExpressionSyntax] = []
+
+    def add(node: _ExpressionSyntax) -> int:
+        nodes.append(node)
+        return len(nodes) - 1
+
+    def peek() -> str:
+        return tokens[position].group() if position < len(tokens) else ""
+
+    def identifier(token: str) -> bool:
+        return _EXPRESSION_IDENTIFIER_RE.fullmatch(token) is not None
+
+    def numeric(token: str) -> bool:
+        return bool(token) and (
+            token[0].isdigit()
+            or (token.startswith(".") and len(token) > 1 and token[1].isdigit())
+        )
+
+    def group(*, arguments: bool = False) -> int | None:
+        nonlocal position
+        end = closing[peek()]
+        position += 1
+        child = expression()
+        if child is None:
+            return None
+        children = [child]
+        while arguments and peek() == ",":
+            position += 1
+            child = expression()
+            if child is None:
+                return None
+            children.append(child)
+        if peek() != end:
+            return None
+        position += 1
+        return add(_ExpressionSyntax("call" if arguments else "group", tuple(children)))
+
+    def primary() -> tuple[int, str] | None:
+        nonlocal position
+        unary = False
+        while peek() in {"+", "-", "−", "±"}:
+            position += 1
+            unary = True
+        token = peek()
+        if token in closing:
+            result, kind = group(), "group"
+        elif identifier(token) or numeric(token):
+            position += 1
+            if identifier(token) and peek() == "(" and (
+                tokens[position - 1].end() == tokens[position].start()
+            ):
+                result, kind = group(arguments=True), "call"
+            else:
+                # Index spelling does not change the base symbol's role. Both
+                # alphabetic and numeric (including multiple) indices are valid.
+                base = token.split("_", 1)[0].rstrip("0123456789")
+                kind = "identifier" if identifier(token) else "number"
+                result = add(_ExpressionSyntax(
+                    kind,
+                    symbolic=numeric(token) or len(base) == 1 or base.lower() in _SYMBOLIC_NAMES,
+                ))
+        else:
+            return None
+        if result is None:
+            return None
+        if unary:
+            result = add(_ExpressionSyntax("unary", (result,)))
+        return result, kind
+
+    def operand() -> int | None:
+        first = primary()
+        if first is None:
+            return None
+        left, kind = first
+        separated = position < len(tokens) and tokens[position - 1].end() < tokens[position].start()
+        # Two juxtaposed atoms are supported, not an arbitrary run of words.
+        adjacent = (
+            separated and (identifier(peek()) or numeric(peek()) or peek() in closing)
+        ) or (
+            not separated and (
+                kind == "number" and (identifier(peek()) or peek() in closing)
+                or kind in {"group", "call"} and peek() in closing
+            )
+        )
+        if not adjacent:
+            return left
+        second = primary()
+        if second is None:
+            return None
+        right, second_kind = second
+        return add(_ExpressionSyntax(
+            "implicit", (left, right),
+            structural_product=(
+                not separated or (kind == "number" and second_kind in {"group", "call"})
+            ),
+            compact_coefficient=not separated and kind == "number" and second_kind == "identifier",
+        ))
+
+    def expression() -> int | None:
+        nonlocal position
+        child = operand()
+        if child is None:
+            return None
+        children = [child]
+        while peek() in {"+", "-", "*", "/", "=", "<", ">", "^", "−", "×", "÷",
+                         "±", "≤", "≥", "≠", "<=", ">=", "!=", "==", "**"}:
+            operator = tokens[position]
+            # Preserve the existing distinction between subtraction and a word
+            # join, including a separated minus before a number (log -2 + alpha).
+            if operator.group() == "-" and not (
+                text[operator.start() - 1].isspace()
+                and (text[operator.end():operator.end() + 1].isspace()
+                     or (position + 1 < len(tokens) and numeric(tokens[position + 1].group())))
+            ):
+                return None
+            position += 1
+            child = operand()
+            if child is None:
+                return None
+            children.append(child)
+        return (children[0] if len(children) == 1
+                else add(_ExpressionSyntax("binary", tuple(children))))
+
+    return expression() is not None and position == len(tokens) and _classify_expression(nodes)
+
+
+def _bold_run_in_has_terminal_period(line: PdfTextLine, pattern: re.Pattern[str]) -> bool:
+    """Read a run-in heading's period when raw span text omits word spaces."""
+    prefix_end = 0
+    for span in line.spans:
+        # Whitespace has no title/body role, regardless of its font. Only
+        # nonblank regular text can end the bold heading run.
+        if not span.bold and span.text.strip():
+            break
+        prefix_end += 1
+    bold_spans = line.spans[:prefix_end]
+    if not bold_spans or prefix_end == len(line.spans):
+        return False
+    tail = line.spans[prefix_end:]
+    first_tail = next((span for span in tail if span.text.strip()), None)
+    if first_tail is None or first_tail.italic:
+        return False
+    # An italic continuation or a mathematical expression is still heading content,
+    # not enough evidence of an ordinary body sentence after the bold title.
+    tail_text = join_content_span_texts(tail)
+    if not _is_qualified_heading(tail_text) or _period_precedes_math_continuation(
+        join_content_span_texts(bold_spans), tail_text
+    ):
+        return False
+    match = pattern.match(" ".join(join_content_span_texts(bold_spans).split()))
+    if match is None:
+        return False
+    title = match.group(2).strip()
+    return _is_qualified_heading(title) and title.endswith(".")
+
+
 def _finding(
     page_number: int,
     issue_type: str,
@@ -389,12 +647,20 @@ def _check_line(
             # following ordinary body sentence. Check the bold heading run,
             # not the body text that follows its terminal period.
             bold_prefix = ""
+            prefix_end = 0
             for span in line.spans:
-                if not span.bold:
+                if not span.bold and span.text.strip():
                     break
                 bold_prefix += span.text
+                prefix_end += 1
             bold_match = pattern.match(" ".join(bold_prefix.split()))
-            if bold_match and len(bold_prefix) < len(line.text):
+            if (
+                bold_match
+                and len(bold_prefix) < len(line.text)
+                and not _period_precedes_math_continuation(
+                    bold_prefix, join_content_span_texts(line.spans[prefix_end:])
+                )
+            ):
                 heading_text = bold_match.group(2).strip()
                 last_line = line
         finding_bbox = (
@@ -458,7 +724,11 @@ def _check_line(
                     finding.details["corrected_from"] = original
                 results.append(finding)
             # Level 4/5: heading text should end with a period.
-            if level in (4, 5) and not heading_text.rstrip().endswith("."):
+            if (
+                level in (4, 5)
+                and not heading_text.rstrip().endswith(".")
+                and not _bold_run_in_has_terminal_period(line, pattern)
+            ):
                 results.append(_finding(
                     page.page_number,
                     issue_type=f"level{level}_sentence_case_or_punctuation_issue",

@@ -49,14 +49,21 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     no_number_pages = _find_no_number_pages(pdf_doc)
     candidates = detect_page_number_candidates(pdf_doc)
 
-    fm_candidates = [
+    fm_roman_candidates = [
         c
         for c in candidates
         if regions.get(c.page_number) == "front_matter"
         and c.number_style == "roman_lower"
         and c.value is not None
         and c.page_number not in no_number_pages
-        and c.value <= _MAX_PLAUSIBLE_FRONTMATTER_ROMAN
+    ]
+    rejected_pages = {
+        c.page_number
+        for c in fm_roman_candidates
+        if c.value is not None and c.value > _MAX_PLAUSIBLE_FRONTMATTER_ROMAN
+    }
+    fm_candidates = [
+        c for c in fm_roman_candidates if c.page_number not in rejected_pages
     ]
 
     # Require at least two visible roman candidates to check for continuity.
@@ -74,13 +81,20 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
         if page_step <= 0:
             prev = cand
             continue
-        # Expect visible roman numerals to increase by one across consecutive
-        # visible numbered front-matter pages. This flags non-consecutive visible
-        # numerals (i, iii) as a gap. Skipped no-number pages are handled by
-        # excluding those pages from candidate lists; if an intermediate page is
-        # a recognized no-number page, a following visible numeral that equals
-        # previous+1 will still pass.
-        expected = (prev.value or 0) + 1
+        # Unreadable/missing folios still occupy physical numbered pages. Do not
+        # invent a gap merely because an intermediate numeral was not extracted.
+        # Explicit no-number pages remain exempt, as in the historical policy.
+        numbered_step = sum(
+            p not in no_number_pages for p in range(prev.page_number + 1, cand.page_number + 1)
+        )
+        expected = (prev.value or 0) + numbered_step
+        # A rejected numeral is evidence of extraction ambiguity, not a known
+        # numbered or exempt page. Do not infer a gap across that interval.
+        # Repeats/decreases remain demonstrable from the accepted endpoints;
+        # gap checks resume at the next pair without intervening rejected noise.
+        ambiguous_interval = any(
+            prev.page_number < p < cand.page_number for p in rejected_pages
+        )
         issue_type = None
         confidence = "medium"
 
@@ -96,7 +110,7 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
                 f"Roman numeral decreased to '{cand.text}' on page {cand.page_number} "
                 f"(previous {prev.page_number} = {prev.text})."
             )
-        elif cand.value is not None and cand.value != expected:
+        elif cand.value is not None and cand.value != expected and not ambiguous_interval:
             issue_type = "roman_sequence_gap"
             message = (
                 f"Roman numeral on page {cand.page_number} is '{cand.text}' (value={cand.value}), "

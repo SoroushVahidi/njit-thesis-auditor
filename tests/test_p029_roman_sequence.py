@@ -1,11 +1,13 @@
 from pathlib import Path
 
 import fitz
+import pytest
 from typer.testing import CliRunner
 
 from njit_auditor.cli import app
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.rules.pdf_page_numbering_regime import check_pdf_page_numbering_regime
+from njit_auditor.rules.pdf_page_numbers import check_pdf_page_number_sequence
 from njit_auditor.rules.pdf_roman_sequence import check_pdf_roman_sequence
 
 runner = CliRunner()
@@ -55,12 +57,25 @@ def test_p029_no_warning_for_correct_roman_sequence(tmp_path: Path) -> None:
 
 def test_p029_gap_detected_for_missing_middle_number(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p029_gap.pdf"
-    _make_pdf_with_page_numbers(pdf_path, ["i", None, "iii"], add_chapter=True, heading_at=0)
+    # Adjacent physical pages skip ii; an unextracted intervening page would
+    # instead account for that step (historical feedback decision D11).
+    _make_pdf_with_page_numbers(pdf_path, ["i", "iii"], add_chapter=True, heading_at=0)
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_roman_sequence(model)
     assert any(
         f.rule_id == "P029" and f.details.get("issue_type") == "roman_sequence_gap"
         for f in findings
+    )
+
+
+def test_p029_missing_folio_is_not_a_roman_sequence_gap(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "p029_missing_folio.pdf"
+    _make_pdf_with_page_numbers(pdf_path, ["i", None, "iii"], add_chapter=True, heading_at=0)
+    model = load_pdf_layout(str(pdf_path))
+    assert check_pdf_roman_sequence(model) == []
+    assert any(
+        f.page == 2 and f.details.get("issue_type") == "missing_page_number"
+        for f in check_pdf_page_number_sequence(model)
     )
 
 
@@ -144,7 +159,7 @@ def test_p029_implausible_high_value_roman_suppressed(tmp_path: Path) -> None:
     )
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_roman_sequence(model)
-    # "m" should be excluded by the max-plausible-value guard; i→ii→iii sequence is valid.
+    # Rejected noise cannot establish whether this interval consumes a step.
     assert not any(f.rule_id == "P029" for f in findings), (
         "Implausibly large Roman numeral 'M' (1000) should not produce P029 findings"
     )
@@ -178,12 +193,58 @@ def test_p029_real_gap_after_high_value_artifact_still_warns(tmp_path: Path) -> 
     )
 
 
+@pytest.mark.parametrize("noise", ["li", "cm", "m"])
+@pytest.mark.parametrize("last", ["iii", "iv", "v"])
+def test_p029_abstains_from_gap_across_rejected_numeral(
+    tmp_path: Path, noise: str, last: str,
+) -> None:
+    pdf_path = tmp_path / "ambiguous_interval.pdf"
+    _make_pdf_with_page_numbers(
+        pdf_path, ["i", "ii", noise, last], add_chapter=True, heading_at=0,
+    )
+    assert check_pdf_roman_sequence(load_pdf_layout(str(pdf_path))) == []
+
+
+@pytest.mark.parametrize(
+    "last,issue", [("ii", "roman_sequence_repeat"), ("i", "roman_sequence_decrease")],
+)
+def test_p029_rejected_numeral_preserves_endpoint_order_checks(
+    tmp_path: Path, last: str, issue: str,
+) -> None:
+    pdf_path = tmp_path / "endpoint_order.pdf"
+    _make_pdf_with_page_numbers(
+        pdf_path, ["i", "ii", "m", last], add_chapter=True, heading_at=0,
+    )
+    findings = check_pdf_roman_sequence(load_pdf_layout(str(pdf_path)))
+    assert [(f.page, f.details["issue_type"]) for f in findings] == [(4, issue)]
+
+
+def test_p029_gap_checks_resume_after_rejected_numerals(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "resumed_gap.pdf"
+    _make_pdf_with_page_numbers(
+        pdf_path, ["i", "m", "cm", "iii", "v"], add_chapter=True, heading_at=0,
+    )
+    findings = check_pdf_roman_sequence(load_pdf_layout(str(pdf_path)))
+    assert [(f.page, f.details["issue_type"], f.details["expected_value"]) for f in findings] == [
+        (5, "roman_sequence_gap", "4")
+    ]
+
+
+def test_p029_plausibility_boundary_remains_in_sequence(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "boundary.pdf"
+    _make_pdf_with_page_numbers(pdf_path, ["xlviii", "l"], add_chapter=True, heading_at=0)
+    findings = check_pdf_roman_sequence(load_pdf_layout(str(pdf_path)))
+    assert [(f.page, f.details["issue_type"], f.details["expected_value"]) for f in findings] == [
+        (2, "roman_sequence_gap", "49")
+    ]
+
+
 def test_p029_cli_and_reports_include_findings(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p029_cli.pdf"
     json_out = tmp_path / "data" / "evaluation" / "generated" / "p029_roman_sequence" / "out.json"
     md_out = tmp_path / "data" / "evaluation" / "generated" / "p029_roman_sequence" / "out.md"
     json_out.parent.mkdir(parents=True, exist_ok=True)
-    _make_pdf_with_page_numbers(pdf_path, ["i", None, "iii"], add_chapter=True, heading_at=0)
+    _make_pdf_with_page_numbers(pdf_path, ["i", "iii"], add_chapter=True, heading_at=0)
     result = runner.invoke(
         app,
         ["pdf", str(pdf_path), "--json-out", str(json_out), "--md-out", str(md_out)],

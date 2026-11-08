@@ -57,6 +57,8 @@ class PdfTextSpan(BaseModel):
     # sub-span geometry (TOC/List-style pages with dot-leader runs); ``None``
     # everywhere else, and consumers must treat ``None`` as "unmeasured".
     char_x_bounds: list[tuple[float, float]] | None = None
+    # Actual text origin; glyph-box centers differ across fonts on one baseline.
+    baseline_y: float | None = None
 
 
 class PdfTextLine(BaseModel):
@@ -100,6 +102,8 @@ class PdfPage(BaseModel):
     is_visually_landscape: bool = False
     text_blocks: list[PdfTextBlock] = Field(default_factory=list)
     graphic_blocks: list[PdfGraphicBlock] = Field(default_factory=list)
+    # An image/outlined page can visibly contain a folio without extractable text.
+    text_extraction_unavailable: bool = False
     # Thin PDF drawing paths grouped into visible horizontal rules. Used by
     # R035 only when repeated, aligned rules bound a real table body.
     # "Horizontal" means in the page's reading frame (see
@@ -311,6 +315,7 @@ class PdfReadingFrame:
                                             span.model_copy(
                                                 update={
                                                     "bbox": to_frame(span.bbox),
+                                                    "baseline_y": None,
                                                     "char_x_bounds": None,
                                                 }
                                             )

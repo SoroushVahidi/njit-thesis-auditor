@@ -89,6 +89,8 @@ def _spans_have_script_offset(prev: PdfTextSpan, span: PdfTextSpan) -> bool:
     span_mid = (span.bbox.y0 + span.bbox.y1) / 2.0
     sizes = [s for s in (prev.size, span.size) if s]
     size = min(sizes) if sizes else 12.0
+    if prev.baseline_y is not None and span.baseline_y is not None:
+        return abs(span.baseline_y - prev.baseline_y) >= size * 0.15
     return abs(span_mid - prev_mid) >= size * 0.15
 
 
@@ -383,6 +385,9 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                             bold=bold,
                             italic=italic,
                             char_x_bounds=char_x_bounds,
+                            baseline_y=(
+                                float(span["origin"][1]) if span.get("origin") else None
+                            ),
                         )
                         spans.append(span_model)
                         span_text_chunks.append(text)
@@ -430,6 +435,10 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                         ),
                         text=block_text,
                     )
+                )
+            if not page_model.text_blocks:
+                page_model.text_extraction_unavailable = bool(
+                    page_model.graphic_blocks or page.get_drawings()
                 )
             pages.append(page_model)
 

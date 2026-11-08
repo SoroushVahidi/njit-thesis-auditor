@@ -352,6 +352,8 @@ def check_pdf_biosketch_publication_layout(
         "page_number": str(page.page_number),
         "entry_count": str(len(entries)),
         "entry_segmentation": method,
+        "confidence": "medium",
+        "confidence_reason": "publication_segmentation_and_measured_spacing_heuristic",
         "triage_tier": "medium",
         "source_q_rule_id": "Q028",
     }

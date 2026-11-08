@@ -14813,15 +14813,16 @@ def test_p055_wrap_continuation_skipped(tmp_path: Path) -> None:
     assert not findings
 
 
-def test_p055_sparse_page_skipped(tmp_path: Path) -> None:
-    """LoT page with fewer than 2 entries → skipped."""
+def test_p055_single_complete_wrong_type_entry_is_checked(tmp_path: Path) -> None:
+    """One complete entry still has to obey the list entry-type requirement."""
     pdf_path = tmp_path / "p055_sparse.pdf"
     _make_lot_lof_entry_type_pdf(pdf_path, [
         ("Figure 1 Only One Entry So Page Is Sparse", "5"),
     ])
     model = load_pdf_layout(str(pdf_path))
     findings = [f for f in check_pdf_lot_lof_entry_type(model) if f.rule_id == "P055"]
-    assert not findings
+    assert len(findings) == 1
+    assert findings[0].details["issue_type"] == "lot_entry_is_figure"
 
 
 def test_p055_toc_entries_unaffected(tmp_path: Path) -> None:
@@ -14859,6 +14860,13 @@ def test_p055_finding_metadata_privacy_safe(tmp_path: Path) -> None:
         "page_number_token_present",
         "triage_tier",
         "source_q_rule_id",
+        "entry_id",
+        "source_row_id",
+        "bbox",
+        "prefix_geometry",
+        "confidence",
+        "confidence_reason",
+        "page_number_bbox",
     }
     assert finding.details.keys() <= allowed_keys
     assert finding.details.get("triage_tier") == "medium"
