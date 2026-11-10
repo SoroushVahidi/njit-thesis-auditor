@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import fitz
+import pytest
 from typer.testing import CliRunner
 
 from njit_auditor.cli import app
@@ -13336,6 +13337,130 @@ def test_p044_real_flush_left_later_paragraph_still_warns(tmp_path: Path) -> Non
     findings = [f for f in check_pdf_abstract_indentation(model) if f.rule_id == "P044"]
     issue_types = [f.details.get("issue_type") for f in findings]
     assert "abstract_subsequent_paragraph_not_indented" in issue_types
+
+
+# ---------------------------------------------------------------------------
+# P044 title/byline regression fixtures (synthetic text only)
+# ---------------------------------------------------------------------------
+
+
+def _make_abstract_title_byline_pdf(
+    path: Path,
+    *,
+    first_x: float = 108.0,
+    second_x: float = 140.0,
+    pitch: float = 28.0,
+    font: str = "Times-Roman",
+    marker: str = "by",
+    title_end: str = "",
+    author_offset: float = 0.0,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((260, 85), "ABSTRACT", fontsize=12, fontname="Times-Bold")
+
+    def centered(text: str, y: float, width: float, offset: float = 0.0) -> None:
+        size = width / fitz.get_text_length(text, fontname=font, fontsize=1)
+        page.insert_text((325.5 - width / 2 + offset, y), text, fontsize=size, fontname=font)
+
+    # The wide second title line joins the body margin cluster; neither title
+    # line is body text. This is deliberately unrelated to any real thesis text.
+    centered("A synthetic dissertation title about testing documents" + title_end, 112, 398)
+    centered("With a longer subtitle covering alternative document layouts", 126, 430)
+    centered(marker, 165, 15)
+    centered("Alex Test", 179, 58, author_offset)  # shorter than MIN_TEXT_LEN
+    page.insert_text((first_x, 240), "This synthetic abstract begins a sentence that continues",
+                     fontsize=12, fontname=font)
+    page.insert_text((108, 240 + pitch), "on its next line and ends here.",
+                     fontsize=12, fontname=font)
+    page.insert_text((second_x, 340), "A second synthetic paragraph continues its sentence",
+                     fontsize=12, fontname=font)
+    page.insert_text((108, 340 + pitch), "on this final line of the abstract.",
+                     fontsize=12, fontname=font)
+    doc.save(path)
+    doc.close()
+
+
+@pytest.mark.parametrize("font", ["Times-Roman", "helv"])
+@pytest.mark.parametrize("pitch", [14.0, 32.0])
+@pytest.mark.parametrize("first_x", [108.0, 144.0])
+@pytest.mark.parametrize("second_x", [108.0, 144.0])
+def test_p044_verified_byline_preserves_body_checks(
+    tmp_path: Path, font: str, pitch: float, first_x: float, second_x: float
+) -> None:
+    path = tmp_path / "abstract.pdf"
+    _make_abstract_title_byline_pdf(
+        path, font=font, pitch=pitch, first_x=first_x, second_x=second_x,
+    )
+    findings = check_pdf_abstract_indentation(load_pdf_layout(str(path)))
+    expected = []
+    if first_x > 108:
+        expected.append(("abstract_first_paragraph_indented", "0", "Q002"))
+    if second_x == 108:
+        expected.append(("abstract_subsequent_paragraph_not_indented", "1", "Q003"))
+    assert [(f.details["issue_type"], f.details["paragraph_index"],
+             f.details["source_q_rule_id"]) for f in findings] == expected
+    # A valid warning must identify the body, never the title or author.
+    assert all(float(f.details["bbox"].split(",")[1]) > 200 for f in findings)
+
+
+def test_p044_byline_is_independent_of_pdf_block_order(tmp_path: Path) -> None:
+    path = tmp_path / "abstract.pdf"
+    _make_abstract_title_byline_pdf(path, first_x=144, pitch=32, marker="BY")
+    model = load_pdf_layout(str(path))
+    page = model.pages[0]
+    lines = [line for block in page.text_blocks for line in block.lines]
+    page.text_blocks = [PdfTextBlock(lines=[line], bbox=line.bbox, text=line.text)
+                        for line in reversed(lines)]
+    findings = check_pdf_abstract_indentation(model)
+    assert len(findings) == 1
+    assert findings[0].details["issue_type"] == "abstract_first_paragraph_indented"
+    assert float(findings[0].details["bbox"].split(",")[1]) > 200
+
+
+@pytest.mark.parametrize("first_x", [108.0, 144.0])
+@pytest.mark.parametrize("paragraph_count", [1, 3])
+def test_p044_byline_with_one_or_three_paragraphs(
+    tmp_path: Path, first_x: float, paragraph_count: int
+) -> None:
+    path = tmp_path / "abstract.pdf"
+    _make_abstract_title_byline_pdf(path, first_x=first_x, pitch=32)
+    doc = fitz.open(path)
+    if paragraph_count == 1:
+        doc[0].add_redact_annot(fitz.Rect(0, 300, 612, 792))
+        doc[0].apply_redactions()
+    else:
+        doc[0].insert_text((108, 440), "This third paragraph incorrectly starts flush left.")
+    modified = tmp_path / "paragraphs.pdf"
+    doc.save(modified)
+    doc.close()
+    findings = check_pdf_abstract_indentation(load_pdf_layout(str(modified)))
+    expected = []
+    if first_x > 108:
+        expected.append(("Q002", "0"))
+    if paragraph_count == 3:
+        expected.append(("Q003", "2"))
+    assert [(f.details["source_q_rule_id"], f.details["paragraph_index"])
+            for f in findings] == expected
+    assert all(float(f.details["bbox"].split(",")[1]) > 200 for f in findings)
+
+
+@pytest.mark.parametrize("marker,title_end,author_offset", [
+    ("via", "", 0.0),  # no standalone byline marker
+    ("by", ".", 0.0),  # sentence-like body text before the marker
+    ("by", "", -60.0),  # author does not share the title/byline center
+])
+def test_p044_ambiguous_preamble_does_not_suppress_warning(
+    tmp_path: Path, marker: str, title_end: str, author_offset: float
+) -> None:
+    path = tmp_path / "abstract.pdf"
+    _make_abstract_title_byline_pdf(
+        path, marker=marker, title_end=title_end, author_offset=author_offset,
+    )
+    findings = check_pdf_abstract_indentation(load_pdf_layout(str(path)))
+    assert findings
+    assert findings[0].details["issue_type"] == "abstract_first_paragraph_indented"
+    assert float(findings[0].details["bbox"].split(",")[1]) < 130
 
 
 # ---------------------------------------------------------------------------

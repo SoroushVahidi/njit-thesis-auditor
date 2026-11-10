@@ -64,9 +64,15 @@ def _lines_below_heading(
         for line in block.lines:
             if line.bbox.y0 <= heading_bottom_y + 2:
                 continue
-            if _is_usable_line(line):
+            if line.text.strip():
                 lines.append(line)
     sorted_lines = sorted(lines, key=lambda line: (line.bbox.y0, line.bbox.x0))
+    body = _body_after_title_byline(sorted_lines)
+    if body is not None:
+        # The metadata boundary is established: keep even an indented first
+        # body line separated from its continuation by double spacing.
+        return body
+    sorted_lines = [line for line in sorted_lines if _is_usable_line(line)]
     if not sorted_lines:
         return []
 
@@ -94,6 +100,38 @@ def _lines_below_heading(
 
 def _ends_sentence(line: PdfTextLine) -> bool:
     return bool(_SENTENCE_END_RE.search(line.text.strip()))
+
+
+def _body_after_title_byline(lines: list[PdfTextLine]) -> list[PdfTextLine] | None:
+    """Recognize a centered title / standalone 'by' / author prefix only.
+
+    Wide centered titles can share the body's left margin. Use the short byline
+    marker (normally filtered out of paragraph checks) and a common center to
+    establish the boundary; uncertain layouts retain the existing heuristic.
+    This does not assess title/byline formatting or relax body indentation.
+    """
+    for index, marker in enumerate(lines):
+        if marker.text.strip().casefold() != "by" or index == 0 or index + 2 >= len(lines):
+            continue
+        title = lines[:index]
+        author = lines[index + 1]
+        if any(_ends_sentence(line) or not any(c.isalpha() for c in line.text)
+               for line in [*title, author]):
+            continue
+        if len(author.text.split()) < 2:
+            continue
+        center = (marker.bbox.x0 + marker.bbox.x1) / 2
+        if any(abs((line.bbox.x0 + line.bbox.x1) / 2 - center)
+               > LEFT_MARGIN_CLUSTER_TOLERANCE_PT for line in [*title, author]):
+            continue
+        body = [line for line in lines[index + 2:] if _is_usable_line(line)]
+        if not body or body[0].bbox.y0 <= author.bbox.y1:
+            continue
+        left_margin = min(line.bbox.x0 for line in body)
+        if min(marker.bbox.x0, author.bbox.x0) - left_margin <= INDENT_THRESHOLD_PT:
+            continue
+        return body
+    return None
 
 
 def _group_paragraphs(
