@@ -7,6 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from njit_auditor.ester_warning_wording import student_warning_remediation
+from njit_auditor.float_layout_advice import float_layout_suggested_fix
 from njit_auditor.issue_type_explanations import humanize_issue_type
 from njit_auditor.report_outputs import derive_source_issue_type
 from njit_auditor.resource_paths import resource_path
@@ -2210,8 +2211,13 @@ def resolve_suggested_fix_for_display(
     issue_type: str = "",
     *,
     existing: str = "",
+    float_number: str = "",
 ) -> str:
-    """Return a student-facing suggested fix, preferring detector text then rule remediation."""
+    """Resolve advice, retaining recorded R035 identity over older generic text."""
+    if rule_id == "P035" and float_number.strip():
+        numbered_fix = float_layout_suggested_fix(issue_type, float_number)
+        if numbered_fix:
+            return numbered_fix
     cleaned = sanitize_suggested_fix_for_web(rule_id, existing.strip())
     if cleaned:
         return cleaned

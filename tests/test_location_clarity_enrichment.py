@@ -616,7 +616,8 @@ def test_p035_comment_includes_float_number_when_available() -> None:
     view = build_report_view(payload)
     fv = next(f for f in view.findings if f.rule_id == "P035")
     assert "for Table 4.3" in fv.polished_comment
-    assert "table caption" in fv.polished_comment.lower()
+    assert "table title" in fv.polished_comment.lower()
+    assert "Table 4.3" in fv.suggested_fix
     assert "above" in fv.polished_comment
 
 
@@ -645,7 +646,7 @@ def test_p035_comment_without_float_number_is_unchanged_shape() -> None:
         details={},
     )
     assert "for Table" not in comment
-    assert "table caption" in comment.lower()
+    assert "table title" in comment.lower()
 
 
 def test_p035_grouping_key_is_stable_across_float_numbers() -> None:
@@ -909,6 +910,10 @@ def test_grouped_p035_individual_findings_are_distinguishable() -> None:
     assert gp.is_grouped
     comments = [f.polished_comment for f in gp.individual_findings]
     assert len(comments) == len(set(comments)) == 2
+    assert [f.suggested_fix for f in gp.individual_findings] == [
+        "Place the table title for Table 1.1 above the table body.",
+        "Place the table title for Table 1.2 above the table body.",
+    ]
 
 
 def test_grouped_p040_individual_findings_are_distinguishable() -> None:

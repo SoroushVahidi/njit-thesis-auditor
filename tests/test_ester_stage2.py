@@ -1,8 +1,10 @@
 """Synthetic counterexamples and true-positive controls for assessment Stage 2."""
 
+import fitz
 import pytest
 
 from njit_auditor.models import AuditFinding, Severity
+from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
@@ -88,6 +90,70 @@ def test_separate_bullets_do_not_turn_inter_entry_spacing_into_internal_spacing(
         lines += [
             line("•A sufficiently long synthetic education item.", y, x=126),
             line("A single-spaced continuation of the same item.", y + 14, x=144),
+        ]
+    assert check_pdf_biosketch_bullet_spacing(document([block(lines)])) == []
+
+
+@pytest.mark.parametrize("drift", [-0.5, -0.1, 0, 0.1, 0.5])
+@pytest.mark.parametrize("pitch", [16, 32])
+def test_real_pdf_bullet_membership_survives_coordinate_jitter(tmp_path, drift, pitch):
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((190, 70), "BIOGRAPHICAL SKETCH", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 110), "Education:", fontsize=12, fontname="Times-Bold")
+    for y in (160, 330):
+        for index, text in enumerate(
+            (
+                "- Generic educational qualification and supporting details.",
+                "First ordinary continuation of the same education bullet.",
+                "Second ordinary continuation of the same education bullet.",
+            )
+        ):
+            page.insert_text(
+                (108 + (drift if index else 0), y + index * pitch),
+                text,
+                fontsize=12,
+                fontname="Times-Roman",
+            )
+    # Badly spaced publication entries must not be owned by education.
+    page.insert_text((108, 420), "Selected Publications:", fontsize=12, fontname="Times-Bold")
+    for y in (450, 570):
+        for index in range(3):
+            text = ("- " if index == 0 else "") + "Synthetic publication entry continuation."
+            page.insert_text((108, y + index * 32), text, fontsize=12, fontname="Times-Roman")
+    path = tmp_path / "education.pdf"
+    doc.save(path)
+    doc.close()
+    findings = check_pdf_biosketch_bullet_spacing(load_pdf_layout(str(path)))
+    assert len(findings) == (2 if pitch == 32 else 0)
+    for finding in findings:
+        assert finding.details["observed_gap_points"] == "16.0"
+        assert finding.details["required_max_gap_points"] == "12.0"
+        assert float(finding.details["bbox"].split(",")[3]) < 410
+
+
+def test_neighboring_markers_keep_bad_entry_distinct_from_good_entries():
+    lines = [line("BIOGRAPHICAL SKETCH", 60), line("Education:", 100)]
+    for start, pitch in ((150, 14), (210, 30), (300, 14)):
+        lines += [
+            line("- Generic degree with sufficient educational detail", start),
+            line("First continuation of this same educational entry", start + pitch, x=107.9),
+            line("Final continuation of this same educational entry", start + 2 * pitch, x=108.1),
+        ]
+    findings = check_pdf_biosketch_bullet_spacing(document([block(lines)]))
+    assert len(findings) == 1
+    assert findings[0].details["block_index"] == "1"
+    assert float(findings[0].details["bbox"].split(",")[1]) == 210
+
+
+@pytest.mark.parametrize("x", [72, 510])
+def test_outdented_or_separate_column_text_is_not_a_bullet_continuation(x):
+    lines = [line("BIOGRAPHICAL SKETCH", 60), line("Education:", 100)]
+    for y in (150, 300):
+        lines += [
+            line("- A single educational entry with supporting detail", y),
+            line("Unrelated adjacent text in a distinct column", y + 30, x=x, right=x + 80),
+            line("Additional adjacent text in a distinct column", y + 60, x=x, right=x + 80),
         ]
     assert check_pdf_biosketch_bullet_spacing(document([block(lines)])) == []
 
@@ -245,13 +311,19 @@ def test_script_exclusion_requires_local_size_and_baseline_evidence(shift):
         ("figure_caption_not_below_body", "figure description", "table", "below"),
     ],
 )
-def test_r035_actions_only_address_the_affected_object(issue, noun, other, action):
+@pytest.mark.parametrize("number", ["", "1.1", " B.2 "])
+def test_r035_actions_only_address_the_affected_object(issue, noun, other, action, number):
     finding = AuditFinding(
         rule_id="P035",
         severity=Severity.WARNING,
         page=1,
         message="Layout review",
-        details={"issue_type": issue, "float_number": "1.1", "float_type": issue.split("_")[0]},
+        details={
+            "issue_type": issue,
+            "float_number": number,
+            "float_type": issue.split("_")[0],
+            "nearby_float_number": "9.9",
+        },
     )
     view = build_report_view(
         audit_findings_to_json_dict([finding], {"audit_type": "pdf"})
@@ -260,4 +332,25 @@ def test_r035_actions_only_address_the_affected_object(issue, noun, other, actio
         assert other not in text.lower()
         assert "caption" not in text.lower()
     assert noun in view.polished_comment.lower()
-    assert action.lower() in view.suggested_fix.lower()
+    assert action.lower().replace("the ", "") in view.suggested_fix.lower().replace("the ", "")
+    assert "9.9" not in view.suggested_fix
+    if number.strip():
+        assert f"{issue.split('_')[0].title()} {number.strip()}" in view.suggested_fix
+    else:
+        assert not any(char.isdigit() for char in view.suggested_fix)
+    # Pin complete instructions, including generic fallback when identity is absent.
+    expected = {
+        "table_body_not_centered": "Center the table within the page margins.",
+        "figure_body_not_centered": "Center the figure within the page margins.",
+        "table_caption_not_above_body": "Place the table title above the table body.",
+        "figure_caption_not_below_body": "Place the figure description below the figure body.",
+    }[issue]
+    if number.strip():
+        target = f"{issue.split('_')[0].title()} {number.strip()}"
+        if "not_centered" in issue:
+            expected = f"Center {target} within the page margins."
+        elif issue.startswith("table"):
+            expected = f"Place the table title for {target} above the table body."
+        else:
+            expected = f"Place the figure description for {target} below the figure body."
+    assert view.suggested_fix == expected

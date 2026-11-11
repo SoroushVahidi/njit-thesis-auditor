@@ -924,6 +924,7 @@ def _finding_view_from_item(
                 rule_id,
                 issue_type,
                 existing=str(details.get("suggested_fix", "")),
+                float_number=str(details.get("float_number", "")),
             ),
             triage_tier=str(details.get("triage_tier", "")),
             confidence=confidence,
@@ -2333,7 +2334,9 @@ def _apply_float_layout_presentation(
     else:
         float_clause = ""
     comment = template.format(page=page_label, float_clause=float_clause)
-    suggested_fix = resolve_suggested_fix_for_display("P035", finding.issue_type)
+    suggested_fix = resolve_suggested_fix_for_display(
+        "P035", finding.issue_type, float_number=float_number
+    )
     return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
 
 

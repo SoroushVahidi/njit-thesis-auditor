@@ -53,14 +53,16 @@ def _pdf(kind: str) -> bytes:
                 page = doc.new_page(width=612, height=792)
             if kind_name == "table":
                 title_y = 240 if misplaced else 130
+                number = "4.8" if misplaced else "2.7"
                 page.insert_text((108, title_y),
-                                 "Table 1.1 Synthetic Experimental Results", fontsize=12)
+                                 f"Table {number} Synthetic Experimental Results", fontsize=12)
                 for row_y in (160, 185):
                     page.insert_text((108, row_y), "Result alpha compared with beta", fontsize=12)
             else:
                 description_y = 130 if misplaced else 300
+                number = "5.9" if misplaced else "3.4"
                 page.insert_text((108, description_y),
-                                 "Figure 1.1 Synthetic experimental results.", fontsize=12)
+                                 f"Figure {number} Synthetic experimental results.", fontsize=12)
                 pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 16, 16), False)
                 pix.clear_with(90)
                 page.insert_image(fitz.Rect(108, 160, 250, 260), pixmap=pix)
@@ -241,10 +243,12 @@ def test_online_offline_parity(kind: str) -> None:
                              " ".join(text for text, _ in _report_pdf_content(
                                  offline_combined.content))):
                 rendered = " ".join(rendered.split())
-                for action in ("Center the table within the page margins.",
-                               "Center the figure within the page margins.",
-                               "Place the table title above the table body.",
-                               "Place the figure description below the figure body."):
+                for action in (
+                    "Center Table 2.7 within the page margins.",
+                    "Center Figure 3.4 within the page margins.",
+                    "Place the table title for Table 4.8 above the table body.",
+                    "Place the figure description for Figure 5.9 below the figure body.",
+                ):
                     assert action in rendered
                 assert "Center figure/table body blocks" not in rendered
             layout = [f for f in online_report["findings"] if f["rule_id"] == "P035"]
@@ -255,7 +259,8 @@ def test_online_offline_parity(kind: str) -> None:
             for finding in layout:
                 action = finding["details"]["suggested_fix"]
                 other = "figure" if finding["details"]["float_type"] == "table" else "table"
-                assert other not in action and "caption" not in action
+                assert other not in action.lower() and "caption" not in action.lower()
+                assert finding["details"]["float_number"] in action
         assert online_status["finding_count"] == offline_status["finding_count"]
         assert _normalize(online_report) == _normalize(offline_report)
         assert _normalize(online_findings) == _normalize(offline_findings)

@@ -28,6 +28,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Sequence
 
+from njit_auditor.float_layout_advice import float_layout_suggested_fix
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import (
     BBox,
@@ -447,12 +448,7 @@ def _append_finding(
         "triage_tier": "review",
         "allowed_center_delta_points": str(int(allowed_delta)),
     }
-    details["suggested_fix"] = {
-        "table_body_not_centered": "Center the table within the page margins.",
-        "figure_body_not_centered": "Center the figure within the page margins.",
-        "table_caption_not_above_body": "Place the table title above the table body.",
-        "figure_caption_not_below_body": "Place the figure description below the figure body.",
-    }[issue_type]
+    details["suggested_fix"] = float_layout_suggested_fix(issue_type, float_number)
     if center_delta is not None:
         details["center_delta_points"] = f"{center_delta:.1f}"
     if bbox is not None:

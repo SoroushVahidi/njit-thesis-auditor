@@ -91,8 +91,15 @@ def _education_items(lines: list[PdfTextLine]) -> list[list[PdfTextLine]]:
             active = [line]
             items.append(active)
         elif active is not None:
+            # Markers and subsection boundaries establish ownership; extraction
+            # jitter must not split an otherwise continuous item. Reuse the
+            # existing indent distinction for leftward drift, require column
+            # overlap, and retain the paragraph-gap boundary. New markers above
+            # always start a separate item, regardless of their indentation.
             if (line.bbox.y0 - active[-1].bbox.y1 <= MAX_PARA_GAP_PT
-                    and line.bbox.x0 >= active[0].bbox.x0):
+                    and line.bbox.x0 >= active[0].bbox.x0 - HANGING_THRESHOLD_PT
+                    and line.bbox.x0 < active[0].bbox.x1
+                    and line.bbox.x1 > active[0].bbox.x0):
                 active.append(line)
             else:
                 active = None
