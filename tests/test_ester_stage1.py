@@ -113,3 +113,61 @@ def test_list_case_actions_and_section_categories(tmp_path):
         else:
             assert "Title Case" in finding.suggested_fix
             assert "figure" not in finding.suggested_fix
+
+
+def test_abstract_prose_does_not_create_copyright_boundary(tmp_path):
+    doc = _pdf(tmp_path, [
+        ("ABSTRACT", None, []),
+        (None, "ii", [(108, 140, "We study copyright protection in digital archives.")]),
+        (None, "iii", [(108, 140, "The abstract continues with the experimental results.")]),
+        (None, None, [(108, 140, "Submitted in partial fulfillment of requirements at NJIT")]),
+        (None, None, [(210, 300, "Copyright 2026")]),
+        ("APPROVAL PAGE", None, []),
+        ("BIOGRAPHICAL SKETCH", "iv", []),
+        ("CHAPTER 1 INTRODUCTION", "1", []),
+    ])
+    assert [(f.page, f.details["page_type"]) for f in
+            check_pdf_frontmatter_no_page_number(doc)] == [(2, "abstract"), (3, "abstract")]
+    assert check_pdf_roman_sequence(doc) == []
+
+
+@pytest.mark.parametrize("front_abstract", [True, False])
+def test_body_abstract_is_not_reclassified_as_frontmatter(tmp_path, front_abstract):
+    # In a partial manuscript without TOC/biosketch, the chapter remains the
+    # boundary even when a later page has a recognizable list heading.
+    pages = [("ABSTRACT", None, [])] if front_abstract else []
+    doc = _pdf(tmp_path, pages + [
+        ("CHAPTER 1 INTRODUCTION", "1", []),
+        ("ABSTRACT", "2", [(108, 140, "A chapter-specific summary appears here.")]),
+        ("LIST OF FIGURES", "3", []),
+    ])
+    assert check_pdf_frontmatter_no_page_number(doc) == []
+
+
+@pytest.mark.parametrize("notice", ["Copyright 2026", "Copyright", "Copyright (c) 2026",
+                                    "(c) 2026", "© 2026", "© Alex Test", "Copyright by Alex Test"])
+def test_copyright_notice_still_ends_abstract_and_forbids_folio(tmp_path, notice):
+    doc = _pdf(tmp_path, [
+        ("ABSTRACT", None, []),
+        (None, None, [(108, 140, "An unnumbered abstract continuation.")]),
+        (None, "ii", [(210, 300, notice)]),
+        ("APPROVAL PAGE", None, []),
+        ("BIOGRAPHICAL SKETCH", "iv", []),
+        ("CHAPTER 1 INTRODUCTION", "1", []),
+    ])
+    assert [(f.page, f.details["page_type"]) for f in
+            check_pdf_frontmatter_no_page_number(doc)] == [(3, "copyright_page")]
+
+
+@pytest.mark.parametrize("missing", [None, "cm", "2"])
+@pytest.mark.parametrize("last,issue", [("vi", None), ("iv", "roman_sequence_repeat"),
+                                       ("iii", "roman_sequence_decrease")])
+def test_unreadable_folio_keeps_physical_count_and_endpoint_checks(tmp_path, missing, last, issue):
+    doc = _pdf(tmp_path, [
+        ("BIOGRAPHICAL SKETCH", "iv", []),
+        (None, missing, []),
+        ("ACKNOWLEDGEMENTS", last, []),
+        ("CHAPTER 1 INTRODUCTION", "1", []),
+    ])
+    assert [f.details["issue_type"] for f in check_pdf_roman_sequence(doc)] == (
+        [issue] if issue else [])

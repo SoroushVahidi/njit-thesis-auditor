@@ -37,6 +37,7 @@
     "tests/test_ester_r018_r024_r040_regressions.py",
     "tests/test_ester_remediation_targets.py",
     "tests/test_ester_rule_wording_pass1.py",
+    "tests/test_ester_stage1.py",
     "tests/test_ester_unambiguous_wording_fixes.py",
     "tests/test_ester_wording_and_page_order.py",
     "tests/test_evaluation.py",

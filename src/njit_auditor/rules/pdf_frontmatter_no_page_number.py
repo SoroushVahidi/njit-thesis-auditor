@@ -35,6 +35,11 @@ _PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNO
 _YEAR_RE = re.compile(r"^(19|20)\d{2}$")
 # Copyright page signal: word "copyright", © symbol, or "(c)".
 _COPYRIGHT_RE = re.compile(r"\bcopyright\b|©|\(c\)", re.IGNORECASE)
+# A section boundary requires a notice/heading, not a mention in Abstract prose.
+_COPYRIGHT_NOTICE_RE = re.compile(
+    r"^(?:copyright(?:$|\s+(?:\d{4}\b|by\b)|\s*(?:©|\(c\)))|©|\(c\)\s*\d{4}\b)",
+    re.IGNORECASE,
+)
 
 _TOP_ZONE_RATIO = 0.15
 _COPYRIGHT_SCAN_PAGES = 4
@@ -113,6 +118,8 @@ def frontmatter_no_number_roles(pdf_doc: PdfDocument) -> dict[int, tuple[str, st
         (pn for pn, name in named.items() if name not in {"ABSTRACT", "APPROVAL PAGE"}),
         default=body_start or (working_doc.pages[-1].page_number + 1 if working_doc.pages else 1),
     )
+    if body_start is not None:
+        first_numbered = min(first_numbered, body_start)
     for page in working_doc.pages:
         pn = page.page_number
         if pn >= first_numbered:
@@ -128,13 +135,15 @@ def frontmatter_no_number_roles(pdf_doc: PdfDocument) -> dict[int, tuple[str, st
                     and ("newjerseyinstituteoftechnology" in compact or "njit" in compact)):
                 roles[pn] = ("title_page", "Q008")
                 boundaries.add(pn)
-            elif _COPYRIGHT_RE.search(text):
+            elif any(_COPYRIGHT_NOTICE_RE.match(line.text.strip())
+                     for block in page.text_blocks for line in block.lines):
                 roles[pn] = ("copyright_page", "Q012")
                 boundaries.add(pn)
     # Retain the legacy first-page fallback only for an unnamed opening page.
     if working_doc.pages and len(working_doc.pages) >= _MIN_DOC_PAGES_FOR_TITLE_CHECK and named:
         first = working_doc.pages[0].page_number
-        if first not in named and first not in roles:
+        if (first not in named and first not in roles
+                and (body_start is None or first < body_start)):
             roles[first] = ("title_page", "Q008")
             boundaries.add(first)
     for heading in headings:
