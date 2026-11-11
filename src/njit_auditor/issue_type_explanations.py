@@ -82,8 +82,8 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     # Figure / Table
     "table_body_not_centered": "Table body not centered",
     "figure_body_not_centered": "Figure body not centered",
-    "table_caption_not_above_body": "Table caption not above body",
-    "figure_caption_not_below_body": "Figure caption not below body",
+    "table_caption_not_above_body": "Table title not above body",
+    "figure_caption_not_below_body": "Figure description not below body",
     # Title / Copyright
     "title_page_mismatch": "Title page mismatch",
     "title_consistency_mismatch": "Title consistency mismatch",
@@ -672,20 +672,20 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "to August, December, or May."
     ),
     ("P035", "table_caption_not_above_body"): (
-        "This means a table caption does not appear above the table body. "
-        "NJIT expects table captions above the table."
+        "This means a table title does not appear above the table body. "
+        "NJIT expects table titles above the table."
     ),
     ("P035", "figure_caption_not_below_body"): (
-        "This means a figure caption does not appear below the figure body. "
-        "NJIT expects figure captions below the figure."
+        "This means a figure description does not appear below the figure body. "
+        "NJIT expects figure descriptions below the figure."
     ),
     ("P035", "table_body_not_centered"): (
         "This means a table body block does not appear centered within the "
-        "text area."
+        "area between the page margins."
     ),
     ("P035", "figure_body_not_centered"): (
         "This means a figure body block does not appear centered within the "
-        "text area."
+        "area between the page margins."
     ),
     ("P039", "toc_l2_not_indented_relative_to_l1"): (
         "This means a level-2 Table of Contents entry does not appear indented "

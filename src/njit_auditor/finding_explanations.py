@@ -652,20 +652,20 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P035 figure/table layout ---
     ("P035", "table_caption_not_above_body"): (
-        "A table caption on this page does not appear above the table body. "
-        "NJIT expects table captions above the table."
+        "A table title on this page does not appear above the table body. "
+        "NJIT expects table titles above the table."
     ),
     ("P035", "figure_caption_not_below_body"): (
-        "A figure caption on this page does not appear below the figure body. "
-        "NJIT expects figure captions below the figure."
+        "A figure description on this page does not appear below the figure body. "
+        "NJIT expects figure descriptions below the figure."
     ),
     ("P035", "table_body_not_centered"): (
         "A table body block on this page does not appear centered within the "
-        "text area. Center the table within the page margins."
+        "area between the page margins. Center the table within the page margins."
     ),
     ("P035", "figure_body_not_centered"): (
         "A figure body block on this page does not appear centered within the "
-        "text area. Center the figure within the page margins."
+        "area between the page margins. Center the figure within the page margins."
     ),
     # --- P039 TOC hierarchy indentation ---
     ("P039", "toc_l2_not_indented_relative_to_l1"): (

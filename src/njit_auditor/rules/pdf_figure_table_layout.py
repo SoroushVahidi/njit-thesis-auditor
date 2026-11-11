@@ -326,7 +326,8 @@ def _centering_issue(frame: PdfReadingFrame, body_bbox: BBox) -> tuple[bool, flo
 
 
 def _complete_ruled_table_body_bbox(
-    page: PdfPage, text_bbox: BBox, caption_bbox: BBox, next_caption_y: float
+    page: PdfPage, text_bbox: BBox, caption_bbox: BBox, next_caption_y: float,
+    *, content_bbox: BBox | None = None, caption_baseline_y: float | None = None,
 ) -> BBox:
     """Use a table's repeated outer rules when they bound its text body.
 
@@ -335,12 +336,22 @@ def _complete_ruled_table_body_bbox(
     their geometry can replace the text-only proxy. Unruled or ambiguous
     tables keep the existing text-bbox behavior.
     """
+    # Empty extracted lines can extend a block below the final visible border.
+    # Use actual nonblank content for the rule-completion gate, retaining the
+    # original text fallback whenever no complete ruled body is established.
+    ink = content_bbox or text_bbox
+    # Font descent padding is not a second title row. Where origin metadata
+    # exists, use the title's actual baseline for the existing 1pt separation.
+    # Still require the first real table row to be below the title's full box.
+    title_bottom = caption_bbox.y1
+    if caption_baseline_y is not None and ink.y0 >= caption_bbox.y1:
+        title_bottom = caption_baseline_y
     candidates = []
     for rule in page.horizontal_rules:
-        if not (caption_bbox.y1 + 1.0 <= rule.y0 < next_caption_y):
+        if not (title_bottom + 1.0 <= rule.y0 < next_caption_y):
             continue
-        overlap = min(rule.x1, text_bbox.x1) - max(rule.x0, text_bbox.x0)
-        if overlap < TABLE_RULE_MIN_OVERLAP_FRACTION * max(rule.width, text_bbox.width):
+        overlap = min(rule.x1, ink.x1) - max(rule.x0, ink.x0)
+        if overlap < TABLE_RULE_MIN_OVERLAP_FRACTION * max(rule.width, ink.width):
             continue
         candidates.append(rule)
 
@@ -365,20 +376,20 @@ def _complete_ruled_table_body_bbox(
             continue
         first = min(group, key=lambda rule: rule.y0)
         last = max(group, key=lambda rule: rule.y1)
-        if not (0 <= text_bbox.y0 - first.y1 <= TABLE_RULE_TOP_GAP_PT):
+        if not (0 <= ink.y0 - first.y1 <= TABLE_RULE_TOP_GAP_PT):
             continue
-        if last.y1 < text_bbox.y1 - 8.0:
+        if last.y1 < ink.y1 - 8.0:
             continue
-        qualifying.append((abs(text_bbox.y0 - first.y1), -len(group), group))
+        qualifying.append((abs(ink.y0 - first.y1), -len(group), group))
 
     if not qualifying:
         return text_bbox
     _, _, chosen = min(qualifying, key=lambda item: (item[0], item[1]))
     return BBox(
-        x0=min(text_bbox.x0, *(rule.x0 for rule in chosen)),
-        y0=min(text_bbox.y0, *(rule.y0 for rule in chosen)),
-        x1=max(text_bbox.x1, *(rule.x1 for rule in chosen)),
-        y1=max(text_bbox.y1, *(rule.y1 for rule in chosen)),
+        x0=min(ink.x0, *(rule.x0 for rule in chosen)),
+        y0=min(ink.y0, *(rule.y0 for rule in chosen)),
+        x1=max(ink.x1, *(rule.x1 for rule in chosen)),
+        y1=max(ink.y1, *(rule.y1 for rule in chosen)),
     )
 
 
@@ -436,6 +447,12 @@ def _append_finding(
         "triage_tier": "review",
         "allowed_center_delta_points": str(int(allowed_delta)),
     }
+    details["suggested_fix"] = {
+        "table_body_not_centered": "Center the table within the page margins.",
+        "figure_body_not_centered": "Center the figure within the page margins.",
+        "table_caption_not_above_body": "Place the table title above the table body.",
+        "figure_caption_not_below_body": "Place the figure description below the figure body.",
+    }[issue_type]
     if center_delta is not None:
         details["center_delta_points"] = f"{center_delta:.1f}"
     if bbox is not None:
@@ -446,13 +463,13 @@ def _append_finding(
         details["caption_bbox"] = format_bbox_detail(to_source(caption_bbox))
 
     if issue_type == "table_body_not_centered":
-        message = "Inferred table body block may not be centered within the text area."
+        message = "Inferred table body block may not be centered within the page margins."
     elif issue_type == "figure_body_not_centered":
-        message = "Inferred figure body block may not be centered within the text area."
+        message = "Inferred figure body block may not be centered within the page margins."
     elif issue_type == "table_caption_not_above_body":
-        message = "Table caption may not appear above the inferred table body block."
+        message = "Table title may not appear above the inferred table body block."
     else:
-        message = "Figure caption may not appear below the inferred figure body block."
+        message = "Figure description may not appear below the inferred figure body block."
 
     findings.append(
         AuditFinding(
@@ -520,6 +537,13 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             if primary is None:
                 continue
             text_bbox = _union_bbox(primary)
+            ink_lines = [line for block in primary for line in block.lines if line.text.strip()]
+            content_bbox = BBox(
+                x0=min(line.bbox.x0 for line in ink_lines),
+                y0=min(line.bbox.y0 for line in ink_lines),
+                x1=max(line.bbox.x1 for line in ink_lines),
+                y1=max(line.bbox.y1 for line in ink_lines),
+            ) if ink_lines else text_bbox
             later_captions = [
                 other_bbox.y0
                 for other in captions
@@ -530,6 +554,13 @@ def check_pdf_figure_table_layout(pdf_document: PdfDocument) -> list[AuditFindin
             body_bbox = _complete_ruled_table_body_bbox(
                 page, text_bbox, caption_bbox,
                 min(later_captions, default=reading_frame.reading_height),
+                content_bbox=content_bbox,
+                caption_baseline_y=max(
+                    (span.baseline_y for block in page.text_blocks for line in block.lines
+                     if line.bbox == caption_bbox for span in line.spans
+                     if span.text.strip() and span.baseline_y is not None),
+                    default=None,
+                ) if reading_frame.reading_rotation == 0 else None,
             )
             not_centered, center_delta, tolerance = _centering_issue(reading_frame, body_bbox)
             if not_centered:

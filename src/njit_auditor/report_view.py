@@ -2292,20 +2292,20 @@ def _apply_spacing_presentation(
 
 _P035_FLOAT_ISSUE_LABELS: dict[str, str] = {
     "table_caption_not_above_body": (
-        "Likely problem: A table caption on page {page}{float_clause} does not "
-        "appear above the table body. NJIT expects table captions to appear above the table."
+        "Likely problem: A table title on page {page}{float_clause} does not "
+        "appear above the table body. NJIT expects table titles to appear above the table."
     ),
     "figure_caption_not_below_body": (
-        "Likely problem: A figure caption on page {page}{float_clause} does not "
-        "appear below the figure body. NJIT expects figure captions to appear below the figure."
+        "Likely problem: A figure description on page {page}{float_clause} does not "
+        "appear below the figure body. NJIT expects figure descriptions to appear below the figure."
     ),
     "table_body_not_centered": (
         "Likely problem: A table body block on page {page}{float_clause} does not "
-        "appear centered within the text area. Center the table within the page margins."
+        "appear centered between the page margins."
     ),
     "figure_body_not_centered": (
         "Likely problem: A figure body block on page {page}{float_clause} does not "
-        "appear centered within the text area. Center the figure within the page margins."
+        "appear centered between the page margins."
     ),
 }
 _P035_TABLE_ISSUE_TYPES: frozenset[str] = frozenset(
@@ -2333,23 +2333,7 @@ def _apply_float_layout_presentation(
     else:
         float_clause = ""
     comment = template.format(page=page_label, float_clause=float_clause)
-    suggested_fix = finding.suggested_fix
-    if finding.issue_type == "figure_caption_not_below_body":
-        if float_number:
-            suggested_fix = (
-                f"Place the Figure {float_number} caption below the figure body. "
-                "Keep the figure image and its caption together within the text area."
-            )
-        else:
-            suggested_fix = (
-                "Place the figure caption below the figure body. Keep the figure image "
-                "and its caption together within the text area."
-            )
-    elif finding.issue_type == "table_caption_not_above_body" and float_number:
-        suggested_fix = (
-            f"Place the Table {float_number} caption above the table body. "
-            "Keep the caption and table rows together within the text area."
-        )
+    suggested_fix = resolve_suggested_fix_for_display("P035", finding.issue_type)
     return replace(finding, polished_comment=comment, suggested_fix=suggested_fix), True
 
 

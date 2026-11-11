@@ -31,8 +31,10 @@ from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
     PdfPage,
+    PdfReadingFrame,
     PdfTextLine,
     PdfTextSpan,
+    _displayed_direction,
     format_bbox_detail,
 )
 from njit_auditor.rules.pdf_body_spacing import (
@@ -43,6 +45,12 @@ from njit_auditor.rules.pdf_body_spacing import (
     _line_in_bands,
     _table_band_ranges,
 )
+from njit_auditor.rules.pdf_captions import (
+    SAME_MARGIN_TOLERANCE_PT,
+    _is_caption_continuation_line,
+    detect_caption_lines,
+)
+from njit_auditor.rules.pdf_figure_table_layout import _candidate_graphic_blocks
 from njit_auditor.rules.pdf_headings import EXPECTED_HEADINGS, normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 
@@ -244,11 +252,20 @@ def _collect_body_spans(
 
     all_lines = [line for block in page.text_blocks for line in block.lines]
     source_note_ids = _source_note_line_ids(all_lines)
+    caption_ids = _caption_line_ids(page)
+    rotation = PdfReadingFrame.for_page(page).reading_rotation
+    figure_regions = _figure_regions(page)
 
     for block in page.text_blocks:
         if block.bbox.y1 <= top_limit or block.bbox.y0 >= bottom_limit:
             continue
         for line in block.lines:
+            if line.line_dir is not None:
+                dx, dy = _displayed_direction(line.line_dir, rotation)
+                if dx <= 0 or abs(dy) > abs(dx):
+                    continue  # Rotated axis labels are not ordinary reading-frame prose.
+            if id(line) in caption_ids:
+                continue
             if line.bbox.y0 < top_limit or line.bbox.y0 > bottom_limit:
                 continue
             if normalize_heading_text(line.text).upper() in _NAMED_HEADINGS:
@@ -272,6 +289,12 @@ def _collect_body_spans(
             if alpha_count < _MIN_ALPHA_COUNT:
                 continue
             for span in line.spans:
+                if not span.text.strip() or _is_local_script(span, line):
+                    continue
+                if any(box.x0 <= span.bbox.x0 and box.x1 >= span.bbox.x1
+                       and box.y0 <= span.bbox.y0 and box.y1 >= span.bbox.y1
+                       for box in figure_regions):
+                    continue
                 if span.size is None or span.size <= 0:
                     continue
                 if span.size < _SPAN_MIN_SIZE or span.size > _SPAN_MAX_SIZE:
@@ -279,6 +302,70 @@ def _collect_body_spans(
                 result.append(span)
 
     return result
+
+
+def _figure_regions(page: PdfPage) -> list[BBox]:
+    """Require a nearby figure description and the existing graphic-body gates.
+
+    A background image or an unowned graphic must not exempt ordinary prose.
+    Raw span geometry is used here; transformed pages retain text candidates.
+    """
+    frame = PdfReadingFrame.for_page(page)
+    if frame.reading_rotation != 0:
+        return []
+    regions: list[BBox] = []
+    for caption in detect_caption_lines(PdfDocument(path="", pages=[page])):
+        if caption.context != "body" or caption.caption_type != "figure" or caption.bbox is None:
+            continue
+        above, below = _candidate_graphic_blocks(page, frame, caption.bbox)
+        regions.extend(graphic.bbox for graphic in above + below)
+    return regions
+
+
+def _caption_line_ids(page: PdfPage) -> set[int]:
+    """Exclude recognized descriptions/titles and supported same-block wraps.
+
+    Reuse the caption parser's prose-reference safeguards and continuation
+    geometry. Do not discard whole blocks or vertical bands beside a figure.
+    """
+    anchors = [caption.bbox for caption in detect_caption_lines(
+        PdfDocument(path="", pages=[page])) if caption.context == "body"]
+    excluded: set[int] = set()
+    for block in page.text_blocks:
+        previous: PdfTextLine | None = None
+        for line in sorted(block.lines, key=lambda ln: (ln.bbox.y0, ln.bbox.x0)):
+            if line.bbox in anchors or (
+                previous is not None and _is_caption_continuation_line(previous, line)
+            ):
+                excluded.add(id(line))
+                previous = line
+            else:
+                previous = None
+    return excluded
+
+
+def _is_local_script(span: PdfTextSpan, line: PdfTextLine) -> bool:
+    """Require a smaller, baseline-shifted glyph next to larger ordinary text.
+
+    Size alone is never an exemption. Missing origin metadata and same-baseline
+    small text remain candidates. Use the existing size/edge tolerances.
+    """
+    if span.size is None or span.baseline_y is None or not span.text.strip():
+        return False
+    if any(char.isspace() for char in span.text.strip()):
+        return False
+    for peer in line.spans:
+        if (peer is span or peer.size is None or peer.baseline_y is None
+                or not any(char.isalpha() for char in peer.text)):
+            continue
+        if peer.size - span.size <= BODY_SIZE_TOLERANCE_PT or span.bbox.width > peer.size:
+            continue
+        if abs(peer.baseline_y - span.baseline_y) <= BODY_SIZE_TOLERANCE_PT:
+            continue
+        gap = min(abs(span.bbox.x0 - peer.bbox.x1), abs(peer.bbox.x0 - span.bbox.x1))
+        if gap <= SAME_MARGIN_TOLERANCE_PT:
+            return True
+    return False
 
 
 def check_pdf_font_compliance(pdf_doc: PdfDocument) -> list[AuditFinding]:

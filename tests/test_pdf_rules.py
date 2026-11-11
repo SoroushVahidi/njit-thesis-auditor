@@ -13699,6 +13699,7 @@ def _make_biosketch_bullet_pdf(
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
     page.insert_text((210, 70), "BIOGRAPHICAL SKETCH", fontsize=14, fontname="Times-Bold")
+    page.insert_text((108, 100), "Education:", fontsize=12, fontname="Times-Bold")
     y = 120.0
     for block_index in range(block_count):
         for line_index in range(lines_per_block):
@@ -13807,6 +13808,7 @@ def test_p047_finding_metadata_no_private_content(tmp_path: Path) -> None:
             "required_max_gap_points",
             "triage_tier",
             "source_q_rule_id",
+            "bbox",
         }
         for value in finding.details.values():
             lowered = str(value).lower()

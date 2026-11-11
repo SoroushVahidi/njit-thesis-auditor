@@ -3,9 +3,9 @@
 Partial heuristic PDF coverage for Q026:
   - Q026: are the bullet items in the education section single-spaced within each bullet?
 
-Biographical Sketch page only. Identifies likely bullet/list blocks (multi-line blocks
-that do NOT have hanging-indent) and checks that internal line spacing is not excessively
-large (not double-spaced). Does not read or quote bullet text, education content,
+Biographical Sketch education subsection only. Explicit bullet markers separate
+entries even when their inter-entry gap is small; unmarked lists retain the
+conservative paragraph fallback within the education boundary. Does not quote education content,
 institution names, or biographical prose.
 
 Does not duplicate P045 (hanging-indent publication blocks), P043 (Acknowledgements),
@@ -17,7 +17,11 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
+from njit_auditor.rules.pdf_biosketch_degree_ordering import (
+    _compact_section_label,
+    _find_education_boundary_y,
+)
 from njit_auditor.rules.pdf_frontmatter_heading_gate import find_gate_heading_page_and_y
 
 HANGING_THRESHOLD_PT = 12.0
@@ -32,6 +36,11 @@ MIN_BULLET_BLOCKS = 2
 MIN_LINES_PER_BLOCK = 3
 _HEADING_LABEL = "BIOGRAPHICAL SKETCH"
 _PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNORECASE)
+_BULLET_RE = re.compile(r"^\s*(?:[•●▪‣]|[-*]\s+|\d+[.)]\s+)")
+_SECTION_END_RE = re.compile(
+    r"^(?:MAJOR|PUBLICATIONS?|PRESENTATIONS?|SELECTEDPUBLICATIONS?|"
+    r"SELECTEDPRESENTATIONS?|PRESENTATIONSANDPUBLICATIONS|PUBLICATIONSANDPRESENTATIONS)$"
+)
 
 
 def _is_usable_line(line: PdfTextLine) -> bool:
@@ -54,14 +63,40 @@ def _find_biosketch_page_and_heading_y(
 def _lines_below_heading(
     page: PdfPage, heading_bottom_y: float
 ) -> list[PdfTextLine]:
+    education_y = _find_education_boundary_y(page, heading_bottom_y)
+    if education_y is None:
+        return []
+    ordered = sorted(
+        (line for block in page.text_blocks for line in block.lines
+         if line.bbox.y0 > education_y + 2 and line.text.strip()),
+        key=lambda line: (line.bbox.y0, line.bbox.x0),
+    )
     lines = []
-    for block in page.text_blocks:
-        for line in block.lines:
-            if line.bbox.y0 <= heading_bottom_y + 2:
-                continue
-            if _is_usable_line(line):
-                lines.append(line)
-    return sorted(lines, key=lambda line: (line.bbox.y0, line.bbox.x0))
+    for line in ordered:
+        if _SECTION_END_RE.fullmatch(_compact_section_label(line.text)):
+            break
+        if not _PAGE_NUM_RE.match(line.text):
+            lines.append(line)
+    return lines
+
+
+def _education_items(lines: list[PdfTextLine]) -> list[list[PdfTextLine]]:
+    if not any(_BULLET_RE.match(line.text) for line in lines):
+        return [group for group in _group_paragraphs(lines)
+                if not _has_hanging_indent(group)]
+    items: list[list[PdfTextLine]] = []
+    active: list[PdfTextLine] | None = None
+    for line in lines:
+        if _BULLET_RE.match(line.text):
+            active = [line]
+            items.append(active)
+        elif active is not None:
+            if (line.bbox.y0 - active[-1].bbox.y1 <= MAX_PARA_GAP_PT
+                    and line.bbox.x0 >= active[0].bbox.x0):
+                active.append(line)
+            else:
+                active = None
+    return items
 
 
 def _group_paragraphs(lines: list[PdfTextLine]) -> list[list[PdfTextLine]]:
@@ -98,12 +133,9 @@ def check_pdf_biosketch_bullet_spacing(
 
     page, heading_bottom_y = result
     lines = _lines_below_heading(page, heading_bottom_y)
-    all_blocks = _group_paragraphs(lines)
-
-    # Identify bullet/list-like blocks: multi-line, NOT hanging-indent
     bullet_blocks = [
-        b for b in all_blocks
-        if len(b) >= 2 and not _has_hanging_indent(b)
+        b for b in _education_items(lines)
+        if len(b) >= 2 and any(_is_usable_line(line) for line in b)
     ]
 
     if len(bullet_blocks) < MIN_BULLET_BLOCKS:
@@ -114,7 +146,7 @@ def check_pdf_biosketch_bullet_spacing(
     for idx, block in enumerate(bullet_blocks):
         if len(block) < MIN_LINES_PER_BLOCK:
             continue
-        for i in range(1, len(block) - 1):
+        for i in range(len(block) - 1):
             gap = block[i + 1].bbox.y0 - block[i].bbox.y1
             if gap > BULLET_MAX_GAP_PT:
                 findings.append(
@@ -137,6 +169,12 @@ def check_pdf_biosketch_bullet_spacing(
                             "required_max_gap_points": f"{BULLET_MAX_GAP_PT:.1f}",
                             "triage_tier": "low",
                             "source_q_rule_id": "Q026",
+                            "bbox": format_bbox_detail(BBox(
+                                x0=min(line.bbox.x0 for line in block),
+                                y0=block[0].bbox.y0,
+                                x1=max(line.bbox.x1 for line in block),
+                                y1=block[-1].bbox.y1,
+                            )),
                         },
                     )
                 )
