@@ -74,7 +74,7 @@ def test_q029_q074_preserve_history_and_show_current_authority() -> None:
     assert "sentence case" in q074["question"]
     assert q074["implementation_status"] == "implemented"
     assert q074["current_authority_overlay"]["effective_implementation_status"] == (
-        "implemented"
+        "partially_implemented"
     )
-    assert "title case" in q074["current_authority_overlay"]["effective_requirement"]
+    assert "sentence case" in q074["current_authority_overlay"]["effective_requirement"]
     assert "current_authority_overlay" not in rows["Q030"]

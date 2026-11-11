@@ -211,6 +211,9 @@ CATEGORY_DISPLAY_LABELS: dict[str, str] = {
     "labels_references": "Labels / cross-references",
     "latex_linter": "LaTeX linting",
     "list_of_tables_figures_toc": "TOC / lists",
+    "table_of_contents": "Table of Contents",
+    "list_of_tables": "List of Tables",
+    "list_of_figures": "List of Figures",
     "margin_or_overflow": "Margins / overflow",
     "page_numbering": "Page numbering",
     "punctuation": "Punctuation",
@@ -219,6 +222,22 @@ CATEGORY_DISPLAY_LABELS: dict[str, str] = {
     "table_format": "Table formatting",
     "title_page_metadata": "Title page",
 }
+
+
+def finding_display_category(rule_id: str, details: dict[str, str]) -> str:
+    category = map_finding_rule_to_category(rule_id, details)
+    if category == "list_of_tables_figures_toc":
+        section = details.get("page_type") or details.get("section_type") or details.get("context")
+        if section in {"table_of_contents", "list_of_tables", "list_of_figures"}:
+            return section
+        issue = details.get("issue_type", "")
+        for prefix, section in (("toc_", "table_of_contents"), ("lot_", "list_of_tables"),
+                                ("lof_", "list_of_figures"),
+                                ("list_of_tables_", "list_of_tables"),
+                                ("list_of_figures_", "list_of_figures")):
+            if issue.startswith(prefix):
+                return section
+    return category
 
 
 def category_display_label(category: str) -> str:
@@ -725,7 +744,7 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "figure/table caption-like PDF lines. Figure captions (body): "
             "check terminal punctuation and sentence case. List of Figures "
             "entries: check terminal punctuation only; their capitalization "
-            "(title case) is checked under R024E. Table titles (body) and "
+            "(sentence case) is checked under R024E. Table titles (body) and "
             "List of Tables entries: check title case and unexpected "
             "terminal period."
         ),
@@ -1284,7 +1303,7 @@ def build_grouped_findings(
         issue_type = details.get("issue_type", "")
         severity = finding.severity.value
         page = finding.page
-        category = map_finding_rule_to_category(rule_id, details)
+        category = finding_display_category(rule_id, details)
         polished_comment = build_polished_comment(
             rule_id=rule_id,
             issue_type=issue_type,
@@ -3340,7 +3359,7 @@ def _serialized_finding_is_visible_problem(
         else {}
     )
     issue_type = details.get("issue_type", "").strip()
-    category = map_finding_rule_to_category(rule_id, details)
+    category = finding_display_category(rule_id, details)
 
     if rule_id == "P018" and issue_type == "missing_page_number":
         from njit_auditor.toc_list_student_preview import (

@@ -1,8 +1,8 @@
 """Regressions for Ester's 2026-10-05 R024 and R045 answers.
 
-R024: List of Tables and List of Figures titles both use title case, and the
-two checks carry different codes (R024D for tables, R024E for figures). This
-supersedes the earlier List of Figures sentence-case reading of Q074.
+R024: November 9 supersedes the October LoF Title Case instruction. Figure
+descriptions now use sentence case; table titles and distinct codes remain.
+See docs/status/ester_stage1_policy_20261110.md.
 
 R045: single spacing within a publication entry is mandatory and a hanging
 indent is optional. Numbering is deliberately not checked yet: Ester's note
@@ -26,7 +26,7 @@ from njit_auditor.rules.pdf_biosketch_publication_layout import (
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 
 # ---------------------------------------------------------------------------
-# R024: List of Tables and List of Figures both use title case.
+# R024: table titles use Title Case; figure descriptions use sentence case.
 # ---------------------------------------------------------------------------
 
 
@@ -82,16 +82,15 @@ def test_lot_non_title_case_entry_warns(titles: list[str]) -> None:
     assert findings[0].severity.value.lower() == "warning"
 
 
-def test_lof_title_case_entries_are_clean() -> None:
-    assert _p024(_list_doc("LIST OF FIGURES", _TITLE_CASE, "Figure")) == []
+def test_lof_title_case_entries_warn() -> None:
+    assert len(_p024(_list_doc("LIST OF FIGURES", _TITLE_CASE, "Figure"))) == 3
 
 
-@pytest.mark.parametrize("titles", [_LOWERCASE_IDENTIFIER, _SENTENCE_CASE])
-def test_lof_non_title_case_entry_warns(titles: list[str]) -> None:
-    findings = _p024(_list_doc("LIST OF FIGURES", titles, "Figure"))
-    assert [f.details["issue_type"] for f in findings] == ["list_of_figures_title_case"]
-    assert findings[0].details["entry_index"] == "0"
-    assert findings[0].message.startswith("List of Figures entry")
+def test_lof_sentence_case_entries_are_clean() -> None:
+    titles = ["Performance of the baseline model on benchmark data",
+              "Summary of results across all experimental settings",
+              "Overview of the proposed evaluation pipeline"]
+    assert _p024(_list_doc("LIST OF FIGURES", titles, "Figure")) == []
 
 
 def test_lot_and_lof_findings_carry_distinct_codes() -> None:
@@ -99,7 +98,7 @@ def test_lot_and_lof_findings_carry_distinct_codes() -> None:
     from njit_auditor.report_outputs import public_display_rule_id
 
     lot = _p024(_list_doc("LIST OF TABLES", _SENTENCE_CASE, "Table"))[0]
-    lof = _p024(_list_doc("LIST OF FIGURES", _SENTENCE_CASE, "Figure"))[0]
+    lof = _p024(_list_doc("LIST OF FIGURES", _TITLE_CASE, "Figure"))[0]
     assert lot.details["page_type"] == "list_of_tables"
     assert lof.details["page_type"] == "list_of_figures"
     assert lot.details["source_q_rule_id"] != lof.details["source_q_rule_id"]
@@ -117,7 +116,7 @@ def test_lot_and_lof_findings_carry_distinct_codes() -> None:
     assert codes == {"R024D", "R024E"}
 
 
-def test_no_list_of_figures_sentence_case_expectation_remains() -> None:
+def test_list_of_figures_uses_current_sentence_case_authority() -> None:
     import njit_auditor.web_app as wa
     from njit_auditor.polished_comments import build_polished_comment
     from njit_auditor.rules import pdf_captions
@@ -126,8 +125,8 @@ def test_no_list_of_figures_sentence_case_expectation_remains() -> None:
     lof_card = " ".join(
         (cards["P024E"]["title"], cards["P024E"]["how_to_correct"])
     ).lower()
-    assert "title case" in lof_card
-    assert "sentence case" not in lof_card
+    assert "sentence case" in lof_card
+    assert "title case" not in lof_card
     assert ("P024", "list_of_figures_sentence_case") not in wa._PUBLIC_RULE_ISSUE_REFERENCE
     assert ("list_of_figures", "possible_sentence_case_issue") not in (
         pdf_captions._P017_Q_RULE_MAP
@@ -139,12 +138,12 @@ def test_no_list_of_figures_sentence_case_expectation_remains() -> None:
         details={"expected_or_reason": "major_word_requires_capital"},
     )
     assert "List of Figures" in comment
-    assert "sentence case" not in comment.lower()
+    assert "sentence case" in comment.lower()
 
 
 def test_r017_public_card_does_not_promise_lof_sentence_case() -> None:
     """The R017 card must not say List of Figures entries are checked for
-    sentence case: Ester (2026-10-05) set them to title case under R024E."""
+    sentence case: capitalization belongs to R024E."""
     import njit_auditor.web_app as wa
 
     cards = {r["id"]: r for r in wa._build_rule_catalog()["student_rules"]}
@@ -337,7 +336,7 @@ def _wrapped_entry(
     return rows, y + 2 * _ROW_STEP
 
 
-_CLOSING_ENTRY = ("9.9 Summary of Results Across All Settings . . . 99", _TITLE_X0)
+_CLOSING_ENTRY = ("9.9 Summary of results across all settings . . . 99", _TITLE_X0)
 
 
 def _lof_findings(rows: list[tuple[str, float, float]]) -> list:
@@ -352,20 +351,20 @@ def _with_closing(rows: list[tuple[str, float, float]], y: float) -> list:
     return [*rows, (_CLOSING_ENTRY[0], _CLOSING_ENTRY[1], y)]
 
 
-def test_r024e_single_line_title_case_entry_is_clean() -> None:
-    rows = [("1.1 Overview of the Proposed Signal Pipeline . . . . 3", _TITLE_X0, 140.0)]
+def test_r024e_single_line_sentence_case_entry_is_clean() -> None:
+    rows = [("1.1 Overview of the proposed signal pipeline . . . . 3", _TITLE_X0, 140.0)]
     assert _lof_findings(_with_closing(rows, 168.0)) == []
 
 
-def test_r024e_single_line_sentence_case_entry_flags_once() -> None:
-    rows = [("1.1 Overview of the proposed signal pipeline . . . . 3", _TITLE_X0, 140.0)]
+def test_r024e_single_line_title_case_entry_flags_once() -> None:
+    rows = [("1.1 Overview of the Proposed Signal Pipeline . . . . 3", _TITLE_X0, 140.0)]
     findings = _lof_findings(_with_closing(rows, 168.0))
     assert [f.details["entry_index"] for f in findings] == ["0"]
 
 
 def test_r024e_two_line_wrapped_entry_flags_once() -> None:
     rows, y = _wrapped_entry(
-        "3.1", "Overview of the proposed method for signal", ["processing in noisy channels"],
+        "3.1", "Overview of the Proposed Method for Signal", ["Processing in Noisy Channels"],
         "12", 140.0,
     )
     findings = _lof_findings(_with_closing(rows, y))
@@ -375,10 +374,10 @@ def test_r024e_two_line_wrapped_entry_flags_once() -> None:
 
 
 def test_r024e_long_wrapped_entry_flags_once_and_continuations_are_silent() -> None:
-    continuations = [f"continuation panel line {i} showing the region" for i in range(10)]
-    continuations.append("the final panel region")
+    continuations = [f"Continuation Panel Line {i} Showing the Region" for i in range(10)]
+    continuations.append("the Final Panel Region")
     rows, y = _wrapped_entry(
-        "3.3", "Scheme showing the sample fraction", continuations, "75", 140.0
+        "3.3", "Scheme Showing the Sample Fraction", continuations, "75", 140.0
     )
     findings = _lof_findings(_with_closing(rows, y))
     assert [f.details["entry_index"] for f in findings] == ["0"]
@@ -389,7 +388,7 @@ def test_r024e_long_wrapped_entry_flags_once_and_continuations_are_silent() -> N
 def test_r024e_wrapped_entry_with_math_has_no_fragment_finding() -> None:
     rows, y = _wrapped_entry(
         "4.1",
-        "Numerical validation that the shape derivative captures the",
+        "Numerical Validation That the Shape Derivative Captures the",
         [
             "O(|e|) behavior when k1 = 1, k2 = 2 and the perturbation",
             "of the disk with w = 5 - 10i",
@@ -398,30 +397,30 @@ def test_r024e_wrapped_entry_with_math_has_no_fragment_finding() -> None:
         140.0,
     )
     findings = _lof_findings(_with_closing(rows, y))
-    assert [f.details["entry_index"] for f in findings] == ["0"]
+    assert findings == []
 
 
 def test_r024e_wrapped_panel_label_entry_is_one_entry_and_quotes_a_real_word() -> None:
     rows, y = _wrapped_entry(
         "3.2",
-        "a) Mass spectrum of the control sample; b) Mass",
-        ["spectrum of the treated sample"],
+        "a) Mass Spectrum of the Control Sample; b) Mass",
+        ["Spectrum of the Treated Sample"],
         "70",
         140.0,
     )
     findings = _lof_findings(_with_closing(rows, y))
     assert len(findings) == 1
     assert "'a'" not in findings[0].message
-    assert "'spectrum'" in findings[0].message
+    assert "sentence case" in findings[0].message
 
 
 def test_r024e_consecutive_wrapped_entries_stay_distinct() -> None:
     first, y = _wrapped_entry(
-        "2.1", "Overview of the proposed method for signal", ["processing in noisy channels"],
+        "2.1", "Overview of the Proposed Method for Signal", ["Processing in Noisy Channels"],
         "20", 140.0,
     )
     second, y = _wrapped_entry(
-        "2.2", "Comparison of the baseline and proposed", ["filters on benchmark data"], "21", y
+        "2.2", "Comparison of the Baseline and Proposed", ["Filters on Benchmark Data"], "21", y
     )
     findings = _lof_findings(_with_closing([*first, *second], y))
     assert [f.details["entry_index"] for f in findings] == ["0", "2"]
@@ -436,13 +435,13 @@ def test_r024e_unnumbered_row_after_a_closed_entry_is_not_absorbed() -> None:
         ("Plot illustrating the effect of the added term", 137.0, 154.0),
     ]
     findings = _lof_findings(_with_closing(rows, 182.0))
-    assert [f.details["entry_index"] for f in findings] == ["1"]
+    assert [f.details["entry_index"] for f in findings] == ["0"]
     assert "wrapped_line_count" not in findings[0].details
 
 
-def test_r024e_wrapped_title_case_entry_is_clean() -> None:
+def test_r024e_wrapped_sentence_case_entry_is_clean() -> None:
     rows, y = _wrapped_entry(
-        "3.1", "Overview of the Proposed Method for Signal", ["Processing in Noisy Channels"],
+        "3.1", "Overview of the proposed method for signal", ["processing in noisy channels"],
         "12", 140.0,
     )
     assert _lof_findings(_with_closing(rows, y)) == []
@@ -457,7 +456,8 @@ def test_r024d_wrapped_table_entry_also_reports_once_with_distinct_code() -> Non
     findings = [
         f
         for f in check_pdf_toc_list_formatting(
-            _lof_rows_doc(_with_closing(rows, y), heading="LIST OF TABLES")
+            _lof_rows_doc(rows + [("Table 9.9 Summary of Results .... 99", 108, y)],
+                          heading="LIST OF TABLES")
         )
         if f.rule_id == "P024"
     ]

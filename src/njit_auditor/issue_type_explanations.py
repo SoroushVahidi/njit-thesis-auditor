@@ -119,9 +119,10 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "lof_entry_missing_terminal_punctuation": "List of Figures entry missing terminal punctuation",
     "toc_l2_not_indented_relative_to_l1": "TOC level-2 entry not indented relative to level-1",
     "toc_l3_not_indented_relative_to_l2": "TOC level-3 entry not indented relative to level-2",
+    "toc_subsection_number_ambiguous": "Possible missing dot in TOC subsection number",
     "toc_level_capitalization": "TOC entry capitalization issue",
     "list_of_tables_title_case": "List of Tables title case issue",
-    "list_of_figures_title_case": "List of Figures title case issue",
+    "list_of_figures_title_case": "List of Figures description sentence case issue",
     "misaligned_page_number_column": "Misaligned page-number column",
     "inconsistent_leader_dots": "Inconsistent leader dots",
     "inconsistent_hierarchy_indent": "Inconsistent hierarchy indent",
@@ -659,7 +660,7 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "terminal punctuation."
     ),
     ("P024", "list_of_figures_title_case"): (
-        "This means a List of Figures entry may not use Title Case."
+        "This means a figure description in the List of Figures may not use sentence case."
     ),
     ("P024", "unexpected_terminal_punctuation"): (
         "This means a TOC or list entry ends with terminal punctuation where "
@@ -753,6 +754,10 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P058", "toc_page_numbers_not_nondecreasing"): (
         "This means Table of Contents page numbers do not appear in ascending "
         "order on this page."
+    ),
+    ("P060", "toc_subsection_number_ambiguous"): (
+        "The number may be missing a dot: its preceding subsection and indentation "
+        "suggest a deeper heading. Confirm the number and level before changing case."
     ),
     ("P060", "toc_entry_numbers_not_nondecreasing"): (
         "This means Table of Contents section numbers do not appear in "

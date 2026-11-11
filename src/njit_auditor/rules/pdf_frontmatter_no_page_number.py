@@ -24,7 +24,10 @@ from njit_auditor.digital_commons_wrapper import (
 )
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage, format_bbox_detail
-from njit_auditor.rules.pdf_headings import find_named_frontmatter_headings
+from njit_auditor.rules.pdf_headings import (
+    find_body_start_page,
+    find_named_frontmatter_headings,
+)
 
 # P013-compatible candidate pattern: isolated numeric or Roman numeral token.
 _PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNORECASE)
@@ -32,6 +35,11 @@ _PAGE_NUM_RE = re.compile(r"^\s*[\[(]?(?:\d+|[ivxlcdm]+)[\])]?[.]?\s*$", re.IGNO
 _YEAR_RE = re.compile(r"^(19|20)\d{2}$")
 # Copyright page signal: word "copyright", © symbol, or "(c)".
 _COPYRIGHT_RE = re.compile(r"\bcopyright\b|©|\(c\)", re.IGNORECASE)
+# A section boundary requires a notice/heading, not a mention in Abstract prose.
+_COPYRIGHT_NOTICE_RE = re.compile(
+    r"^(?:copyright(?:$|\s+(?:\d{4}\b|by\b)|\s*(?:©|\(c\)))|©|\(c\)\s*\d{4}\b)",
+    re.IGNORECASE,
+)
 
 _TOP_ZONE_RATIO = 0.15
 _COPYRIGHT_SCAN_PAGES = 4
@@ -75,42 +83,88 @@ def _find_copyright_page_number(pdf_doc: PdfDocument) -> int | None:
     return None
 
 
+def frontmatter_no_number_roles(pdf_doc: PdfDocument) -> dict[int, tuple[str, str]]:
+    """Identify unnumbered sections, including a bounded Abstract continuation.
+
+    The Abstract is outside the Roman count. Title/copyright/approval pages
+    have hidden folios; the first displayed section is checked by P037's Bio
+    Sketch anchor. Never use a stray Abstract folio to establish that sequence.
+    A submission statement distinguishes a later title page from Abstract prose.
+    """
+    working_doc = without_wrapper_pages(pdf_doc, detect_digital_commons_wrapper_pages(pdf_doc))
+    headings = find_named_frontmatter_headings(working_doc)
+    named = {h.page_number: h.heading for h in headings}
+    # Exact compact headings handle extraction without inter-word spaces and
+    # optional sections that the style detector does not inventory.
+    for page in working_doc.pages:
+        for block in page.text_blocks:
+            for line in block.lines:
+                compact = re.sub(r"\s+", "", line.text).upper()
+                if line.bbox.y0 < page.height * _TOP_ZONE_RATIO and compact in {
+                    "BIOGRAPHICALSKETCH", "DEDICATION", "ACKNOWLEDGMENTS",
+                    "ACKNOWLEDGEMENTS", "LISTOFSYMBOLS",
+                }:
+                    named.setdefault(page.page_number, compact)
+    body_start = find_body_start_page(working_doc)
+    roles: dict[int, tuple[str, str]] = {
+        pn: ("abstract", "Q001") if name == "ABSTRACT" else ("approval_page", "Q014")
+        for pn, name in named.items()
+        if name in {"ABSTRACT", "APPROVAL PAGE"} and (body_start is None or pn < body_start)
+    }
+    boundaries = set(named)
+    if body_start is not None:
+        boundaries.add(body_start)
+    first_numbered = min(
+        (pn for pn, name in named.items() if name not in {"ABSTRACT", "APPROVAL PAGE"}),
+        default=body_start or (working_doc.pages[-1].page_number + 1 if working_doc.pages else 1),
+    )
+    if body_start is not None:
+        first_numbered = min(first_numbered, body_start)
+    for page in working_doc.pages:
+        pn = page.page_number
+        if pn >= first_numbered:
+            break
+        if named.get(pn) == "ABSTRACT":
+            roles[pn] = ("abstract", "Q001")
+        elif named.get(pn) == "APPROVAL PAGE":
+            roles[pn] = ("approval_page", "Q014")
+        else:
+            text = " ".join(line.text for block in page.text_blocks for line in block.lines)
+            compact = re.sub(r"\s+", "", text).casefold()
+            if ("submitted" in compact and "partialfulfillment" in compact
+                    and ("newjerseyinstituteoftechnology" in compact or "njit" in compact)):
+                roles[pn] = ("title_page", "Q008")
+                boundaries.add(pn)
+            elif any(_COPYRIGHT_NOTICE_RE.match(line.text.strip())
+                     for block in page.text_blocks for line in block.lines):
+                roles[pn] = ("copyright_page", "Q012")
+                boundaries.add(pn)
+    # Retain the legacy first-page fallback only for an unnamed opening page.
+    if working_doc.pages and len(working_doc.pages) >= _MIN_DOC_PAGES_FOR_TITLE_CHECK and named:
+        first = working_doc.pages[0].page_number
+        if (first not in named and first not in roles
+                and (body_start is None or first < body_start)):
+            roles[first] = ("title_page", "Q008")
+            boundaries.add(first)
+    for heading in headings:
+        if heading.heading != "ABSTRACT" or heading.page_number >= first_numbered:
+            continue
+        end = min((pn for pn in boundaries if pn > heading.page_number), default=None)
+        # Without a following boundary, only the named page is established.
+        if end is not None:
+            for page in working_doc.pages:
+                if heading.page_number < page.page_number < end:
+                    roles[page.page_number] = ("abstract", "Q001")
+    return roles
+
+
 def check_pdf_frontmatter_no_page_number(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit P022 warnings when visible page-number candidates appear on no-number pages."""
-    wrapper_pages = detect_digital_commons_wrapper_pages(pdf_doc)
-    working_doc = without_wrapper_pages(pdf_doc, wrapper_pages)
-
-    if not working_doc.pages:
-        return []
-
-    headings = find_named_frontmatter_headings(working_doc)
-    heading_pages: dict[str, int] = {}
-    for match in headings:
-        if match.heading not in heading_pages:
-            heading_pages[match.heading] = match.page_number
-
-    # Build the list of (page_number, page_type, q_rule_id, suppress_years).
-    no_number_targets: list[tuple[int, str, str, bool]] = []
-
-    if "ABSTRACT" in heading_pages:
-        no_number_targets.append((heading_pages["ABSTRACT"], "abstract", "Q001", False))
-
-    if "APPROVAL PAGE" in heading_pages:
-        no_number_targets.append((heading_pages["APPROVAL PAGE"], "approval_page", "Q014", False))
-
-    # Title page heuristic: page 1 when the document has front-matter headings.
-    if len(working_doc.pages) >= _MIN_DOC_PAGES_FOR_TITLE_CHECK and heading_pages:
-        page1_num = working_doc.pages[0].page_number
-        already_claimed = {pn for pn, _, _, _ in no_number_targets}
-        if page1_num not in already_claimed:
-            no_number_targets.append((page1_num, "title_page", "Q008", True))
-
-    # Copyright page: conservative — only when clearly identified in early pages.
-    copyright_pnum = _find_copyright_page_number(working_doc)
-    if copyright_pnum is not None:
-        already_claimed = {pn for pn, _, _, _ in no_number_targets}
-        if copyright_pnum not in already_claimed:
-            no_number_targets.append((copyright_pnum, "copyright_page", "Q012", False))
+    working_doc = without_wrapper_pages(pdf_doc, detect_digital_commons_wrapper_pages(pdf_doc))
+    no_number_targets = [
+        (pn, role, q_rule, role == "title_page")
+        for pn, (role, q_rule) in sorted(frontmatter_no_number_roles(pdf_doc).items())
+    ]
 
     if not no_number_targets:
         return []

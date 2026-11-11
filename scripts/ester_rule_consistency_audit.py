@@ -810,7 +810,7 @@ def classify_q_rule(
         if effective_status == "optional_not_enforced":
             if detector:
                 return "detector mismatch", detector, "; ".join(notes)
-        elif effective_status == "implemented":
+        elif effective_status in {"implemented", "partially_implemented"}:
             if not detector or not atomic_cards:
                 return "missing", detector, "; ".join(notes)
             best = max(_similarity(c.question, overlay["effective_question"]) for c in atomic_cards)

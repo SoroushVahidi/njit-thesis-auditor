@@ -291,7 +291,7 @@
     "id": "P017",
     "section": "PDF caption and title formatting",
     "question": "Are figure descriptions in sentence case and ending with terminal punctuation, and are table titles in title case without a final period?",
-    "rule_definition": "Heuristically detect punctuation and case-style issues in figure/table caption-like PDF lines. Figure captions (body): check terminal punctuation and sentence case. LoF entries: check terminal punctuation (Q075) only; LoF capitalization is owned by P024 (R024E, title case per Ester 2026-10-05). Table titles (body) and LoT entries: check title case and unexpected terminal period (Q065). Each finding carries source_q_rule_id for LoT/LoF context findings. Body-context findings have no direct Q-rule. Complements P024 (TOC/LoT/LoF level formatting), P040 (LoF terminal punct), P053 (LoT terminal period).",
+    "rule_definition": "Heuristically detect punctuation and case-style issues in figure/table caption-like PDF lines. Figure captions (body): check terminal punctuation and sentence case. LoF entries: check terminal punctuation (Q075) only; LoF capitalization is owned by P024 (R024E, sentence case per Ester 2026-11-09). Table titles (body) and LoT entries: check title case and unexpected terminal period (Q065). Each finding carries source_q_rule_id for LoT/LoF context findings. Body-context findings have no direct Q-rule. Complements P024 (TOC/LoT/LoF level formatting), P040 (LoF terminal punct), P053 (LoT terminal period).",
     "remediation": "For figure captions: use sentence case (only first word and proper nouns capitalized) and end with a period. List of Figures entries end with a period; their capitalization is checked under R024E. For table titles and LoT entries: use title case and do not end with a period. Ester: figure descriptions → sentence case + terminal period; table titles → title case + no period.",
     "severity": "warning",
     "source_file": "project_added",
@@ -303,7 +303,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_captions",
     "priority": "medium",
-    "notes": "Conservative caption-line heuristic. Q-rule coverage: Q065 (LoT terminal period, no final period on table titles), Q075 (LoF terminal punctuation). The LoF sentence-case check (Q074) was removed 2026-10-05: Ester set List of Figures titles to title case, owned by P024/R024E. Ester feedback: split into (1a) figure sentence case (Q074), (1b) figure terminal punctuation (Q075), (1c) figure single-spaced/justified (Q076, via P032), (1d) figure label bold (partial via P050/P055/P056), (2a) table title case (Q065, via P053), (2b) table no period (Q065, P053), (2c) table title single-spaced (Q066, P032). Full split is implemented via P032/P040/P050/P053/P055/P056."
+    "notes": "Conservative caption-line heuristic. Q-rule coverage: Q065 (LoT terminal period, no final period on table titles), Q075 (LoF terminal punctuation). LoF sentence case (Q074) is owned by P024/R024E under Ester 2026-11-09, superseding the October title-case interpretation. Ester feedback: split into (1a) figure sentence case (Q074), (1b) figure terminal punctuation (Q075), (1c) figure single-spaced/justified (Q076, via P032), (1d) figure label bold (partial via P050/P055/P056), (2a) table title case (Q065, via P053), (2b) table no period (Q065, P053), (2c) table title single-spaced (Q066, P032). Full split is implemented via P032/P040/P050/P053/P055/P056."
   },
   {
     "id": "P018",
@@ -418,8 +418,8 @@
     "id": "P024",
     "section": "PDF TOC and list entry formatting",
     "question": "Do TOC/LoT/LoF entries follow expected capitalization and punctuation style?",
-    "rule_definition": "Heuristically detect obvious capitalization issues in TABLE OF CONTENTS, LIST OF TABLES, and LIST OF FIGURES entry lines. TOC Level 1 entries should be ALL CAPS (Q049); TOC Level 2 entries should be Title Case (Q050); TOC Level 3 entries should be sentence case (Q051, public card R018C); List of Tables titles should use Title Case (Q065, public card R024D); List of Figures titles should use Title Case (Q074 slot, public card R024E; Ester 2026-10-05 superseded the earlier sentence-case reading and asked for distinct LoT/LoF codes). Terminal punctuation is owned by P053 (List of Tables), P054 (Table of Contents), and P040 (List of Figures).",
-    "remediation": "Review flagged TOC/LoT/LoF entries for NJIT capitalization requirements: Level 1=ALL CAPS, Level 2=Title Case, Level 3=sentence case (R018C), List of Tables=Title Case (R024D), List of Figures=Title Case (R024E).",
+    "rule_definition": "Heuristically detect obvious capitalization issues in TABLE OF CONTENTS, LIST OF TABLES, and LIST OF FIGURES entry lines. TOC Level 1 entries should be ALL CAPS (Q049); TOC Level 2 entries should be Title Case (Q050); TOC Level 3 entries should be sentence case (Q051, public card R018C); List of Tables titles should use Title Case (Q065, public card R024D); List of Figures descriptions should use sentence case (Q074, public card R024E; Ester 2026-11-09 supersedes the October title-case interpretation). Terminal punctuation is owned by P053 (List of Tables), P054 (Table of Contents), and P040 (List of Figures).",
+    "remediation": "Review flagged TOC/LoT/LoF entries for NJIT capitalization requirements: Level 1=ALL CAPS, Level 2=Title Case, Level 3=sentence case (R018C), List of Tables=Title Case (R024D), List of Figures descriptions=sentence case (R024E).",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -430,7 +430,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_list_formatting",
     "priority": "high",
-    "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Ester Q051 TOC Level 3 sentence-case requirement; Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Level 3 emits only for complete, aligned entries with two ordinary noninitial capitalized words, or an exact two-word title whose second word is repeatedly lowercase in ordinary body prose. It abstains on ambiguous names, notation, and unsupported short titles. issue_type values: toc_level_capitalization (public R018A-C), list_of_tables_title_case (public R024D), list_of_figures_title_case (public R024E). The former unexpected_terminal_punctuation issue type is no longer emitted; List of Tables terminal periods are owned by P053.",
+    "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Ester Q051 TOC Level 3 sentence-case requirement; Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Level 3 emits only for complete, aligned entries with two ordinary noninitial capitalized words, or an exact two-word title whose second word is repeatedly lowercase in ordinary body prose. It abstains on ambiguous names, notation, and unsupported short titles. issue_type values: toc_level_capitalization (public R018A-C), list_of_tables_title_case (public R024D), list_of_figures_title_case (legacy compatibility key for sentence case, public R024E). The former unexpected_terminal_punctuation issue type is no longer emitted; List of Tables terminal periods are owned by P053.",
     "source_q_rule_ids": [
       "Q049",
       "Q050",
@@ -725,7 +725,7 @@
     "implementation_module": "njit_auditor.rules.pdf_lof_terminal_punctuation",
     "source_file": "project_added",
     "priority": "medium",
-    "notes": "Conservative v1 PDF heuristic for Q075. Checks only complete LoF entries (page_number_token present). Skips wrap-continuation lines and short entries. LoF-only: TOC and LoT pages excluded. Complements P024 LoF title-case check (R024E). issue_types: lof_entry_missing_terminal_punctuation."
+    "notes": "Conservative v1 PDF heuristic for Q075. Checks only complete LoF entries (page_number_token present). Skips wrap-continuation lines and short entries. LoF-only: TOC and LoT pages excluded. Complements P024 LoF sentence-case check (R024E). issue_types: lof_entry_missing_terminal_punctuation."
   },
   {
     "id": "P041",
@@ -1101,7 +1101,8 @@
     "implementation_status": "implemented",
     "implementation_module": "njit_auditor.rules.pdf_toc_entry_number_ordering",
     "issue_types": [
-      "toc_entry_numbers_not_nondecreasing"
+      "toc_entry_numbers_not_nondecreasing",
+      "toc_subsection_number_ambiguous"
     ],
     "scope_doc": "docs/planning/p060_scope_and_design.md",
     "section": "PDF Layout — Table of Contents",
@@ -1116,7 +1117,7 @@
     ],
     "phase": "pdf_layout",
     "priority": "medium",
-    "notes": "Conservative gate: >=3 entries with parseable section numbers and >=2 inversions before flagging. Word-prefix entries (CHAPTER, APPENDIX, ABSTRACT, etc.) skipped. LoT and LoF excluded. Companion to P059 (LoT/LoF entry-number ordering)."
+    "notes": "Conservative gate: >=3 entries with parseable section numbers and >=2 inversions before flagging. Word-prefix entries (CHAPTER, APPENDIX, ABSTRACT, etc.) skipped. LoT and LoF excluded. Companion to P059 (LoT/LoF entry-number ordering). Stage 1 (assessment F09): a possible missing dot is reviewed only with a shallower parent and preceding deeper sibling at the same indentation; capitalization defers until the level is confirmed. This is advisory, not automatic renumbering."
   },
   {
     "id": "P061",

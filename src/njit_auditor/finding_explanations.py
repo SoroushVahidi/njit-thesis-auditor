@@ -637,8 +637,8 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "terminal punctuation. Table titles should use Title Case with no ending period."
     ),
     ("P024", "list_of_figures_title_case"): (
-        "A List of Figures entry on this page may not use Title Case. Figure "
-        "titles in the List of Figures should use Title Case."
+        "A figure description in the List of Figures appears to use Title Case. "
+        "Use sentence case, preserving proper names, acronyms and technical notation."
     ),
     ("P024", "unexpected_terminal_punctuation"): (
         "A TOC or list entry on this page ends with terminal punctuation where "
@@ -737,6 +737,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ("P058", "toc_page_numbers_not_nondecreasing"): (
         "Table of Contents page numbers on this page do not appear in ascending "
         "order. Reorder entries so listed page numbers increase from top to bottom."
+    ),
+    ("P060", "toc_subsection_number_ambiguous"): (
+        "The number may be missing a dot: its preceding subsection and indentation "
+        "suggest a deeper heading. Confirm the number and level before changing case."
     ),
     ("P060", "toc_entry_numbers_not_nondecreasing"): (
         "Table of Contents section numbers on this page do not appear in "

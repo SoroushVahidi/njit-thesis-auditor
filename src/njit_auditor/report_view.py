@@ -111,6 +111,7 @@ from njit_auditor.polished_comments import (
 from njit_auditor.report_outputs import (
     _high_volume_pattern_note,
     _source_location_basename,
+    finding_display_category,
     format_source_location,
 )
 from njit_auditor.title_case_student_preview import (
@@ -897,7 +898,7 @@ def _finding_view_from_item(
         )
     )
     severity = str(item.get("severity", "WARNING"))
-    category = map_finding_rule_to_category(rule_id, details)
+    category = finding_display_category(rule_id, details)
     confidence = _normalize_confidence(str(details.get("confidence", "")))
     page_display_label = f"Page {page}" if page is not None else "No page"
     page_action_suffix_label = str(page) if page is not None else ""

@@ -102,13 +102,14 @@ def test_wording_never_claims_compliance_or_replaces_the_checklist() -> None:
     assert "do not mean your document meets NJIT requirements" in intro
 
 
-def test_known_policy_conflict_is_disclosed_not_resolved() -> None:
+def test_lof_sentence_case_authority_and_conservative_coverage_are_disclosed() -> None:
     by_key = {area.key: area for area in COVERAGE_AREAS}
     lof = by_key["list_of_figures"]
-    assert lof.status == "guidance_differs"
-    assert "title case" in lof.checked
-    assert "sentence case" in lof.manual
-    assert "Graduate Studies" in lof.manual
+    assert lof.status == "partial"
+    assert "sentence case" in lof.checked
+    assert "title case" not in lof.checked
+    assert "mixed-case descriptions" in lof.manual
+    assert "proper names" in lof.manual
 
 
 def test_text_and_markdown_renderings_list_every_area() -> None:

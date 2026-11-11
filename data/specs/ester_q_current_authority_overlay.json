@@ -8,9 +8,9 @@
   },
   "Q074": {
     "status": "superseded_by_later_ester_authority",
-    "effective_question": "In the List of Figures, are figure titles displayed in title case?",
-    "effective_requirement": "List of Figures titles use title case (R024E/P024).",
-    "effective_implementation_status": "implemented",
-    "source": "Ester 2026-10-05 R024 clarification and 2026-10-06 email; docs/status/ester_feedback_round_20261005.md"
+    "effective_question": "In the List of Figures, are figure descriptions written in sentence case?",
+    "effective_requirement": "List of Figures descriptions use sentence case (R024E/P024).",
+    "effective_implementation_status": "partially_implemented",
+    "source": "Ester 2026-11-09 feedback; assessment F18; docs/status/ester_stage1_policy_20261110.md"
   }
 }

@@ -715,6 +715,9 @@ _CATEGORY_EXPLANATIONS: dict[str, str] = {
         "These examples come from source-side linting checks and are shown only when that audit "
         "type is used."
     ),
+    "table_of_contents": "These examples concern Table of Contents entries.",
+    "list_of_tables": "These examples concern table titles and List of Tables entries.",
+    "list_of_figures": "These examples concern figure descriptions and List of Figures entries.",
     "list_of_tables_figures_toc": (
         "These examples cover the table of contents and list pages, where formatting often repeats."
     ),
@@ -1103,10 +1106,10 @@ _P024_REMAINING_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
         "parent_rule_id": "P024",
         "source_q_rule_ids": ("Q074",),
         "issue_types": ("list_of_figures_title_case",),
-        "title": "In the List of Figures, are figure titles displayed in title case?",
+        "title": "In the List of Figures, are figure descriptions written in sentence case?",
         "how_to_correct": (
-            "Change List of Figures entry titles to title case. Capitalize each "
-            "word except articles, prepositions, and conjunctions."
+            "Use sentence case for figure descriptions in the List of Figures. Capitalize the "
+            "first word and proper names; preserve acronyms and technical notation."
         ),
     },
 )

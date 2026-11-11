@@ -27,12 +27,14 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument
+from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import (
+    INDENT_CLUSTER_TOLERANCE_PT,
     TocEntryLine,
     TocPageContext,
     detect_toc_like_pages,
     extract_toc_entry_lines,
+    extract_toc_logical_entry_lines,
 )
 
 MIN_ENTRY_TEXT_LEN = 10
@@ -60,6 +62,33 @@ def _parse_section_num(cleaned_text: str) -> tuple[int, ...] | None:
         return None
     parts = m.group(1).split(".")
     return tuple(int(p) for p in parts)
+
+
+def ambiguous_collapsed_subsections(entries: list[TocEntryLine]) -> dict[int, str]:
+    """Find a missing-dot possibility supported by a parent and preceding sibling.
+
+    Numeric shape alone never makes a two-digit section number invalid. Require
+    the deeper sibling's indent, a shallower parent, and the exact next-sibling
+    number with its final dot omitted. Request review, never silently renumber.
+    """
+    result: dict[int, str] = {}
+    for index, entry in enumerate(entries[1:], 1):
+        previous = entries[index - 1]
+        prev = _parse_section_num(previous.cleaned_text)
+        current = _parse_section_num(entry.cleaned_text)
+        if not prev or len(prev) != 3 or not current or len(current) != 2:
+            continue
+        expected = (*prev[:2], prev[2] + 1)
+        collapsed = (prev[0], int(f"{prev[1]}{prev[2] + 1}"))
+        if (current != collapsed or not entry.page_number_token
+                or not previous.page_number_token
+                or abs(entry.indent_x - previous.indent_x) > INDENT_CLUSTER_TOLERANCE_PT):
+            continue
+        if any(_parse_section_num(parent.cleaned_text) == prev[:2]
+               and entry.indent_x - parent.indent_x > INDENT_CLUSTER_TOLERANCE_PT
+               for parent in entries[:index - 1]):
+            result[index] = ".".join(map(str, expected))
+    return result
 
 
 def _check_toc_entry_ordering(
@@ -128,4 +157,21 @@ def check_pdf_toc_entry_number_ordering(
             continue
         entries = extract_toc_entry_lines(context)
         findings.extend(_check_toc_entry_ordering(context, entries))
+        logical = extract_toc_logical_entry_lines(context)
+        for index, expected in ambiguous_collapsed_subsections(logical).items():
+            entry = logical[index]
+            findings.append(AuditFinding(
+                rule_id="P060", severity=Severity.WARNING, page=context.page.page_number,
+                message="A TOC number may be missing a dot; review its hierarchy before case.",
+                details={
+                    "issue_type": "toc_subsection_number_ambiguous",
+                    "page_type": "table_of_contents", "entry_index": str(index),
+                    "bbox": format_bbox_detail(entry.line.bbox),
+                    "possible_section_number": expected, "confidence": "medium",
+                    "suggested_fix": (
+                        f"Review possible missing dot: {expected}. "
+                        "Confirm the TOC heading level before changing case."
+                    ),
+                },
+            ))
     return findings

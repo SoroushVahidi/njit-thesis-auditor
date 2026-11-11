@@ -305,11 +305,11 @@ def test_p053_lot_terminal_period_carries_q065() -> None:
 # ---------------------------------------------------------------------------
 
 def _make_lof_page_with_title_case_issue() -> PdfPage:
-    """LoF page with a figure title in sentence case instead of title case."""
+    """LoF page with a figure description in Title Case instead of sentence case."""
     heading = _line("LIST OF FIGURES", x0=222.0, x1=390.0, y0=50.0, y1=62.0, bold=True)
-    # Entry in sentence case — violates title case (Ester 2026-10-05)
+    # November 9 supersedes the October LoF Title Case interpretation.
     entry = _line(
-        "Figure 3.1 Relationship between temperature, pressure, and volume ... 23",
+        "Figure 3.1 Relationship between Temperature, Pressure, and Volume ... 23",
         x0=108.0, x1=504.0, y0=80.0, y1=92.0,
     )
     return _page(5, _block(heading), _block(entry))

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import fitz
+import pytest
 from typer.testing import CliRunner
 
 from njit_auditor.cli import app
@@ -4786,8 +4787,8 @@ def test_p024_lot_terminal_period_owned_by_p053(tmp_path: Path) -> None:
     }
 
 
-def test_p024_lof_title_case_correct_no_warning(tmp_path: Path) -> None:
-    """LoF entries in title case must not warn (Ester 2026-10-05: LoF = title case)."""
+def test_p024_lof_title_case_warns(tmp_path: Path) -> None:
+    """LoF Title Case violates the November 9 sentence-case instruction."""
     pdf_path = tmp_path / "lof_ok.pdf"
     _make_toc_pdf(
         pdf_path,
@@ -4800,11 +4801,11 @@ def test_p024_lof_title_case_correct_no_warning(tmp_path: Path) -> None:
     )
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_toc_list_formatting(model)
-    assert not any(f.rule_id == "P024" for f in findings)
+    assert len(findings) == 3
 
 
-def test_p024_lof_sentence_case_entry_warns_title_case(tmp_path: Path) -> None:
-    """A sentence-case LoF entry now violates the title-case requirement."""
+def test_p024_lof_sentence_case_entry_is_clean(tmp_path: Path) -> None:
+    """Sentence case passes; neighboring Title Case descriptions still warn."""
     pdf_path = tmp_path / "lof_bad.pdf"
     _make_toc_pdf(
         pdf_path,
@@ -4821,9 +4822,8 @@ def test_p024_lof_sentence_case_entry_warns_title_case(tmp_path: Path) -> None:
         for f in check_pdf_toc_list_formatting(model)
         if f.rule_id == "P024" and f.details.get("issue_type") == "list_of_figures_title_case"
     ]
-    assert [f.details.get("entry_index") for f in findings] == ["0"]
-    assert "'diagram'" in findings[0].message
-    assert findings[0].message.startswith("List of Figures entry")
+    assert [f.details.get("entry_index") for f in findings] == ["1", "2"]
+    assert findings[0].message.startswith("List of Figures description")
 
 
 def test_p024_lof_lowercase_long_preposition_is_title_case(tmp_path: Path) -> None:
@@ -4833,17 +4833,17 @@ def test_p024_lof_lowercase_long_preposition_is_title_case(tmp_path: Path) -> No
         pdf_path,
         "LIST OF FIGURES",
         [
-            ("Figure 1 Overview of the Experimental Setup for This Study ....", 108),
+            ("Figure 1 Overview of the experimental setup for this study ....", 108),
             ("Figure 2 Schematic of the Measurement Configuration Used Here ....", 108),
             ("Figure 3 Qualitative Comparison with Marching Cubes ....", 108),
         ],
     )
     model = load_pdf_layout(str(pdf_path))
-    assert not any(f.rule_id == "P024" for f in check_pdf_toc_list_formatting(model))
+    assert len(check_pdf_toc_list_formatting(model)) == 2
 
 
-def test_p024_lof_lowercase_common_nouns_warn(tmp_path: Path) -> None:
-    """A LoF entry with lowercase major words triggers the title-case warning."""
+def test_p024_lof_lowercase_common_nouns_pass(tmp_path: Path) -> None:
+    """Lowercase ordinary words satisfy sentence case."""
     pdf_path = tmp_path / "lof_common_nouns_bad.pdf"
     _make_toc_pdf(
         pdf_path,
@@ -4851,7 +4851,7 @@ def test_p024_lof_lowercase_common_nouns_warn(tmp_path: Path) -> None:
         [
             ("Figure 4.1 Relationship between benefits and readiness outcomes ....", 108),
             ("Figure 4.2 Overview of Results for Baseline Comparison ....", 108),
-            ("Figure 4.3 Summary of Findings from Pilot Testing ....", 108),
+            ("Figure 4.3 Summary of findings from pilot testing ....", 108),
         ],
     )
     model = load_pdf_layout(str(pdf_path))
@@ -4864,7 +4864,7 @@ def test_p024_lof_lowercase_common_nouns_warn(tmp_path: Path) -> None:
     ]
     assert lof_findings
     assert lof_findings[0].details.get("source_q_rule_id") == "Q074"
-    assert lof_findings[0].details.get("entry_index") == "0"
+    assert [f.details.get("entry_index") for f in lof_findings] == ["1"]
 
 
 def test_p024_lof_parenthetical_proper_names_in_title_case_do_not_warn(
@@ -4877,15 +4877,22 @@ def test_p024_lof_parenthetical_proper_names_in_title_case_do_not_warn(
         "LIST OF FIGURES",
         [
             (
-                "Figure 1 Representative Neotropical Snake Species "
+                "Figure 1 Representative neotropical snake species "
                 "(Families: Elapidae, Aniliidae, and Boidae) ....",
                 108,
             ),
-            ("Figure 2 Overview of the Experimental Setup for This Study ....", 108),
-            ("Figure 3 Summary of Findings from Pilot Testing ....", 108),
+            ("Figure 2 Overview of the experimental setup for this study ....", 108),
+            ("Figure 3 Summary of findings from pilot testing ....", 108),
         ],
     )
-    model = load_pdf_layout(str(pdf_path))
+    pdf = fitz.open(pdf_path)
+    body = pdf.new_page()
+    for y in (150, 180):
+        body.insert_text((108, y), "We study Families Elapidae, Aniliidae, and Boidae here.")
+    amended = tmp_path / "with_prose.pdf"
+    pdf.save(amended)
+    pdf.close()
+    model = load_pdf_layout(str(amended))
     assert not any(f.rule_id == "P024" for f in check_pdf_toc_list_formatting(model))
 
 
@@ -5079,7 +5086,7 @@ def test_p024_entry_index_present_for_lof_and_terminal_punctuation(tmp_path: Pat
         lof_path,
         "LIST OF FIGURES",
         [
-            ("Figure 1 Schematic diagram of the proposed system architecture ....", 108),
+            ("Figure 1 Schematic Diagram of the Proposed System Architecture ....", 108),
         ],
     )
     model = load_pdf_layout(str(lof_path))
@@ -13336,6 +13343,130 @@ def test_p044_real_flush_left_later_paragraph_still_warns(tmp_path: Path) -> Non
     findings = [f for f in check_pdf_abstract_indentation(model) if f.rule_id == "P044"]
     issue_types = [f.details.get("issue_type") for f in findings]
     assert "abstract_subsequent_paragraph_not_indented" in issue_types
+
+
+# ---------------------------------------------------------------------------
+# P044 title/byline regression fixtures (synthetic text only)
+# ---------------------------------------------------------------------------
+
+
+def _make_abstract_title_byline_pdf(
+    path: Path,
+    *,
+    first_x: float = 108.0,
+    second_x: float = 140.0,
+    pitch: float = 28.0,
+    font: str = "Times-Roman",
+    marker: str = "by",
+    title_end: str = "",
+    author_offset: float = 0.0,
+) -> None:
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((260, 85), "ABSTRACT", fontsize=12, fontname="Times-Bold")
+
+    def centered(text: str, y: float, width: float, offset: float = 0.0) -> None:
+        size = width / fitz.get_text_length(text, fontname=font, fontsize=1)
+        page.insert_text((325.5 - width / 2 + offset, y), text, fontsize=size, fontname=font)
+
+    # The wide second title line joins the body margin cluster; neither title
+    # line is body text. This is deliberately unrelated to any real thesis text.
+    centered("A synthetic dissertation title about testing documents" + title_end, 112, 398)
+    centered("With a longer subtitle covering alternative document layouts", 126, 430)
+    centered(marker, 165, 15)
+    centered("Alex Test", 179, 58, author_offset)  # shorter than MIN_TEXT_LEN
+    page.insert_text((first_x, 240), "This synthetic abstract begins a sentence that continues",
+                     fontsize=12, fontname=font)
+    page.insert_text((108, 240 + pitch), "on its next line and ends here.",
+                     fontsize=12, fontname=font)
+    page.insert_text((second_x, 340), "A second synthetic paragraph continues its sentence",
+                     fontsize=12, fontname=font)
+    page.insert_text((108, 340 + pitch), "on this final line of the abstract.",
+                     fontsize=12, fontname=font)
+    doc.save(path)
+    doc.close()
+
+
+@pytest.mark.parametrize("font", ["Times-Roman", "helv"])
+@pytest.mark.parametrize("pitch", [14.0, 32.0])
+@pytest.mark.parametrize("first_x", [108.0, 144.0])
+@pytest.mark.parametrize("second_x", [108.0, 144.0])
+def test_p044_verified_byline_preserves_body_checks(
+    tmp_path: Path, font: str, pitch: float, first_x: float, second_x: float
+) -> None:
+    path = tmp_path / "abstract.pdf"
+    _make_abstract_title_byline_pdf(
+        path, font=font, pitch=pitch, first_x=first_x, second_x=second_x,
+    )
+    findings = check_pdf_abstract_indentation(load_pdf_layout(str(path)))
+    expected = []
+    if first_x > 108:
+        expected.append(("abstract_first_paragraph_indented", "0", "Q002"))
+    if second_x == 108:
+        expected.append(("abstract_subsequent_paragraph_not_indented", "1", "Q003"))
+    assert [(f.details["issue_type"], f.details["paragraph_index"],
+             f.details["source_q_rule_id"]) for f in findings] == expected
+    # A valid warning must identify the body, never the title or author.
+    assert all(float(f.details["bbox"].split(",")[1]) > 200 for f in findings)
+
+
+def test_p044_byline_is_independent_of_pdf_block_order(tmp_path: Path) -> None:
+    path = tmp_path / "abstract.pdf"
+    _make_abstract_title_byline_pdf(path, first_x=144, pitch=32, marker="BY")
+    model = load_pdf_layout(str(path))
+    page = model.pages[0]
+    lines = [line for block in page.text_blocks for line in block.lines]
+    page.text_blocks = [PdfTextBlock(lines=[line], bbox=line.bbox, text=line.text)
+                        for line in reversed(lines)]
+    findings = check_pdf_abstract_indentation(model)
+    assert len(findings) == 1
+    assert findings[0].details["issue_type"] == "abstract_first_paragraph_indented"
+    assert float(findings[0].details["bbox"].split(",")[1]) > 200
+
+
+@pytest.mark.parametrize("first_x", [108.0, 144.0])
+@pytest.mark.parametrize("paragraph_count", [1, 3])
+def test_p044_byline_with_one_or_three_paragraphs(
+    tmp_path: Path, first_x: float, paragraph_count: int
+) -> None:
+    path = tmp_path / "abstract.pdf"
+    _make_abstract_title_byline_pdf(path, first_x=first_x, pitch=32)
+    doc = fitz.open(path)
+    if paragraph_count == 1:
+        doc[0].add_redact_annot(fitz.Rect(0, 300, 612, 792))
+        doc[0].apply_redactions()
+    else:
+        doc[0].insert_text((108, 440), "This third paragraph incorrectly starts flush left.")
+    modified = tmp_path / "paragraphs.pdf"
+    doc.save(modified)
+    doc.close()
+    findings = check_pdf_abstract_indentation(load_pdf_layout(str(modified)))
+    expected = []
+    if first_x > 108:
+        expected.append(("Q002", "0"))
+    if paragraph_count == 3:
+        expected.append(("Q003", "2"))
+    assert [(f.details["source_q_rule_id"], f.details["paragraph_index"])
+            for f in findings] == expected
+    assert all(float(f.details["bbox"].split(",")[1]) > 200 for f in findings)
+
+
+@pytest.mark.parametrize("marker,title_end,author_offset", [
+    ("via", "", 0.0),  # no standalone byline marker
+    ("by", ".", 0.0),  # sentence-like body text before the marker
+    ("by", "", -60.0),  # author does not share the title/byline center
+])
+def test_p044_ambiguous_preamble_does_not_suppress_warning(
+    tmp_path: Path, marker: str, title_end: str, author_offset: float
+) -> None:
+    path = tmp_path / "abstract.pdf"
+    _make_abstract_title_byline_pdf(
+        path, marker=marker, title_end=title_end, author_offset=author_offset,
+    )
+    findings = check_pdf_abstract_indentation(load_pdf_layout(str(path)))
+    assert findings
+    assert findings[0].details["issue_type"] == "abstract_first_paragraph_indented"
+    assert float(findings[0].details["bbox"].split(",")[1]) < 130
 
 
 # ---------------------------------------------------------------------------
