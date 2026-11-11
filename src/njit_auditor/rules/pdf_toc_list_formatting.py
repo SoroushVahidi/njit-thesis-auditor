@@ -9,11 +9,11 @@ Source: NJIT Thesis and Dissertation Formatting Guidelines;
   - TOC Level 2 entries: Title Case (Q050)
   - TOC Level 3 entries: Sentence case (Q051; clear Title Case only)
   - List of Tables titles: Title Case (Q065; public card R024D)
-  - List of Figures titles: Title Case (Q074 slot; public card R024E)
+  - List of Figures descriptions: Sentence case (Q074; public card R024E)
 
-Ester's 2026-10-05 feedback set both lists to title case and asked for
-separate codes. That supersedes the earlier List of Figures sentence-case
-reading of Q074. R024D and R024E stay distinct through their issue types.
+Ester's 2026-11-09 instruction restores sentence case for figure descriptions.
+The existing list_of_figures_title_case subtype is retained as a compatibility
+key for R024E; it now reports clear excess capitals, never lowercase major words.
 
 Terminal punctuation is owned elsewhere: P053 (List of Tables), P054
 (Table of Contents), and P040 (List of Figures).
@@ -53,6 +53,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     detect_toc_like_pages,
     extract_toc_logical_entry_lines,
 )
+from njit_auditor.rules.pdf_toc_entry_number_ordering import ambiguous_collapsed_subsections
 
 LINE_PREVIEW_MAX = 80
 MIN_ENTRY_WORDS = 3
@@ -258,6 +259,7 @@ def _check_toc_page(
     findings: list[AuditFinding] = []
     if len(entries) < 3:
         return findings
+    ambiguous = ambiguous_collapsed_subsections(entries)
     indent_clusters = _build_indent_clusters(entries)
     page_number_edges = [
         entry.page_number_right_x for entry in entries
@@ -265,6 +267,8 @@ def _check_toc_page(
     ]
     page_number_edge = median(page_number_edges) if len(page_number_edges) >= 3 else None
     for entry_index, entry in enumerate(entries):
+        if entry_index in ambiguous:
+            continue  # P060 owns the structural review before case advice.
         entry_text = _clean_entry_text(entry)
         if not entry_text or len(entry_text) < 8:
             continue
@@ -296,6 +300,7 @@ def _check_toc_page(
                             "expected_or_reason": "Level 1 TOC entries expected ALL CAPS",
                             "confidence": "medium",
                             "source_q_rule_id": "Q049",
+                            "suggested_fix": "Use ALL CAPS for this Level 1 TOC entry.",
                         },
                     )
                 )
@@ -327,6 +332,7 @@ def _check_toc_page(
                             "expected_or_reason": first["reason"],
                             "confidence": first["confidence"],
                             "source_q_rule_id": "Q050",
+                            "suggested_fix": "Use Title Case for this Level 2 TOC entry.",
                         },
                     )
                 )
@@ -441,16 +447,26 @@ def _explanatory_issue(issues: list[dict[str, str]]) -> dict[str, str]:
     return issues[0]
 
 
-def _check_list_title_case_page(
+def _figure_title_case_words(
+    sentence: str, proper_nouns: frozenset[str], prose_case_counts: dict[str, tuple[int, int]],
+) -> list[str]:
+    # Long descriptions can contain named techniques and acronym expansions.
+    # Only a clear Title Case sentence supports a case correction without
+    # guessing whether isolated internal capitals are names or technical terms.
+    words = tokenize_title_words(sentence)
+    if any(word[0].islower() and not is_minor_word(word) and not looks_like_acronym(word)
+           for word in words[1:]):
+        return []
+    return _level3_title_case_words(sentence, proper_nouns, prose_case_counts)
+
+
+def _check_list_case_page(
     context: TocPageContext,
     entries: list[TocEntryLine],
+    proper_nouns: frozenset[str],
+    prose_case_counts: dict[str, tuple[int, int]],
 ) -> list[AuditFinding]:
-    """Flag List of Tables / List of Figures entries that are not in title case.
-
-    Both lists use the same title-case check; the issue type keeps them
-    distinct (R024D for tables, R024E for figures). Wrapped rows are joined
-    to their entry first, so each entry is checked and reported once.
-    """
+    """Check table titles and figure descriptions with their respective case policy."""
     issue_type, list_label, q_rule_id = _LIST_TITLE_CASE_SPECS[context.page_type]
     findings: list[AuditFinding] = []
     for entry_index, entry, continuations in _group_wrapped_list_entries(entries):
@@ -469,6 +485,19 @@ def _check_list_title_case_page(
             issues = check_apa_title_case_phrase(
                 entry_text, skip_hyphenated_fragments=True
             )
+        is_figure = context.page_type == "list_of_figures"
+        if is_figure:
+            # Remove a numeric-only label too: it is not the first word of the
+            # description. Prefix enforcement remains P055's independent check.
+            description = _LIST_ENTRY_NUMBER_RE.sub("", entry_text).lstrip(" .):-")
+            capitalized = [
+                word for sentence in re.split(
+                    r"(?<=[.!?])\s+|(?:\([a-z]\)|\b[a-z]\))\s*", description
+                )
+                for word in _figure_title_case_words(sentence, proper_nouns, prose_case_counts)
+            ]
+            issues = ([{"word": capitalized[0], "reason": "figure_description_sentence_case",
+                        "confidence": "medium"}] if capitalized else [])
         if issues:
             first = _explanatory_issue(issues)
             details = {
@@ -482,6 +511,11 @@ def _check_list_title_case_page(
                 "confidence": first["confidence"],
                 "source_q_rule_id": q_rule_id,
             }
+            details["suggested_fix"] = (
+                "Use sentence case for this figure description; "
+                "preserve proper names, acronyms and notation."
+                if is_figure else "Use Title Case for this table title."
+            )
             if continuations:
                 details["wrapped_line_count"] = str(1 + len(continuations))
             findings.append(
@@ -490,6 +524,8 @@ def _check_list_title_case_page(
                     severity=Severity.WARNING,
                     page=context.page.page_number,
                     message=(
+                        "List of Figures description appears to use Title Case; use sentence case."
+                        if is_figure else
                         f"{list_label} entry may have title-case issue: "
                         f"'{first['word']}' may need to be capitalized "
                         f"({first['reason']})."
@@ -522,5 +558,10 @@ def check_pdf_toc_list_formatting(pdf_document: PdfDocument) -> list[AuditFindin
                 context, entries, proper_nouns, prose_case_counts or {}
             ))
         elif context.page_type in _LIST_TITLE_CASE_SPECS:
-            findings.extend(_check_list_title_case_page(context, entries))
+            if proper_nouns is None:
+                proper_nouns = _document_proper_nouns(pdf_document)
+                prose_case_counts = _prose_case_counts(pdf_document, excluded_pages)
+            findings.extend(_check_list_case_page(
+                context, entries, proper_nouns, prose_case_counts or {}
+            ))
     return findings

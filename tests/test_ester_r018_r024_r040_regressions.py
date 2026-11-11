@@ -159,11 +159,11 @@ def test_curly_possessive_is_one_title_word_but_lowercase_major_word_warns() -> 
     assert "toc_level_capitalization" in _issues(incorrect, "P024")
 
 
-def test_lof_software_names_follow_title_case_not_sentence_case() -> None:
-    """Ester 2026-10-05: List of Figures titles use title case (R024E)."""
+def test_lof_software_names_survive_sentence_case() -> None:
+    """Ester 2026-11-09: figure descriptions use sentence case (R024E)."""
     peers = [
-        ("Figure 2 Basic Reference Chart. .... 2", 108, 540, 164),
-        ("Figure 3 Another Reference Chart. .... 3", 108, 540, 188),
+        ("Figure 2 Basic reference chart. .... 2", 108, 540, 164),
+        ("Figure 3 Another reference chart. .... 3", 108, 540, 188),
     ]
     title_case = _doc(
         "LIST OF FIGURES",
@@ -172,7 +172,7 @@ def test_lof_software_names_follow_title_case_not_sentence_case() -> None:
             *peers,
         ],
     )
-    assert _issues(title_case, "P024") == []
+    assert "list_of_figures_title_case" in _issues(title_case, "P024")
     sentence_case = _doc(
         "LIST OF FIGURES",
         [
@@ -180,7 +180,7 @@ def test_lof_software_names_follow_title_case_not_sentence_case() -> None:
             *peers,
         ],
     )
-    assert "list_of_figures_title_case" in _issues(sentence_case, "P024")
+    assert _issues(sentence_case, "P024") == []
 
 
 def test_short_leader_after_attached_period_is_terminal_punctuation() -> None:

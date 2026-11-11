@@ -498,6 +498,10 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "exceeds the {limit}-word limit for a {degree_label} thesis. Shorten "
         "the abstract before submission."
     ),
+    ("P060", "toc_subsection_number_ambiguous"): (
+        "A TOC number conflicts with the preceding subsection and its indentation. "
+        "Review the section number and heading level before changing capitalization."
+    ),
     # --- P024 TOC/LoT/LoF capitalization and punctuation ---
     ("P024", "toc_level_capitalization"): (
         "Likely problem: A Table of Contents entry on page {page} may not "
@@ -512,7 +516,7 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P024", "list_of_figures_title_case"): (
         "Likely problem: A List of Figures entry on page {page} may not use "
-        "Title Case. Figure titles in the List of Figures should use Title Case."
+        "sentence case. Figure descriptions in the List of Figures should use sentence case."
     ),
     ("P024", "unexpected_terminal_punctuation"): (
         "Likely problem: A TOC or list entry on page {page} ends with terminal "
@@ -886,11 +890,10 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "where appropriate."
     ),
     ("P024", "toc_level_capitalization"): "",
-    ("P024", "list_of_tables_title_case"): "",
+    ("P024", "list_of_tables_title_case"): "Use Title Case for this table title.",
     ("P024", "list_of_figures_title_case"): (
-        "Edit the figure title to title case: capitalize the first word and "
-        "major words; leave articles, prepositions, and conjunctions lowercase "
-        "where appropriate."
+        "Use sentence case for this figure description; "
+        "preserve proper names, acronyms and notation."
     ),
     ("P024", "unexpected_terminal_punctuation"): "",
     ("P035", "table_caption_not_above_body"): "",
@@ -1262,18 +1265,12 @@ def _p024_lot_title_case_comment(*, page: int | None, details: dict[str, str]) -
 
 
 def _p024_lof_title_case_comment(*, page: int | None, details: dict[str, str]) -> str:
-    """Build the P024 list_of_figures_title_case comment body.
-
-    Same Title Case vocabulary as the List of Tables comment; the flagged
-    word itself is never quoted here.
-    """
-    page_label = _safe_page_label(page)
-    reason = details.get("expected_or_reason", "") or ""
-    reason_text = _TITLE_CASE_REASON_TEXT.get(reason, "a word is not capitalized as expected")
+    """Explain the legacy R024E subtype using the current sentence-case policy."""
     return (
-        f"Likely problem: A List of Figures entry on page {page_label} may not use "
-        f"Title Case: {reason_text}. Figure titles in the List of Figures should use "
-        "Title Case."
+        "Likely problem: A figure description in the List of Figures "
+        f"on page {_safe_page_label(page)} "
+        "appears to use Title Case. Use sentence case: capitalize the first word "
+        "and proper names, and preserve acronyms and technical notation."
     )
 
 

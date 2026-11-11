@@ -9,7 +9,13 @@ from njit_auditor.rules.pdf_page_numbering_regime import (
     _find_no_number_pages,
 )
 from njit_auditor.rules.pdf_page_numbers import (
+    PageNumberCandidate,
+    _dominant_page_number_pattern,
+    _filter_off_pattern_noise,
+    _filter_toc_column_candidates,
+    _primary_plausible_candidate,
     detect_page_number_candidates,
+    is_plausible_page_number_candidate,
 )
 
 # Front-matter Roman numeral pages never legitimately exceed this value.
@@ -47,7 +53,22 @@ def check_pdf_roman_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
         return []
 
     no_number_pages = _find_no_number_pages(pdf_doc)
-    candidates = detect_page_number_candidates(pdf_doc)
+    by_page: dict[int, list[PageNumberCandidate]] = {}
+    for candidate in detect_page_number_candidates(pdf_doc):
+        if is_plausible_page_number_candidate(candidate):
+            by_page.setdefault(candidate.page_number, []).append(candidate)
+    by_page = {
+        pn: _filter_toc_column_candidates(
+            cs, page_is_front_matter=regions.get(pn) == "front_matter"
+        )
+        for pn, cs in by_page.items()
+    }
+    pattern = _dominant_page_number_pattern(by_page)
+    candidates = [
+        primary for cs in by_page.values()
+        if (primary := _primary_plausible_candidate(_filter_off_pattern_noise(cs, pattern)))
+        is not None
+    ]
 
     fm_roman_candidates = [
         c

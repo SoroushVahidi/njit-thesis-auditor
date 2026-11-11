@@ -1325,7 +1325,7 @@ def test_p024_lof_title_case_display_comment_names_list_and_rule() -> None:
     lot = next(f for f in view.findings if f.issue_type == "list_of_tables_title_case")
     assert "List of Figures" in lof.polished_comment
     assert "Title Case" in lof.polished_comment
-    assert "sentence case" not in lof.polished_comment.lower()
+    assert "sentence case" in lof.polished_comment.lower()
     assert "List of Tables" in lot.polished_comment
     assert lof.polished_comment != lot.polished_comment
 

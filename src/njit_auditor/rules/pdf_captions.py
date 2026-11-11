@@ -410,8 +410,8 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
                     "punctuation."
                 )
             # List of Figures capitalization is owned by P024 (R024E). Ester's
-            # 2026-10-05 feedback set it to title case, so P017 no longer
-            # applies a sentence-case check to List of Figures entries.
+            # 2026-11-09 feedback requires sentence case; keep that check
+            # in P024 to avoid duplicate List of Figures findings.
         elif caption.context == "body":
             if caption.caption_type == "figure":
                 if not _terminal_punctuation(caption.caption_body):

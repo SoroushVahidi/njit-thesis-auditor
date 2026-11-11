@@ -31,7 +31,21 @@ HOST = "http://127.0.0.1:17391"
 def _pdf(kind: str) -> bytes:
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
-    if kind == "rotated":
+    if kind == "ester_stage1":
+        for index, (heading, entries) in enumerate([
+            ("LIST OF FIGURES", ["Figure 1.1 Summary of Measured Results .... 12",
+                                 "Figure 1.2 Summary of measured results .... 13"]),
+            ("LIST OF TABLES", ["Table 1.1 Summary of measured results .... 12"]),
+            ("TABLE OF CONTENTS", ["CHAPTER 1 INTRODUCTION .... 1",
+                                   "1.1 Summary of measured results .... 2",
+                                   "1.2 Methods for the Study .... 3"]),
+        ]):
+            if index:
+                page = doc.new_page(width=612, height=792)
+            page.insert_text((210, 85), heading, fontname="Times-Bold", fontsize=12)
+            for row, text in enumerate(entries):
+                page.insert_text((108, 140 + row * 25), text, fontsize=10)
+    elif kind == "rotated":
         page.set_rotation(90)
     elif kind == "unicode":
         page.insert_text((60, 80), "Synthetic résumé — naïve study", fontsize=12)
@@ -122,7 +136,7 @@ def _filter_script(page_html: str) -> str:
     )
 
 
-@pytest.mark.parametrize("kind", ["normal", "unicode", "rotated", "low_text"])
+@pytest.mark.parametrize("kind", ["normal", "unicode", "rotated", "low_text", "ester_stage1"])
 def test_online_offline_parity(kind: str) -> None:
     data = _pdf(kind)
     with TemporaryDirectory() as online_dir, TemporaryDirectory() as offline_dir:
@@ -186,6 +200,17 @@ def test_online_offline_parity(kind: str) -> None:
                 "highlighted-page.pdf" in offline_page
             )
 
+        if kind == "ester_stage1":
+            for rendered in (online_page, offline_page,
+                             online_text.decode(), offline_text.decode()):
+                assert "figure description" in rendered
+                assert "sentence case" in rendered
+                assert "use title case for this table title" in rendered.lower()
+                assert "use title case for this level 2 toc entry" in rendered.lower()
+                assert "figure title to title case" not in rendered.lower()
+            assert {category for _, category, _ in _finding_order(online_page)} >= {
+                "list_of_figures", "list_of_tables", "table_of_contents"
+            }
         assert online_status["finding_count"] == offline_status["finding_count"]
         assert _normalize(online_report) == _normalize(offline_report)
         assert _normalize(online_findings) == _normalize(offline_findings)

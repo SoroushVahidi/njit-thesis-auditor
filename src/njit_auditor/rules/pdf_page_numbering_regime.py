@@ -26,6 +26,7 @@ from njit_auditor.digital_commons_wrapper import (
 )
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
+from njit_auditor.rules.pdf_frontmatter_no_page_number import frontmatter_no_number_roles
 from njit_auditor.rules.pdf_headings import find_body_start_page, find_named_frontmatter_headings
 from njit_auditor.rules.pdf_page_numbers import (
     _dominant_page_number_pattern,
@@ -35,9 +36,6 @@ from njit_auditor.rules.pdf_page_numbers import (
     detect_page_number_candidates,
     is_plausible_page_number_candidate,
 )
-
-# Named headings that define no-number pages (P022 territory — skip in P028).
-_NO_NUMBER_HEADINGS: frozenset[str] = frozenset(["ABSTRACT", "APPROVAL PAGE"])
 
 # Require at least this many classified pages to run regime checks.
 _MIN_CLASSIFIED_PAGES = 2
@@ -85,17 +83,8 @@ def _style_label(number_style: str) -> str:
 
 
 def _find_no_number_pages(pdf_doc: PdfDocument) -> set[int]:
-    """Return page numbers explicitly identified as no-number pages (skip in P028).
-
-    Only ABSTRACT and APPROVAL PAGE headings define no-number pages here.
-    The title page (page 1) is not excluded because it typically has no page-number
-    candidate; P022 handles any stray candidates on it.
-    """
-    no_num: set[int] = set()
-    for match in find_named_frontmatter_headings(pdf_doc):
-        if match.heading in _NO_NUMBER_HEADINGS:
-            no_num.add(match.page_number)
-    return no_num
+    """Share P022's section ownership; stray unnumbered folios cannot anchor P028/P029."""
+    return set(frontmatter_no_number_roles(pdf_doc))
 
 
 def _classify_pages(

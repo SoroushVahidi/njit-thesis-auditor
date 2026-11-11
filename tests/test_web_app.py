@@ -2061,7 +2061,7 @@ def test_results_page_atomic_sub_rule_finding_card_shows_r_form_not_raw_p_form(
     # the /rules page's own DOM id for that atomic sub-rule) -- only the
     # visible label and aria-label are student-facing topic names.
     assert 'href="/rules#P018D"' in html
-    assert 'aria-label="TOC / LISTS: see rule reference">TOC / LISTS</a>' in html
+    assert 'aria-label="TABLE OF CONTENTS: see rule reference">TABLE OF CONTENTS</a>' in html
     assert "Rule R018" in html  # available in optional technical details
     assert ">P018D<" not in html
     assert 'aria-label="P018D' not in html

@@ -62,7 +62,7 @@ def test_r024d_and_r024e_stay_distinct_and_q_backed() -> None:
     assert specs["P024D"]["issue_types"] == ("list_of_tables_title_case",)
     assert specs["P024E"]["source_q_rule_ids"] == ("Q074",)
     assert specs["P024E"]["issue_types"] == ("list_of_figures_title_case",)
-    assert "title case" in specs["P024E"]["title"].lower()
+    assert "sentence case" in specs["P024E"]["title"].lower()
     assert (
         wa._public_rule_reference_id(
             "P024", issue_type="list_of_figures_title_case", source_q_rule_id="Q074"

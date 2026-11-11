@@ -156,8 +156,8 @@ def test_r024_lot_and_lof_findings_map_to_distinct_visible_cards() -> None:
     assert "List of Tables" in cards["P024D"]["title"]
     assert "title case" in cards["P024D"]["title"]
     assert "List of Figures" in cards["P024E"]["title"]
-    assert "title case" in cards["P024E"]["title"]
-    assert "sentence case" not in cards["P024E"]["title"]
+    assert "sentence case" in cards["P024E"]["title"]
+    assert "title case" not in cards["P024E"]["title"]
     assert cards["P024D"]["title"] != cards["P024E"]["title"]
     assert wa._public_rule_reference_href(
         "P024", issue_type="list_of_tables_title_case"

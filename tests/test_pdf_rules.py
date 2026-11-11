@@ -4787,8 +4787,8 @@ def test_p024_lot_terminal_period_owned_by_p053(tmp_path: Path) -> None:
     }
 
 
-def test_p024_lof_title_case_correct_no_warning(tmp_path: Path) -> None:
-    """LoF entries in title case must not warn (Ester 2026-10-05: LoF = title case)."""
+def test_p024_lof_title_case_warns(tmp_path: Path) -> None:
+    """LoF Title Case violates the November 9 sentence-case instruction."""
     pdf_path = tmp_path / "lof_ok.pdf"
     _make_toc_pdf(
         pdf_path,
@@ -4801,11 +4801,11 @@ def test_p024_lof_title_case_correct_no_warning(tmp_path: Path) -> None:
     )
     model = load_pdf_layout(str(pdf_path))
     findings = check_pdf_toc_list_formatting(model)
-    assert not any(f.rule_id == "P024" for f in findings)
+    assert len(findings) == 3
 
 
-def test_p024_lof_sentence_case_entry_warns_title_case(tmp_path: Path) -> None:
-    """A sentence-case LoF entry now violates the title-case requirement."""
+def test_p024_lof_sentence_case_entry_is_clean(tmp_path: Path) -> None:
+    """Sentence case passes; neighboring Title Case descriptions still warn."""
     pdf_path = tmp_path / "lof_bad.pdf"
     _make_toc_pdf(
         pdf_path,
@@ -4822,9 +4822,8 @@ def test_p024_lof_sentence_case_entry_warns_title_case(tmp_path: Path) -> None:
         for f in check_pdf_toc_list_formatting(model)
         if f.rule_id == "P024" and f.details.get("issue_type") == "list_of_figures_title_case"
     ]
-    assert [f.details.get("entry_index") for f in findings] == ["0"]
-    assert "'diagram'" in findings[0].message
-    assert findings[0].message.startswith("List of Figures entry")
+    assert [f.details.get("entry_index") for f in findings] == ["1", "2"]
+    assert findings[0].message.startswith("List of Figures description")
 
 
 def test_p024_lof_lowercase_long_preposition_is_title_case(tmp_path: Path) -> None:
@@ -4834,17 +4833,17 @@ def test_p024_lof_lowercase_long_preposition_is_title_case(tmp_path: Path) -> No
         pdf_path,
         "LIST OF FIGURES",
         [
-            ("Figure 1 Overview of the Experimental Setup for This Study ....", 108),
+            ("Figure 1 Overview of the experimental setup for this study ....", 108),
             ("Figure 2 Schematic of the Measurement Configuration Used Here ....", 108),
             ("Figure 3 Qualitative Comparison with Marching Cubes ....", 108),
         ],
     )
     model = load_pdf_layout(str(pdf_path))
-    assert not any(f.rule_id == "P024" for f in check_pdf_toc_list_formatting(model))
+    assert len(check_pdf_toc_list_formatting(model)) == 2
 
 
-def test_p024_lof_lowercase_common_nouns_warn(tmp_path: Path) -> None:
-    """A LoF entry with lowercase major words triggers the title-case warning."""
+def test_p024_lof_lowercase_common_nouns_pass(tmp_path: Path) -> None:
+    """Lowercase ordinary words satisfy sentence case."""
     pdf_path = tmp_path / "lof_common_nouns_bad.pdf"
     _make_toc_pdf(
         pdf_path,
@@ -4852,7 +4851,7 @@ def test_p024_lof_lowercase_common_nouns_warn(tmp_path: Path) -> None:
         [
             ("Figure 4.1 Relationship between benefits and readiness outcomes ....", 108),
             ("Figure 4.2 Overview of Results for Baseline Comparison ....", 108),
-            ("Figure 4.3 Summary of Findings from Pilot Testing ....", 108),
+            ("Figure 4.3 Summary of findings from pilot testing ....", 108),
         ],
     )
     model = load_pdf_layout(str(pdf_path))
@@ -4865,7 +4864,7 @@ def test_p024_lof_lowercase_common_nouns_warn(tmp_path: Path) -> None:
     ]
     assert lof_findings
     assert lof_findings[0].details.get("source_q_rule_id") == "Q074"
-    assert lof_findings[0].details.get("entry_index") == "0"
+    assert [f.details.get("entry_index") for f in lof_findings] == ["1"]
 
 
 def test_p024_lof_parenthetical_proper_names_in_title_case_do_not_warn(
@@ -4878,15 +4877,22 @@ def test_p024_lof_parenthetical_proper_names_in_title_case_do_not_warn(
         "LIST OF FIGURES",
         [
             (
-                "Figure 1 Representative Neotropical Snake Species "
+                "Figure 1 Representative neotropical snake species "
                 "(Families: Elapidae, Aniliidae, and Boidae) ....",
                 108,
             ),
-            ("Figure 2 Overview of the Experimental Setup for This Study ....", 108),
-            ("Figure 3 Summary of Findings from Pilot Testing ....", 108),
+            ("Figure 2 Overview of the experimental setup for this study ....", 108),
+            ("Figure 3 Summary of findings from pilot testing ....", 108),
         ],
     )
-    model = load_pdf_layout(str(pdf_path))
+    pdf = fitz.open(pdf_path)
+    body = pdf.new_page()
+    for y in (150, 180):
+        body.insert_text((108, y), "We study Families Elapidae, Aniliidae, and Boidae here.")
+    amended = tmp_path / "with_prose.pdf"
+    pdf.save(amended)
+    pdf.close()
+    model = load_pdf_layout(str(amended))
     assert not any(f.rule_id == "P024" for f in check_pdf_toc_list_formatting(model))
 
 
@@ -5080,7 +5086,7 @@ def test_p024_entry_index_present_for_lof_and_terminal_punctuation(tmp_path: Pat
         lof_path,
         "LIST OF FIGURES",
         [
-            ("Figure 1 Schematic diagram of the proposed system architecture ....", 108),
+            ("Figure 1 Schematic Diagram of the Proposed System Architecture ....", 108),
         ],
     )
     model = load_pdf_layout(str(lof_path))

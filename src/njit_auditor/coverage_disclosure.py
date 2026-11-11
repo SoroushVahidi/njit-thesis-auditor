@@ -184,15 +184,14 @@ COVERAGE_AREAS: tuple[CoverageArea, ...] = (
     CoverageArea(
         key="list_of_figures",
         title="List of Figures",
-        status="guidance_differs",
+        status="partial",
         checked=(
-            'The word "Figure" before each number; ending punctuation; title case, '
-            "following current Graduate Studies reviewer guidance."
+            'The word "Figure" before each number; ending punctuation; clear Title Case '
+            "violations in descriptions that require sentence case."
         ),
         manual=(
-            "The self-assessment sheet describes sentence case for figure descriptions; "
-            "if unsure, confirm the expected style with Graduate Studies. Also check "
-            "that figure part letters are consistently upper- or lowercase, and that "
+            "Check proper names, technical terms and mixed-case descriptions manually. "
+            "Also check that figure part letters are consistently upper- or lowercase, and that "
             "entries are double-spaced with wrapped titles single-spaced."
         ),
         rule_ids=("P024", "P040", "P055"),

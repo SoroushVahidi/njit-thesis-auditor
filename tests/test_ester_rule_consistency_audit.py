@@ -118,8 +118,8 @@ def test_q029_q074_audit_distinguishes_history_from_effective_authority(
     assert rows["Q029"]["Effective implementation status"] == "optional_not_enforced"
     assert rows["Q074"]["Status"] == "superseded by later Ester authority"
     assert "sentence case" in rows["Q074"]["Matrix question"]
-    assert "title case" in rows["Q074"]["Effective current authority"]
-    assert rows["Q074"]["Effective implementation status"] == "implemented"
+    assert "sentence case" in rows["Q074"]["Effective current authority"]
+    assert rows["Q074"]["Effective implementation status"] == "partially_implemented"
     assert rows["Q030"]["Status"] == "missing"
     assert rows["Q030"]["Effective implementation status"] == "unimplemented"
     mismatches = json.loads((tmp_path / "mismatch_inventory.json").read_text())
