@@ -16,7 +16,7 @@ import threading
 import urllib.parse
 from _thread import LockType
 from collections.abc import Callable, Mapping
-from contextlib import asynccontextmanager
+from contextlib import ExitStack, asynccontextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -28,6 +28,8 @@ from fastapi import BackgroundTasks, FastAPI, File, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from njit_auditor.analytics import web as analytics_web
+from njit_auditor.analytics.runtime import AnalyticsSettings, build_runtime
 from njit_auditor.audit_runner import (
     AuditError,
     classify_pdf_text_layer,
@@ -493,9 +495,29 @@ _after_audit_task: Callable[[str], None] | None = None
 async def _lifespan(_app: FastAPI):
     _retention_sweeper.run_once()
     _retention_sweeper.start()
+    analytics_runtime = None
+    try:
+        offline = getattr(_app.state, "offline_mode", False)
+        analytics_runtime = None if offline else getattr(_app.state, "analytics_runtime", None)
+        if analytics_runtime is None:
+            settings = AnalyticsSettings.from_environment(
+                public_web=_app is app and not offline, environment=ENVIRONMENT_NAME,
+                test_mode=("pytest" in sys.modules or "starlette.testclient" in sys.modules
+                           or "PYTEST_CURRENT_TEST" in os.environ),
+            )
+            analytics_runtime = build_runtime(settings, app_mode="offline" if offline else "web")
+        _app.state.analytics_runtime = analytics_runtime
+        analytics_runtime.start()
+    except Exception:
+        pass
     try:
         yield
     finally:
+        try:
+            if analytics_runtime is not None:
+                analytics_runtime.stop()
+        except Exception:
+            pass
         _retention_sweeper.stop()
 
 
@@ -505,6 +527,7 @@ app = FastAPI(
     redoc_url=None,
     lifespan=_lifespan,
 )
+app.add_middleware(analytics_web.PageObserver)
 _templates = Jinja2Templates(directory=str(resource_path("src", "njit_auditor", "templates")))
 
 
@@ -2012,6 +2035,29 @@ def _index_notice(request: Request, notice: str, status_code: int = 404) -> HTML
 # Background audit task
 # ---------------------------------------------------------------------------
 
+def _analytics_signal(action: str) -> None:
+    try:
+        analytics_web.signal(action)
+    except Exception:
+        pass
+
+
+def _run_web_audit(job_id: str, runtime: Any) -> None:
+    # Keep operational IDs in the application; the observation context has none.
+    stack = ExitStack()
+    try:
+        stack.enter_context(analytics_web.task_context(runtime))
+    except Exception:
+        pass
+    try:
+        _run_audit_task(job_id)
+    finally:
+        try:
+            stack.close()
+        except Exception:
+            pass
+
+
 def _run_audit_task(job_id: str) -> None:
     """Execute an upload audit in a background thread and update job state.
 
@@ -2023,6 +2069,7 @@ def _run_audit_task(job_id: str) -> None:
     try:
         _execute_audit_task(job_id)
     except Exception as exc:  # noqa: BLE001
+        _analytics_signal("failed")
         job = _get_job(job_id)
         if job is not None and job.state in ("pending", "running"):
             job.state = "failed"
@@ -2041,6 +2088,7 @@ def _execute_audit_task(job_id: str) -> None:
     if job is None:
         return
 
+    _analytics_signal("start")
     job.state = "running"
     _set_job(job)
 
@@ -2062,18 +2110,21 @@ def _execute_audit_task(job_id: str) -> None:
         job.error_message = str(exc)
         job.finished_at = datetime.now(timezone.utc).isoformat()
         _set_job(job)
+        _analytics_signal("failed")
         return
     except AuditError as exc:
         job.state = "failed"
         job.error_message = str(exc)
         job.finished_at = datetime.now(timezone.utc).isoformat()
         _set_job(job)
+        _analytics_signal("failed")
         return
     except Exception:  # noqa: BLE001
         job.state = "failed"
         job.error_message = "An unexpected error occurred during the audit."
         job.finished_at = datetime.now(timezone.utc).isoformat()
         _set_job(job)
+        _analytics_signal("failed")
         return
 
     pdf_page_sizes: list[tuple[float, float]] = []
@@ -2212,6 +2263,7 @@ def _execute_audit_task(job_id: str) -> None:
     job.md_preview = md_preview
     job.finished_at = datetime.now(timezone.utc).isoformat()
     _set_job(job)
+    _analytics_signal("completed")
 
 
 # ---------------------------------------------------------------------------
@@ -2310,7 +2362,20 @@ async def submit_audit(
     prepare_audit = getattr(request.app.state, "prepare_audit", None)
     if prepare_audit is not None:
         prepare_audit(job_id)
-    background_tasks.add_task(getattr(request.app.state, "audit_executor", _run_audit_task), job_id)
+    executor = getattr(request.app.state, "audit_executor", _run_audit_task)
+    runtime = None
+    try:
+        runtime = analytics_web.runtime_for(request.app)
+    except Exception:
+        pass
+    if runtime is not None and executor is _run_audit_task:
+        background_tasks.add_task(_run_web_audit, job_id, runtime)
+    else:
+        background_tasks.add_task(executor, job_id)
+    try:
+        analytics_web.accepted_upload(runtime)
+    except Exception:
+        pass
 
     return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
 
