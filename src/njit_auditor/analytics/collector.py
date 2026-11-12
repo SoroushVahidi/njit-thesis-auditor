@@ -47,14 +47,56 @@ class Pending:
     expires_at: datetime
 
 
+class ObservationQueue(queue.Queue[tuple[float, bytes]]):
+    """Close admission without waiting for a producer or the queue mutex.
+
+    Insertion is the acceptance boundary. Producers never wait for this mutex.
+    Closing during insertion rolls that insertion back under the same mutex;
+    closing after insertion leaves an accepted envelope for the writer to drain.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(maxsize=1000)
+        self.closed = threading.Event()
+
+    def put_nowait(self, item: tuple[float, bytes]) -> None:
+        if not self.mutex.acquire(blocking=False):
+            raise queue.Full
+        try:
+            if self.closed.is_set() or self._qsize() >= self.maxsize:
+                raise queue.Full
+            self._put(item)
+            if self.closed.is_set():
+                self.queue.pop()
+                raise queue.Full
+            self.unfinished_tasks += 1
+            self.not_empty.notify()
+        finally:
+            self.mutex.release()
+
+    def close_and_drain(self) -> tuple[tuple[float, bytes], ...] | None:
+        self.closed.set()
+        # A suspended producer must not prevent final loss accounting. If its
+        # mutex cannot be inspected, conservatively degrade all retained dates.
+        if not self.mutex.acquire(timeout=0.05):
+            return None
+        try:
+            waiting = tuple(self.queue)
+            self.queue.clear()
+            return waiting
+        finally:
+            self.mutex.release()
+
+
 class BoundedCollector:
     def __init__(self, path: Path, clock: Clock | None = None) -> None:
         self.path = path
         self.clock = clock or SystemClock()
-        self.queue: queue.Queue[tuple[float, bytes]] = queue.Queue(maxsize=1000)
+        self.queue = ObservationQueue()
         self.pending: Pending | None = None
         self.thread: threading.Thread | None = None
         self._stop = threading.Event()
+        self._stop_lock = threading.Lock()
         self._wake = threading.Event()
         self._shutdown_deadline = 0.0
         self._accepting = False
@@ -157,7 +199,8 @@ class BoundedCollector:
                 self._drop("UNAVAILABLE", event_day)
                 return
             self.queue.put_nowait((now, payload))
-            if self.queue.qsize() >= 100:
+            # Advisory wake hint only; do not reacquire the queue mutex.
+            if len(self.queue.queue) >= 100:
                 self._wake.set()
         except Exception:
             self._drop("ENQUEUE_LOSS", event_day)
@@ -178,8 +221,14 @@ class BoundedCollector:
         try:
             budget = min(1.0, max(0.0, timeout))
             self._accepting = False
-            self._shutdown_deadline = time.monotonic() + budget
-            self._stop.set()
+            self.queue.closed.set()
+            deadline = time.monotonic() + budget
+            if self._stop_lock.acquire(blocking=False):
+                try:
+                    self._shutdown_deadline = min(self._shutdown_deadline or deadline, deadline)
+                    self._stop.set()
+                finally:
+                    self._stop_lock.release()
             self._wake.set()
             if self.thread is not None:
                 self.thread.join(budget)
@@ -340,16 +389,15 @@ class BoundedCollector:
             self._drop("WRITER_TERMINATED")
         finally:
             self._accepting = False
-            clean = self.queue.empty() and self.pending is None and not self._loss
+            waiting = self.queue.close_and_drain()
+            clean = waiting == () and self.pending is None and not self._loss
+            if waiting is None:
+                self._drop("SHUTDOWN_CONTENTION")
             if self.pending is not None:
                 for day in {row[0] for row in self.pending.deltas.counts}:
                     self._drop("SHUTDOWN_LOSS", day)
                 self.pending = None
-            for _ in range(1000):
-                try:
-                    _, payload = self.queue.get_nowait()
-                except queue.Empty:
-                    break
+            for _, payload in waiting or ():
                 self._drop("SHUTDOWN_LOSS", decode(payload).day_utc)
             days, unknown = self._take_loss()
             try:

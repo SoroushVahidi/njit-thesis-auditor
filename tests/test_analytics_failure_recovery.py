@@ -237,7 +237,7 @@ for phase in ('success','handled','text','final_set'):
                         +timedelta(seconds=wa.JOB_TTL_SECONDS+2))
     item['remaining']=[directory.exists(),wa._get_job(job.job_id) is not None]
     result['audits'].append(item)
-print(json.dumps(result,sort_keys=True))
+Path(sys.argv[3]).write_text(json.dumps(result,sort_keys=True),encoding='utf-8')
 """
 
 
@@ -257,7 +257,8 @@ def test_immutable_baseline_differential(tmp_path):
     pdf = tmp_path / "synthetic.pdf"
     pdf.write_bytes(synthetic_pdf())
     outputs = []
-    for checkout in (baseline, ROOT):
+    for index, checkout in enumerate((baseline, ROOT)):
+        result_path = tmp_path / f"differential-{index}.json"
         env = dict(
             os.environ,
             PYTHONPATH=str(checkout / "src"),
@@ -265,7 +266,7 @@ def test_immutable_baseline_differential(tmp_path):
             NJIT_AUDITOR_WEB_ENVIRONMENT="local-dev",
         )
         result = subprocess.run(
-            [sys.executable, "-c", DIFFERENTIAL, str(tmp_path), str(pdf)],
+            [sys.executable, "-c", DIFFERENTIAL, str(tmp_path), str(pdf), str(result_path)],
             env=env,
             cwd=tmp_path,
             text=True,
@@ -273,7 +274,7 @@ def test_immutable_baseline_differential(tmp_path):
             timeout=40,
         )
         assert result.returncode == 0, result.stderr
-        outputs.append(json.loads(result.stdout))
+        outputs.append(json.loads(result_path.read_text(encoding="utf-8")))
     assert outputs[0] == outputs[1]
     assert outputs[0]["audits"][0]["state"] == "complete"
     assert outputs[0]["audits"][0]["reports"]["report.json"]["findings"]

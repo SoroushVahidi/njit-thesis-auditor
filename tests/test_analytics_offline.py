@@ -35,9 +35,11 @@ def checked_start(self,*args,**kwargs):
     return start(self,*args,**kwargs)
 threading.Thread.start=checked_start
 connect=socket.socket.connect
+analytics_root=Path(store.__file__).resolve().parent
 
 def checked_connect(self,address):
-    if any('/analytics/' in frame.filename for frame in traceback.extract_stack()):forbidden()
+    if any(Path(frame.filename).resolve().is_relative_to(analytics_root)
+           for frame in traceback.extract_stack()):forbidden()
     return connect(self,address)
 socket.socket.connect=checked_connect
 """
@@ -228,3 +230,51 @@ with TestClient(wa.app) as client:
     )
     assert result.returncode == 0, result.stderr
     assert_no_analytics(tmp_path)
+
+
+@pytest.mark.parametrize("checkout_name", ["analytics", "ordinary-checkout"])
+def test_isolation_independent_of_checkout_name(tmp_path, monkeypatch, checkout_name):
+    import shutil
+
+    checkout = tmp_path / checkout_name
+    shutil.copytree(ROOT / "src", checkout / "src", ignore=shutil.ignore_patterns("__pycache__"))
+    for resource in ("assets", "data/processed", "data/specs"):
+        source = ROOT / resource
+        if source.exists():
+            target = checkout / resource
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.symlink_to(source, target_is_directory=True)
+    monkeypatch.setattr(sys.modules[__name__], "ROOT", checkout)
+    for check in (test_real_cli_inherited_flags, test_real_desktop_launcher_inherited_flags,
+                  test_disabled_import_and_lifespan_no_boundary,
+                  test_ordinary_testclient_inherited_production_flags):
+        directory = tmp_path / check.__name__
+        directory.mkdir()
+        check(directory)
+
+
+def test_network_trap_identifies_only_actual_analytics_package(tmp_path):
+    script = r"""
+import socket
+from pathlib import Path
+import sitecustomize as traps
+# Replace only the final OS call: no test network connection is made.
+traps.connect=lambda *args: None
+code="with socket.socket() as sock: sock.connect(('127.0.0.1', 9))"
+for path in [Path.cwd()/'analytics'/'unrelated.py',
+             traps.analytics_root.parent/'analytics_other'/'probe.py']:
+    exec(compile(code,str(path),'exec'))
+assert not Path(traps.os.environ['ANALYTICS_TEST_TRAP_LOG']).exists()
+try:
+    exec(compile(code,str(traps.analytics_root/'probe.py'),'exec'))
+except AssertionError:
+    pass
+else:
+    raise AssertionError('actual analytics package network call escaped the trap')
+assert Path(traps.os.environ['ANALYTICS_TEST_TRAP_LOG']).read_text()=='ANALYTICS_BOUNDARY\n'
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script], env=subprocess_env(tmp_path), cwd=tmp_path,
+        capture_output=True, text=True, timeout=10,
+    )
+    assert result.returncode == 0, result.stderr

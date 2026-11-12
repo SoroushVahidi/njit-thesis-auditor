@@ -8,7 +8,13 @@ from pathlib import Path
 import pytest
 
 from njit_auditor.analytics.schema import AuditTerminal, PageView
-from njit_auditor.analytics.store import AggregateStore, Deltas, initialize_database, reduce_events
+from njit_auditor.analytics.store import (
+    AggregateStore,
+    Deltas,
+    _connect,
+    initialize_database,
+    reduce_events,
+)
 
 NOW = datetime(2030, 1, 1, tzinfo=timezone.utc)
 
@@ -73,6 +79,18 @@ def test_no_automatic_creation(tmp_path):
     with pytest.raises((ValueError, FileNotFoundError)):
         AggregateStore.open_existing(path)
     assert not path.exists()
+
+
+def test_connection_uri_preserves_filename_and_never_creates(tmp_path):
+    path = tmp_path / "aggregate ?#%.sqlite3"
+    sqlite3.connect(path).close()
+    db = _connect(path)
+    assert Path(db.execute("PRAGMA database_list").fetchone()[2]) == path
+    db.close()
+    path.unlink()
+    with pytest.raises(sqlite3.OperationalError):
+        _connect(path)
+    assert list(tmp_path.iterdir()) == []
 
 
 @pytest.mark.parametrize("mode", [0o644, 0o666, 0o400])

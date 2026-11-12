@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import fitz
+import pymupdf as fitz
 import pytest
 from fastapi.testclient import TestClient
 from test_analytics_collector import manual_collector

@@ -209,6 +209,8 @@ def rss():
 
 def p95(values):return sorted(values)[int(.95*(len(values)-1))]
 enabled=sys.argv[1]=='1'
+# Diagnostics deliberately share stdout; the structured result uses its own file.
+print('Synthetic benchmark trial, enabled=' + str(enabled))
 with TemporaryDirectory() as temporary:
     root=Path(temporary);path=root/'analytics.sqlite3';collector=None;runtime=None
     result={'enabled':enabled,'warmup_audits':5,'measured_audits':60}
@@ -254,7 +256,7 @@ with TemporaryDirectory() as temporary:
     result.update(audit_samples_ms=measurements,audit_p95_ms=p95(measurements),
         audit_median_ms=statistics.median(measurements),
         audit_stdev_ms=statistics.stdev(measurements),disabled_writer_absent=not enabled)
-    print(json.dumps(result))
+    Path(sys.argv[2]).write_text(json.dumps(result), encoding="utf-8")
 """
     root = Path(__file__).resolve().parents[1]
     env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(root / "src"), str(root / "tests")]))
@@ -265,8 +267,9 @@ with TemporaryDirectory() as temporary:
         rng.shuffle(order)
         pair = {}
         for enabled in order:
+            result_path = tmp_path / f"trial-{trial}-{int(enabled)}.json"
             result = subprocess.run(
-                [sys.executable, "-c", script, str(int(enabled))],
+                [sys.executable, "-c", script, str(int(enabled)), str(result_path)],
                 env=env,
                 cwd=tmp_path,
                 capture_output=True,
@@ -274,7 +277,7 @@ with TemporaryDirectory() as temporary:
                 timeout=30,
             )
             assert result.returncode == 0, result.stderr
-            values = json.loads(result.stdout)
+            values = json.loads(result_path.read_text(encoding="utf-8"))
             if enabled:
                 assert values["queue_limit"] == 1000
                 assert values["producer_p95_ms"] < 2
@@ -860,3 +863,184 @@ def test_new_saturation_during_snapshot_is_not_erased(database):
         "SELECT DISTINCT known_dropped FROM daily_coverage"
     ).fetchall() == [(1,)]
     collector._disconnect()
+
+
+@pytest.mark.parametrize("phase", ["before", "after"])
+@pytest.mark.parametrize("producers", [1, 8])
+def test_shutdown_interleaves_queue_admission(database, monkeypatch, phase, producers):
+    """A paused put must either precede closure or fail; never strand an envelope."""
+    collector = BoundedCollector(database, FakeClock())
+    start_ready(collector, monkeypatch)
+    entered = threading.Barrier(producers + 1)
+    release = threading.Event()
+    original = collector.queue.put_nowait
+    accepted = []
+
+    def paused(item):
+        if phase == "after":
+            try:
+                original(item)
+                accepted.append(item)
+            finally:
+                entered.wait(3)
+                assert release.wait(3)
+        else:
+            entered.wait(3)
+            assert release.wait(3)
+            original(item)
+
+    monkeypatch.setattr(collector.queue, "put_nowait", paused)
+    threads = [threading.Thread(target=collector.emit, args=(PageView("2030-01-01"),))
+               for _ in range(producers)]
+    try:
+        for thread in threads:
+            thread.start()
+        entered.wait(3)
+        collector.stop()
+        assert not collector.thread.is_alive()
+    finally:
+        release.set()
+        for thread in threads:
+            thread.join(3)
+        collector.stop()
+    assert all(not thread.is_alive() for thread in threads)
+    assert collector.queue.empty()
+    with sqlite3.connect(database) as db:
+        persisted = db.execute("SELECT COALESCE(SUM(n),0) FROM daily_count").fetchone()[0]
+    assert persisted == len(accepted)
+    assert persisted + collector.dropped == producers
+    if phase == "before":
+        assert collector.dropped == producers
+
+
+@pytest.mark.parametrize("phase", ["before_append", "after_append"])
+def test_shutdown_suspended_insertion_is_bounded_and_uncertain(database, monkeypatch, phase):
+    collector = manual_collector(database)
+    collector.emit(PageView("2030-01-01"))
+    collector.clock.advance(86400)
+    collector._tick()
+    # One already accepted envelope must be conservatively accounted for even
+    # when shutdown cannot acquire the mutex to inspect its original date.
+    collector.emit(PageView("2030-01-02"))
+    entered, release = threading.Event(), threading.Event()
+    original = collector.queue._put
+
+    def paused(item):
+        if phase == "after_append":
+            original(item)
+        entered.set()
+        assert release.wait(3)
+        if phase == "before_append":
+            original(item)
+
+    monkeypatch.setattr(collector.queue, "_put", paused)
+    producer = threading.Thread(target=collector.emit, args=(PageView("2030-01-01"),))
+    producer.start()
+    try:
+        assert entered.wait(2)
+        collector._stop.set()
+        collector._shutdown_deadline = 0
+        start = time.monotonic()
+        collector._run()
+        assert time.monotonic() - start < 0.5
+        with sqlite3.connect(database) as db:
+            assert db.execute("SELECT clean_shutdown FROM schema_meta").fetchone() == (0,)
+            rows = db.execute("SELECT day_utc,quality FROM daily_coverage").fetchall()
+            assert {day for day, _ in rows} >= {"2030-01-01", "2030-01-02"}
+            assert all(quality != "observed" for _, quality in rows)
+    finally:
+        release.set()
+        producer.join(3)
+        collector._disconnect()
+    assert not producer.is_alive()
+    assert collector.queue.qsize() == 1
+    assert collector.queue.closed.is_set()
+
+
+def test_producer_does_not_wait_for_queue_mutex(database):
+    collector = manual_collector(database)
+    done = threading.Event()
+
+    def emit():
+        collector.emit(PageView("2030-01-01"))
+        done.set()
+
+    producer = threading.Thread(target=emit)
+    with collector.queue.mutex:
+        producer.start()
+        completed_without_mutex = done.wait(0.5)
+    producer.join(2)
+    try:
+        assert completed_without_mutex
+        assert collector.queue.empty()
+        collector._tick()
+        assert collector._store.db.execute(
+            "SELECT MIN(known_dropped) FROM daily_coverage WHERE day_utc='2030-01-01'"
+        ).fetchone() == (1,)
+    finally:
+        collector._disconnect()
+
+
+def test_enqueue_error_releases_mutex_and_retains_dated_loss(database, monkeypatch):
+    collector = manual_collector(database)
+    original = collector.queue._put
+    try:
+        with monkeypatch.context() as patch:
+            def fail(item):
+                raise OSError("synthetic enqueue failure")
+            patch.setattr(collector.queue, "_put", fail)
+            collector.emit(PageView("2030-01-01"))
+        collector.emit(PageView("2030-01-01"))
+        assert collector.queue.qsize() == 1
+        assert collector.queue._put == original
+        collector.clock.advance(5)
+        collector._tick()
+        assert collector._store.db.execute("SELECT SUM(n) FROM daily_count").fetchone() == (1,)
+        assert collector._store.db.execute(
+            "SELECT MIN(known_dropped) FROM daily_coverage"
+        ).fetchone() == (1,)
+    finally:
+        collector._disconnect()
+
+
+def test_repeated_shutdown_never_reopens_or_extends_deadline(tmp_path):
+    collector = BoundedCollector(tmp_path / "absent.sqlite3", FakeClock())
+    collector.thread = SimpleNamespace(is_alive=lambda: True, join=lambda timeout: None)
+    collector._accepting = True
+    collector.stop(0.01)
+    deadline = collector._shutdown_deadline
+    collector.stop(1)
+    assert collector._shutdown_deadline <= deadline
+    # Even a stale accepting flag cannot reopen the closed admission boundary.
+    collector._accepting = True
+    collector.emit(PageView("2030-01-01"))
+    assert collector.queue.empty()
+    assert collector.dropped == 1
+    assert not collector.path.exists()
+
+
+def test_concurrent_stop_call_does_not_wait_for_stop_lock(tmp_path):
+    collector = BoundedCollector(tmp_path / "absent.sqlite3", FakeClock())
+    collector.thread = SimpleNamespace(is_alive=lambda: True, join=lambda timeout: None)
+    done = threading.Event()
+
+    def stop():
+        collector.stop(0)
+        done.set()
+
+    with collector._stop_lock:
+        other = threading.Thread(target=stop)
+        other.start()
+        completed = done.wait(0.5)
+    other.join(2)
+    assert completed
+    assert collector.queue.closed.is_set()
+    collector.stop(0)
+    deadline = collector._shutdown_deadline
+    threads = [threading.Thread(target=collector.stop, args=(1,)) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(2)
+    assert collector._shutdown_deadline == deadline
+    assert all(not thread.is_alive() for thread in threads)

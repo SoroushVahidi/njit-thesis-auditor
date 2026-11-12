@@ -102,7 +102,9 @@ def validate_path(path: Path, *, existing: bool = True) -> None:
 
 
 def _connect(path: Path) -> sqlite3.Connection:
-    db = sqlite3.connect(path.as_uri() + "?mode=rw", timeout=0.05, isolation_level=None)
+    db = sqlite3.connect(
+        path.as_uri() + "?mode=rw", uri=True, timeout=0.05, isolation_level=None
+    )
     try:
         db.execute("PRAGMA busy_timeout=50")
         if db.execute("PRAGMA journal_mode").fetchone()[0] != "delete":
