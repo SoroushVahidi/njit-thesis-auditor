@@ -1,15 +1,23 @@
 """November 9/10 authority and section-ownership regressions; synthetic text only."""
 
+import json
+
 import fitz
 import pytest
 
 from njit_auditor.pdf_layout import load_pdf_layout
-from njit_auditor.report_outputs import audit_findings_to_json_dict
+from njit_auditor.report_outputs import (
+    audit_findings_to_json_dict,
+    write_json_report,
+    write_markdown_report,
+)
+from njit_auditor.report_text import write_text_report
 from njit_auditor.report_view import build_report_view
 from njit_auditor.rules.pdf_frontmatter_no_page_number import check_pdf_frontmatter_no_page_number
 from njit_auditor.rules.pdf_page_numbering_regime import check_pdf_page_numbering_regime
 from njit_auditor.rules.pdf_roman_section_anchors import check_pdf_roman_section_anchors
 from njit_auditor.rules.pdf_roman_sequence import check_pdf_roman_sequence
+from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_entry_number_ordering import check_pdf_toc_entry_number_ordering
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 
@@ -71,7 +79,7 @@ def test_symbols_never_replace_actual_folio(tmp_path, following, issue, symbol):
 
 @pytest.mark.parametrize("number,x,ambiguous", [("5.42", 170, True), ("5.42", 138, False),
                                                ("5.4.2", 170, False), ("5.12", 138, False)])
-def test_missing_dot_review_precedes_case(tmp_path, number, x, ambiguous):
+def test_missing_dot_review_precedes_case_and_indent(tmp_path, number, x, ambiguous):
     rows = [(138, 140, "5.4 Methods for the Study .... 10"),
             (170, 165, "5.4.1 Initial calibration procedure .... 11"),
             (x, 190, f"{number} Further calibration procedure .... 12"),
@@ -81,9 +89,94 @@ def test_missing_dot_review_precedes_case(tmp_path, number, x, ambiguous):
     case = check_pdf_toc_list_formatting(doc)
     assert bool(structural) == ambiguous
     assert bool(case) == (not ambiguous and number != "5.4.2")
+    assert not [f for f in check_pdf_toc_alignment(doc)
+                if f.details["issue_type"] == "inconsistent_hierarchy_indent"]
     if ambiguous:
         assert structural[0].details["possible_section_number"] == "5.4.2"
         assert structural[0].details["bbox"]
+
+
+@pytest.mark.parametrize("number", ["5.12", "5.42"])
+@pytest.mark.parametrize("indent", [138, 170])
+def test_two_digit_level_two_keeps_case_and_indent_checks(tmp_path, number, indent):
+    rows = [(138, 140, "5.10 Initial Methods .... 10"),
+            (138, 165, "5.11 Further Methods .... 11"),
+            (indent, 190, f"{number} Further calibration procedure .... 12"),
+            (138, 215, "5.43 Final Methods .... 13")]
+    doc = _pdf(tmp_path, [("TABLE OF CONTENTS", "vii", rows)])
+    assert check_pdf_toc_entry_number_ordering(doc) == []
+    case = check_pdf_toc_list_formatting(doc)
+    assert [f.details["entry_index"] for f in case] == ["2"]
+    alignment = [f for f in check_pdf_toc_alignment(doc)
+                 if f.details["issue_type"] == "inconsistent_hierarchy_indent"]
+    assert bool(alignment) == (indent == 170)
+    if alignment:
+        assert alignment[0].details["worst_entry_index"] == "2"
+        assert alignment[0].details["worst_delta_pt"] == "32.0"
+
+
+def test_missing_dot_does_not_hide_neighbor_or_other_page_indent(tmp_path):
+    def pages(number):
+        return [("TABLE OF CONTENTS", "vii", [
+            (138, 140, "5.1 Initial Methods .... 10"),
+            (138, 165, "5.4 Further Methods .... 11"),
+            (170, 190, "5.4.1 Initial calibration procedure .... 12"),
+            (170, 215, f"{number} Further calibration procedure .... 13"),
+            (155, 240, "5.5 Final Methods .... 14"),
+            (138, 265, "5.6 Other Methods .... 15"),
+        ]), ("TABLE OF CONTENTS (Continued)", "viii", [
+            (138, 140, "6.1 Initial Methods .... 16"),
+            (138, 165, "6.2 Further Methods .... 17"),
+            (170, 190, "6.3 Final Methods .... 18"),
+            (138, 215, "6.4 Other Methods .... 19"),
+        ])]
+
+    corrected = _pdf(tmp_path, pages("5.4.2"))
+    ambiguous = _pdf(tmp_path, pages("5.42"))
+    expected = check_pdf_toc_alignment(corrected)
+    actual = check_pdf_toc_alignment(ambiguous)
+    assert actual == expected
+    hierarchy = [f for f in actual
+                 if f.details["issue_type"] == "inconsistent_hierarchy_indent"]
+    assert [(f.page, f.details["worst_entry_index"]) for f in hierarchy] == [(1, "4"), (2, "2")]
+    assert [f.details["affected_entry_count"] for f in hierarchy] == ["1", "1"]
+
+
+def test_missing_dot_precedence_survives_student_exports(tmp_path):
+    rows = [(138, 140, "5.4 Methods for the Study .... 10"),
+            (170, 165, "5.4.1 Initial calibration procedure .... 11"),
+            (170, 190, "5.42 Further calibration procedure .... 12"),
+            (138, 215, "5.5 Results of the Study .... 13")]
+    doc = _pdf(tmp_path, [("TABLE OF CONTENTS", "vii", rows)])
+    structural = check_pdf_toc_entry_number_ordering(doc)
+    findings = (structural + check_pdf_toc_alignment(doc)
+                + check_pdf_toc_list_formatting(doc))
+    assert findings == structural
+    assert len(structural) == 1
+    metadata = {"audit_type": "pdf", "input_file_name": "synthetic.pdf"}
+    json_path = tmp_path / "report.json"
+    write_json_report(findings, metadata, json_path)
+    payload = json.loads(json_path.read_text())
+    exported = payload["findings"]
+    assert len(exported) == 1
+    assert exported[0]["public_rule_id"] == "R060"
+    assert exported[0]["page"] == 1
+    assert exported[0]["details"]["bbox"] == structural[0].details["bbox"]
+    assert exported[0]["details"]["possible_section_number"] == "5.4.2"
+    view = build_report_view(payload)
+    assert len(view.findings) == 1
+    assert view.findings[0].issue_type == "toc_subsection_number_ambiguous"
+    assert view.findings[0].page == 1
+    assert view.findings[0].bbox is not None
+    assert "5.4.2" in view.findings[0].suggested_fix
+    for writer, extension in [(write_markdown_report, "md"), (write_text_report, "txt")]:
+        path = tmp_path / f"report.{extension}"
+        writer(findings, metadata, path)
+        text = path.read_text()
+        assert "5.4.2" in text
+        assert "R060" in text
+        assert "R018" not in text
+        assert "R024" not in text
 
 
 def test_list_case_actions_and_section_categories(tmp_path):
