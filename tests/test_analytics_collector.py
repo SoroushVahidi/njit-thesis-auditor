@@ -913,6 +913,145 @@ def test_shutdown_interleaves_queue_admission(database, monkeypatch, phase, prod
         assert collector.dropped == producers
 
 
+@pytest.mark.parametrize("publication", ["after_shutdown", "during_snapshot"])
+def test_terminal_rejected_producer_cannot_leave_observed_coverage(
+    database, monkeypatch, publication,
+):
+    collector = prepared_midnight_collector(database)
+    collector.clock.advance(1)
+    collector._tick()
+    assert collector._store.db.execute(
+        "SELECT DISTINCT quality FROM daily_coverage WHERE day_utc='2030-01-02'"
+    ).fetchall() == [("observed",)]
+    entered, release = threading.Event(), threading.Event()
+    record = collector._record_loss
+
+    def paused(day, **kwargs):
+        if threading.current_thread() is producer:
+            entered.set()
+            assert release.wait(3)
+        return record(day, **kwargs)
+
+    monkeypatch.setattr(collector, "_record_loss", paused)
+    producer = threading.Thread(target=collector.emit, args=(PageView("2030-01-02"),))
+    try:
+        # The insertion has failed BEFORE shutdown, but its dated loss is unpublished.
+        with collector.queue.mutex:
+            producer.start()
+            assert entered.wait(2)
+        if publication == "during_snapshot":
+            class ReleaseDuringSnapshot(set):
+                def clear(self):
+                    release.set()
+                    producer.join(2)
+                    assert not producer.is_alive()
+                    super().clear()
+
+            collector._loss_days = ReleaseDuringSnapshot()
+        collector._stop.set()
+        collector._shutdown_deadline = 0
+        collector._run()
+        with sqlite3.connect(database) as db:
+            before = db.execute(
+                "SELECT * FROM daily_coverage ORDER BY day_utc,component"
+            ).fetchall()
+            assert db.execute("SELECT clean_shutdown FROM schema_meta").fetchone() == (0,)
+            rows = db.execute(
+                "SELECT quality,known_dropped FROM daily_coverage WHERE day_utc='2030-01-02'"
+            ).fetchall()
+            # Unresolved publication is uncertainty, not an invented exact loss count.
+            assert rows == [("partial", 0), ("partial", 0)]
+            assert db.execute("SELECT SUM(n) FROM daily_count").fetchone() == (0,)
+    finally:
+        release.set()
+        producer.join(3)
+        collector._disconnect()
+    assert not producer.is_alive()
+    with sqlite3.connect(database) as db:
+        assert db.execute("SELECT clean_shutdown FROM schema_meta").fetchone() == (0,)
+        assert db.execute(
+            "SELECT * FROM daily_coverage ORDER BY day_utc,component"
+        ).fetchall() == before
+    restarted = BoundedCollector(database, collector.clock)
+    restarted.thread = SimpleNamespace(is_alive=lambda: True)
+    restarted._tick()
+    assert restarted._store.db.execute(
+        "SELECT DISTINCT quality FROM daily_coverage WHERE day_utc='2030-01-02'"
+    ).fetchall() == [("unavailable",)]
+    restarted._disconnect()
+
+
+def test_loss_publication_does_not_wait_for_mailbox_mutex(database):
+    collector = manual_collector(database)
+    collector.queue.closed.set()
+    done = threading.Event()
+
+    def emit():
+        collector.emit(PageView("2030-01-01"))
+        done.set()
+
+    producer = threading.Thread(target=emit)
+    try:
+        with collector._loss_lock, collector._contended_loss.mutex:
+            producer.start()
+            completed_without_mutex = done.wait(0.5)
+        producer.join(2)
+        assert completed_without_mutex
+        collector._stop.set()
+        collector._shutdown_deadline = 0
+        collector._run()
+        with sqlite3.connect(database) as db:
+            assert db.execute("SELECT clean_shutdown FROM schema_meta").fetchone() == (0,)
+            assert db.execute(
+                "SELECT DISTINCT quality,known_dropped FROM daily_coverage"
+            ).fetchall() == [("partial", 1)]
+    finally:
+        producer.join(2)
+        collector._disconnect()
+
+
+@pytest.mark.parametrize("phase", ["before_publication", "after_publication"])
+def test_overlapping_stop_preserves_zero_budget(tmp_path, monkeypatch, phase):
+    collector = BoundedCollector(tmp_path / "absent.sqlite3", FakeClock())
+    collector.thread = SimpleNamespace(is_alive=lambda: True, join=lambda timeout: None)
+    entered, release = threading.Event(), threading.Event()
+    real_lock = collector._stop_lock
+
+    class PausedLock:
+        def acquire(self, **kwargs):
+            acquired = real_lock.acquire(**kwargs)
+            if acquired and phase == "before_publication":
+                entered.set()
+                assert release.wait(3)
+            return acquired
+
+        def release(self):
+            if phase == "after_publication":
+                entered.set()
+                assert release.wait(3)
+            real_lock.release()
+
+    monkeypatch.setattr(collector, "_stop_lock", PausedLock())
+    first = threading.Thread(target=collector.stop, args=(1,))
+    first.start()
+    try:
+        assert entered.wait(2)
+        started = time.monotonic()
+        collector.stop(0)
+        assert time.monotonic() - started < 0.2
+        signalled = collector._stop.is_set()
+    finally:
+        release.set()
+        first.join(2)
+    assert signalled
+    ticks = []
+    monkeypatch.setattr(collector, "_tick", lambda: ticks.append(True))
+    collector._run()
+    assert ticks == []  # the effective zero deadline survives the first caller resuming
+    assert collector.queue.closed.is_set()
+    assert not collector.path.exists()
+
+
 @pytest.mark.parametrize("phase", ["before_append", "after_append"])
 def test_shutdown_suspended_insertion_is_bounded_and_uncertain(database, monkeypatch, phase):
     collector = manual_collector(database)
@@ -1044,3 +1183,73 @@ def test_concurrent_stop_call_does_not_wait_for_stop_lock(tmp_path):
         thread.join(2)
     assert collector._shutdown_deadline == deadline
     assert all(not thread.is_alive() for thread in threads)
+
+
+@pytest.mark.parametrize("held", ["loss", "mailbox"])
+def test_terminal_snapshot_does_not_wait_for_loss_mutexes(database, held):
+    collector = manual_collector(database)
+    entered, release = threading.Event(), threading.Event()
+    lock = collector._loss_lock if held == "loss" else collector._contended_loss.mutex
+
+    def holder():
+        with lock:
+            entered.set()
+            assert release.wait(3)
+
+    thread = threading.Thread(target=holder)
+    thread.start()
+    try:
+        assert entered.wait(2)
+        collector.mark_loss()
+        collector._stop.set()
+        collector._shutdown_deadline = 0
+        started = time.monotonic()
+        collector._run()
+        assert time.monotonic() - started < 0.5
+        with sqlite3.connect(database) as db:
+            assert db.execute("SELECT clean_shutdown FROM schema_meta").fetchone() == (0,)
+            assert db.execute(
+                "SELECT DISTINCT quality,known_dropped FROM daily_coverage"
+            ).fetchall() == [("partial", 1)]
+    finally:
+        release.set()
+        thread.join(2)
+        collector._disconnect()
+
+
+def test_terminal_closure_excludes_new_activity_without_erasing_inflight_producer():
+    from njit_auditor.analytics.collector import ProducerActivity
+
+    activity = ProducerActivity()
+    assert activity.enter()  # an older producer remains suspended
+    finished = activity._finished
+
+    class ConcurrentCompletion:
+        def __next__(self):
+            value = next(finished)
+            # Arrive and complete between the two terminal counter reads.
+            assert not activity.enter()
+            return value
+
+    activity._finished = ConcurrentCompletion()
+    # Avoid recursion when enter() balances the late registration.
+    original_finish = activity.finish
+    activity.finish = lambda: next(finished)
+    assert activity.close()
+    activity._finished = finished
+    activity.finish = original_finish
+    activity.finish()
+    assert not activity.enter()
+
+
+def test_post_terminal_observations_cannot_change_clean_snapshot(database):
+    collector = manual_collector(database)
+    collector._stop.set()
+    collector._shutdown_deadline = 0
+    collector._run()
+    collector.emit(PageView("2030-01-01"))
+    collector.mark_loss()
+    assert not collector._loss and collector.queue.empty()
+    with sqlite3.connect(database) as db:
+        assert db.execute("SELECT clean_shutdown FROM schema_meta").fetchone() == (1,)
+        assert db.execute("SELECT MAX(known_dropped) FROM daily_coverage").fetchone() == (0,)

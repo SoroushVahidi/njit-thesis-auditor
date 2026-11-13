@@ -9,6 +9,7 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from itertools import count
 from pathlib import Path
 from typing import Protocol
 
@@ -88,6 +89,66 @@ class ObservationQueue(queue.Queue[tuple[float, bytes]]):
             self.mutex.release()
 
 
+class ProducerActivity:
+    """Register before any observation work; finish only after loss publication.
+
+    On the supported CPython 3.10--3.12 runtimes, next(count) with integer values
+    is one C operation under the GIL, without a Python mutex or a callback. Two
+    counters avoid an unbounded registry of suspended producers. Closing reads
+    completions FIRST: a concurrent completion can only cause extra uncertainty,
+    never hide an older producer behind a newer producer's completion.
+    """
+
+    def __init__(self) -> None:
+        self.closed = False
+        self._entered = count()
+        self._finished = count()
+
+    def enter(self) -> bool:
+        next(self._entered)
+        if self.closed:
+            self.finish()
+            return False
+        return True
+
+    def finish(self) -> None:
+        next(self._finished)
+
+    def close(self) -> bool:
+        self.closed = True
+        # Each snapshot advances both counters equally. No producer that enters
+        # after closure may validate, enqueue, or publish a new loss.
+        finished = next(self._finished)
+        return next(self._entered) != finished
+
+
+class LossMailbox(queue.Queue[str | None]):
+    """Bounded loss publication that never waits for the mailbox mutex."""
+
+    def __init__(self) -> None:
+        super().__init__(maxsize=1000)
+
+    def put_nowait(self, item: str | None) -> None:
+        if not self.mutex.acquire(blocking=False):
+            raise queue.Full
+        try:
+            if self._qsize() >= self.maxsize:
+                raise queue.Full
+            self._put(item)
+        finally:
+            self.mutex.release()
+
+    def drain(self) -> tuple[str | None, ...] | None:
+        if not self.mutex.acquire(blocking=False):
+            return None
+        try:
+            waiting = tuple(self.queue)
+            self.queue.clear()
+            return waiting
+        finally:
+            self.mutex.release()
+
+
 class BoundedCollector:
     def __init__(self, path: Path, clock: Clock | None = None) -> None:
         self.path = path
@@ -97,6 +158,8 @@ class BoundedCollector:
         self.thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._stop_lock = threading.Lock()
+        self._stop_immediate = threading.Event()
+        self._producers = ProducerActivity()
         self._wake = threading.Event()
         self._shutdown_deadline = 0.0
         self._accepting = False
@@ -104,7 +167,7 @@ class BoundedCollector:
         self._loss_days: set[str] = set()
         self._unknown_loss = False
         # A separate bounded mailbox preserves dates when the snapshot lock is busy.
-        self._contended_loss: queue.Queue[str | None] = queue.Queue(maxsize=1000)
+        self._contended_loss = LossMailbox()
         # Mailbox exhaustion leaves persistent uncertainty, not a recurring new loss.
         self._loss_saturated = threading.Event()
         self._saturation_persisted = False
@@ -120,13 +183,17 @@ class BoundedCollector:
 
     @property
     def _loss(self) -> bool:
-        with self._loss_lock:
+        if not self._loss_lock.acquire(blocking=False):
+            return True
+        try:
             return bool(
                 self._loss_days
                 or self._unknown_loss
-                or not self._contended_loss.empty()
+                or len(self._contended_loss.queue)
                 or (self._loss_saturated.is_set() and not self._saturation_persisted)
             )
+        finally:
+            self._loss_lock.release()
 
     def _record_loss(self, day: str | None, *, dropped: bool = False) -> None:
         # Request threads never wait for the writer or perform storage I/O.
@@ -149,18 +216,22 @@ class BoundedCollector:
             self._loss_lock.release()
 
     def _take_loss(self) -> tuple[tuple[str, ...], bool]:
-        with self._loss_lock:
+        if not self._loss_lock.acquire(blocking=False):
+            self._loss_saturated.set()
+            self._taken_saturation = True
+            return (), True
+        try:
             days = set(self._loss_days)
             self._taken_saturation = (
                 self._loss_saturated.is_set() and not self._saturation_persisted
             )
             unknown = self._unknown_loss or self._taken_saturation
-            # Bound work even while producers continue adding notifications.
-            for _ in range(1000):
-                try:
-                    day = self._contended_loss.get_nowait()
-                except queue.Empty:
-                    break
+            waiting = self._contended_loss.drain()
+            if waiting is None:
+                self._loss_saturated.set()
+                self._taken_saturation = True
+                unknown = True
+            for day in waiting or ():
                 if day is None:
                     unknown = True
                 elif len(days) < 92:
@@ -172,19 +243,28 @@ class BoundedCollector:
             self._loss_days.clear()
             self._unknown_loss = False
             return tuple(sorted(days)), unknown
+        finally:
+            self._loss_lock.release()
 
     def _drop(self, code: str, day: str | None = None) -> None:
         self._record_loss(day, dropped=True)
         self.status = code
 
     def mark_loss(self) -> None:
+        if not self._producers.enter():
+            return
         try:
-            day = utc_now(self.clock.utcnow()).date().isoformat()
-        except Exception:
-            day = None
-        self._drop("HELPER_LOSS", day)
+            try:
+                day = utc_now(self.clock.utcnow()).date().isoformat()
+            except Exception:
+                day = None
+            self._drop("HELPER_LOSS", day)
+        finally:
+            self._producers.finish()
 
     def emit(self, event: Event) -> None:
+        if not self._producers.enter():
+            return
         event_day = None
         try:
             payload = encode(event)
@@ -204,6 +284,8 @@ class BoundedCollector:
                 self._wake.set()
         except Exception:
             self._drop("ENQUEUE_LOSS", event_day)
+        finally:
+            self._producers.finish()
 
     def start(self) -> None:
         try:
@@ -223,12 +305,18 @@ class BoundedCollector:
             self._accepting = False
             self.queue.closed.set()
             deadline = time.monotonic() + budget
+            if budget == 0:
+                self._stop_immediate.set()
             if self._stop_lock.acquire(blocking=False):
                 try:
                     self._shutdown_deadline = min(self._shutdown_deadline or deadline, deadline)
-                    self._stop.set()
                 finally:
                     self._stop_lock.release()
+            else:
+                # Contention may hide an earlier deadline. An immediate stop is
+                # conservative and cannot be overwritten by the lock owner.
+                self._stop_immediate.set()
+            self._stop.set()
             self._wake.set()
             if self.thread is not None:
                 self.thread.join(budget)
@@ -368,7 +456,9 @@ class BoundedCollector:
     def _run(self) -> None:
         try:
             while True:
-                if self._stop.is_set() and time.monotonic() >= self._shutdown_deadline:
+                if self._stop.is_set() and (
+                    self._stop_immediate.is_set() or time.monotonic() >= self._shutdown_deadline
+                ):
                     break
                 try:
                     self._tick()
@@ -389,8 +479,9 @@ class BoundedCollector:
             self._drop("WRITER_TERMINATED")
         finally:
             self._accepting = False
+            unresolved = self._producers.close()
             waiting = self.queue.close_and_drain()
-            clean = waiting == () and self.pending is None and not self._loss
+            clean = waiting == () and self.pending is None and not unresolved
             if waiting is None:
                 self._drop("SHUTDOWN_CONTENTION")
             if self.pending is not None:
@@ -400,6 +491,8 @@ class BoundedCollector:
             for _, payload in waiting or ():
                 self._drop("SHUTDOWN_LOSS", decode(payload).day_utc)
             days, unknown = self._take_loss()
+            uncertain = unresolved or self._loss_saturated.is_set()
+            clean = clean and not days and not unknown and not uncertain
             try:
                 if self._retention is not None:
                     # Writer-only, best effort. stop() still joins for at most its
@@ -409,7 +502,7 @@ class BoundedCollector:
                         now=utc_now(self.clock.utcnow()),
                         loss_days=days,
                         unknown_loss=unknown,
-                        uncertain=self._loss_saturated.is_set(),
+                        uncertain=uncertain,
                     )
             except Exception:
                 for day in days:
