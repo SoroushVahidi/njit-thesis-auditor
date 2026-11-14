@@ -108,6 +108,8 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "references_section_heading_not_detected": "References section heading not detected",
     "references_entry_indentation_inconsistent": "References entry indentation inconsistent",
     "references_entry_spacing_inconsistent": "References entry spacing inconsistent",
+    "references_entry_not_single_spaced": "Reference entries not single-spaced",
+    "references_inter_entry_spacing_too_tight": "Reference inter-entry spacing too tight",
     "toc_page_numbers_not_nondecreasing": "TOC page numbers not in ascending order",
     "toc_entry_numbers_not_nondecreasing": "TOC section numbers not in order",
     "lot_entry_has_terminal_period": "List of Tables entry has terminal period",

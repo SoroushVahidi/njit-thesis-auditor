@@ -1056,3 +1056,243 @@ def test_os009_chapter_mention_does_not_end_references(tmp_path: Path) -> None:
     first = model.pages[7].text_blocks[0].lines[0]
     first.text = "Chapter 2 is discussed in this continuation text"
     assert references_section_page_numbers(model) == frozenset({7, 8, 9})
+
+
+def _os009_tight_refs_then_noise_pdf(
+    path: Path,
+    *,
+    noise: str,
+) -> Path:
+    """Tight single-column refs on the heading page, then geometry noise after.
+
+    The heading-page entries alone support inter-entry spacing compliance.
+    Noise on the following page is used only to force later B/C abstention.
+    """
+    doc = _new_doc_with_chapter(9)
+    _insert_heading(doc, 6, "References")
+    y = 140.0
+    for number in range(1, 7):
+        doc[6].insert_text((72, y), f"{number}.", fontsize=12)
+        doc[6].insert_text((108, y), "Placeholder synthetic reference entry text", fontsize=12)
+        doc[6].insert_text(
+            (108, y + 14),
+            "wrapped continuation placeholder text",
+            fontsize=12,
+        )
+        y += 28
+    if noise == "multicolumn":
+        for row_y in range(140, 420, 42):
+            for x in (72, 250, 430):
+                doc[7].insert_text((x, row_y), "Synthetic entry placeholder", fontsize=10)
+                doc[7].insert_text(
+                    (x + 12, row_y + 12),
+                    "continued placeholder more",
+                    fontsize=10,
+                )
+    elif noise == "high_x_variance":
+        # One chained x0 cluster (steps <= cluster tolerance) with stdev > 50.
+        # Distinct from the three-column layout above.
+        for index in range(30):
+            x = 200 + index * 10
+            doc[7].insert_text(
+                (x, 100 + index * 18),
+                f"Annotation noise line number {index:02d} textxx",
+                fontsize=11,
+            )
+    else:
+        raise ValueError(f"unsupported noise mode: {noise}")
+    doc.save(path)
+    doc.close()
+    return path
+
+
+@pytest.mark.parametrize("noise", ["multicolumn", "high_x_variance"])
+def test_os009_preserves_compliance_when_section_geometry_abstains(
+    tmp_path: Path,
+    noise: str,
+) -> None:
+    """Later B/C abstentions must not wipe independently established D/E findings."""
+    import njit_auditor.rules.pdf_references_citations_structural as module
+
+    path = _os009_tight_refs_then_noise_pdf(tmp_path / f"preserve_{noise}.pdf", noise=noise)
+    model = load_pdf_layout(str(path))
+    body_start = _find_body_start_page(model)
+    heading_page, heading_kw = _localize_references_heading(model, body_start)
+    assert heading_page is not None and heading_kw is not None
+    section_pages = module._collect_references_section_pages(model, heading_page)
+    pattern = module._check_spacing_pattern(section_pages, heading_page, heading_kw)
+    assert [f.details["issue_type"] for f in pattern] == [
+        "references_inter_entry_spacing_too_tight"
+    ]
+    lines = module._collect_lines_from_section(section_pages, heading_page, heading_kw)
+    if noise == "multicolumn":
+        assert module._detect_multicolumn(lines)
+    else:
+        assert module._compute_x_variance(lines) > module._HIGH_X_VARIANCE_THRESHOLD_PT
+
+    findings = check_pdf_references_citations_structural(model)
+    assert [f.details["issue_type"] for f in findings] == [
+        "references_inter_entry_spacing_too_tight"
+    ]
+    assert findings[0].page == 7
+    assert findings[0].details["boundary_evidence"] == "sequential_numeric_labels"
+    # B/C remain abstained on unreliable section-wide geometry.
+    assert all(
+        f.details["issue_type"]
+        not in {
+            "references_entry_indentation_inconsistent",
+            "references_entry_spacing_inconsistent",
+        }
+        for f in findings
+    )
+    assert "placeholder" not in findings[0].model_dump_json().lower()
+
+
+def test_os009_preserves_compliance_when_entry_lines_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Empty collectable lines skip B/C but keep already-built compliance findings."""
+    import njit_auditor.rules.pdf_references_citations_structural as module
+
+    path = _os009_pdf(tmp_path / "empty_collect.pdf", gap=14)
+    model = load_pdf_layout(str(path))
+    pattern = module._check_spacing_pattern(
+        module._collect_references_section_pages(model, 7),
+        7,
+        "REFERENCES",
+    )
+    assert [f.details["issue_type"] for f in pattern] == [
+        "references_inter_entry_spacing_too_tight"
+    ]
+    monkeypatch.setattr(module, "_collect_lines_from_section", lambda *args, **kwargs: [])
+    findings = check_pdf_references_citations_structural(model)
+    assert [f.details["issue_type"] for f in findings] == [
+        "references_inter_entry_spacing_too_tight"
+    ]
+    assert findings[0].page == 7
+
+
+def test_os009_ambiguous_geometry_still_abstains_after_preservation_fix(
+    tmp_path: Path,
+) -> None:
+    """Preservation must not invent compliance findings for unsupported geometry."""
+    path = _os009_pdf(
+        tmp_path / "still_ambiguous.pdf",
+        style="ambiguous",
+        hanging=False,
+        gap=14,
+    )
+    assert _p064_findings(path) == []
+    path = _os009_pdf(tmp_path / "still_two_column.pdf", gap=14)
+    # Two-column rows on a single page remain a compliance abstention.
+    doc = _new_doc_with_chapter(8)
+    _insert_heading(doc, 6, "References")
+    for row_y in range(140, 420, 42):
+        for x in (72, 360):
+            doc[6].insert_text((x, row_y), "Synthetic entry placeholder", fontsize=10)
+            doc[6].insert_text((x + 18, row_y + 12), "continued placeholder", fontsize=10)
+    destination = tmp_path / "columns_only.pdf"
+    doc.save(destination)
+    doc.close()
+    assert _p064_findings(destination) == []
+
+
+def test_os009_compliance_explanations_are_issue_specific(tmp_path: Path) -> None:
+    from njit_auditor.finding_explanations import build_detailed_explanation
+    from njit_auditor.issue_type_explanations import (
+        explain_issue_type,
+        humanize_issue_type,
+    )
+    from njit_auditor.models import AuditFinding, Severity
+    from njit_auditor.polished_comments import (
+        build_polished_comment,
+        resolve_suggested_fix_for_display,
+    )
+    from njit_auditor.report_outputs import (
+        audit_findings_to_json_dict,
+        write_json_report,
+        write_markdown_report,
+    )
+    from njit_auditor.report_view import build_report_view
+
+    cases = {
+        "references_entry_not_single_spaced": (
+            "single spacing within",
+            "double spacing between",
+            "manual",
+        ),
+        "references_inter_entry_spacing_too_tight": (
+            "double spacing between",
+            "single-spaced",
+            "manual",
+        ),
+    }
+    findings: list[AuditFinding] = []
+    for issue_type, needles in cases.items():
+        details = {
+            "issue_type": issue_type,
+            "page_number": "7",
+            "suggested_fix": (
+                "Use single spacing within each reference and double spacing "
+                "between consecutive references. Keep the citation style agreed "
+                "with your advisor."
+            ),
+            "boundary_evidence": "sequential_numeric_labels",
+            "confidence": "medium",
+        }
+        finding = AuditFinding(
+            rule_id="P064",
+            severity=Severity.WARNING,
+            page=7,
+            message="Synthetic spacing compliance finding for explanation coverage.",
+            details=details,
+        )
+        detailed = build_detailed_explanation(
+            rule_id="P064",
+            issue_type=issue_type,
+            details=details,
+            page=7,
+            has_highlight=False,
+        )
+        issue_text = explain_issue_type("P064", issue_type) or ""
+        comment = build_polished_comment(
+            rule_id="P064",
+            issue_type=issue_type,
+            page=7,
+            details=details,
+        )
+        fix = resolve_suggested_fix_for_display(
+            "P064",
+            issue_type,
+            existing=details["suggested_fix"],
+        )
+        assert "structural issue" not in detailed.lower()
+        label = humanize_issue_type(issue_type).lower()
+        assert "single-spaced" in label or "inter-entry" in label
+        for needle in needles:
+            assert needle.lower() in detailed.lower()
+        assert "single spacing" in issue_text.lower() or "double spacing" in issue_text.lower()
+        assert "page 7" in comment.lower()
+        assert "single spacing within" in fix.lower()
+        assert "double spacing between" in fix.lower()
+        findings.append(finding)
+
+    metadata = {"audit_type": "pdf", "input_file_name": "synthetic-references.pdf"}
+    payload = audit_findings_to_json_dict(findings, metadata)
+    view = build_report_view(payload)
+    explanations = " ".join(
+        f"{item.detailed_explanation} {item.issue_type_explanation} {item.polished_comment}"
+        for item in view.findings
+    ).lower()
+    assert "single spacing" in explanations
+    assert "double spacing" in explanations
+    assert "structural issue" not in explanations
+
+    json_path = tmp_path / "p064_explanations.json"
+    md_path = tmp_path / "p064_explanations.md"
+    write_json_report(findings, metadata, json_path)
+    write_markdown_report(findings, metadata, md_path)
+    markdown = md_path.read_text(encoding="utf-8").lower()
+    assert "single spacing" in markdown or "references" in markdown
+    assert json_path.exists()

@@ -1012,7 +1012,8 @@ def check_pdf_references_citations_structural(
       D. references_entry_not_single_spaced — supported double-like internal gaps.
       E. references_inter_entry_spacing_too_tight — supported single-like separators.
 
-    Returns an empty list when skip conditions apply.
+    Returns an empty list when no supported finding applies. Later B/C abstentions
+    preserve independently established D/E compliance findings.
     Privacy: no reference entry text, author names, or citation content in findings.
     """
     if not pdf_doc.pages:
@@ -1046,23 +1047,30 @@ def check_pdf_references_citations_structural(
 
     section_page_count = len(section_pages)
 
+    # Page-local spacing compliance (D/E) is established independently of the
+    # section-wide indent/spacing-consistency gates below. When those later
+    # gates abstain, preserve any compliance findings already supported by
+    # reliable anchored-entry evidence.
     findings = _check_spacing_pattern(section_pages, heading_page, heading_kw)
 
     # --- Collect and group entry candidates ---
     lines = _collect_lines_from_section(section_pages, heading_page, heading_kw)
 
     if not lines:
-        # No text-layer content — image-only or flattened pages.
-        return []
+        # No usable text-layer lines for indent/spacing consistency (B/C).
+        # Keep independently established compliance findings when present.
+        return findings
 
     # P071: cluster-based x-variance skip (annotation outliers); entry checks use all lines.
     x_var = _compute_x_variance(lines)
     if x_var > _HIGH_X_VARIANCE_THRESHOLD_PT:
-        return []
+        # Section-wide geometry is too noisy for B/C; do not discard D/E.
+        return findings
 
-    # Skip: multi-column layout detected.
+    # Skip B/C when multi-column layout is detected across collected lines.
+    # Per-page compliance already abstains on multicolumn pages internally.
     if _detect_multicolumn(lines):
-        return []
+        return findings
 
     line_pages = {
         id(line): page.page_number
@@ -1073,7 +1081,7 @@ def check_pdf_references_citations_structural(
     entries = _group_entries(lines, line_pages)
     entry_count = len(entries)
 
-    # Skip: too few entries to be meaningful.
+    # Skip: too few entries to be meaningful for B/C.
     if entry_count < _MIN_ENTRIES_FOR_SECTION_NONEMPTY:
         return findings
 
