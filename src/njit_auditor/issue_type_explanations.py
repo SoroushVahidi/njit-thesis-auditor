@@ -802,6 +802,16 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P064", "references_entry_spacing_inconsistent"): (
         "This means spacing between reference entries appears inconsistent."
     ),
+    ("P064", "references_entry_not_single_spaced"): (
+        "Measured gaps between lines within reference entries are consistent "
+        "with double spacing. Reviewer guidance specifies single spacing "
+        "within each reference."
+    ),
+    ("P064", "references_inter_entry_spacing_too_tight"): (
+        "Measured gaps between consecutive reference entries are close to the "
+        "single-line pitch measured within those entries. Reviewer guidance "
+        "specifies double spacing between references."
+    ),
     ("P068", "approval_page_advisor_role_label_missing"): (
         "This means the Approval Page may be missing a recognizable advisor or "
         "committee role label such as 'Dissertation Advisor' or 'Major Professor'. "

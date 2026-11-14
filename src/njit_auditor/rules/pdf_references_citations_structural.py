@@ -26,8 +26,15 @@ Guideline basis:
   - Q028/Q029 analogy: Bio Sketch entries use hanging indent and inter-entry
     spacing — applied conservatively to the main References section.
 
-No direct Q-rule addresses the references section; checks A/B/C are justified
-via the guideline text and the Q028/Q029 Bio Sketch analogy.
+OS-009 adds page-local spacing compliance checks with entry boundaries anchored
+by sequential labels or repeated hanging indentation, independently of gaps.
+The November 9, 2026 reviewer feedback specifies single spacing within each
+reference and double spacing between references. Guidelines para 139 retain
+advisor/discipline citation-style choice; no exact point-pitch standard is stated.
+Only clear single-like separators calibrated by measured internal wraps and
+clear double-like internal gaps with reliable font evidence are reported.
+Ambiguous boundaries, page-crossing gaps and intermediate pitches abstain.
+Existing indentation and irregularity thresholds remain unchanged.
 
 P064 does NOT check:
   - Citation style compliance (APA, IEEE, ACM, MLA, Chicago) — advisor-dependent.
@@ -42,7 +49,7 @@ citation text, author names, article or book titles, DOI strings, URL strings,
 label/ref keys, or any other dissertation content appears in any finding field.
 
 Conservative skip conditions:
-  - No body pages detected.
+  - No body anchor in a short document; long documents use a unique heading fallback.
   - No recognized references heading AND document has fewer than 5 body pages.
   - Fewer than 3 multi-line entry candidates → skip check B.
   - Fewer than 5 entry candidates → skip checks B and C.
@@ -59,7 +66,7 @@ import re
 import statistics
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -224,6 +231,19 @@ def _is_references_heading(line: PdfTextLine) -> str | None:
       "3.1 References" — avoid matching numbered subsection headings in body).
     """
     raw = line.text
+    # Some Word PDFs retain a small numeric field beside the visible bold
+    # heading. Recover only a separate, smaller span touching that heading;
+    # never strip a same-size chapter/subsection number from arbitrary text.
+    spans = [span for span in line.spans if span.text.strip()]
+    if len(spans) >= 2 and spans[0].text.strip().isdigit():
+        prefix, rest = spans[0], spans[1:]
+        if (
+            prefix.size
+            and all(s.size and s.size >= prefix.size * 1.4 for s in rest)
+            and all(s.bold for s in rest)
+            and -2 <= rest[0].bbox.x0 - prefix.bbox.x1 <= 2
+        ):
+            raw = "".join(s.text for s in rest)
     if _TOC_LEADER_RE.search(raw):
         return None
     clean = _normalized_heading(raw)
@@ -236,11 +256,66 @@ def _is_references_heading(line: PdfTextLine) -> str | None:
     if clean.startswith("[") or clean.startswith("("):
         return None
     for keyword in _HEADING_KEYWORDS:
-        if clean == keyword:
+        # Letter-spaced and span-fragmented headings retain the same identity.
+        if _collapsed_heading_text(clean).removesuffix(":") == _collapsed_heading_text(keyword):
             return keyword
-        # Allow trailing colon: "REFERENCES:" accepted.
-        if clean == keyword + ":":
-            return keyword
+    return None
+
+
+def _line_y(line: PdfTextLine) -> float:
+    return line.baseline_y if line.baseline_y is not None else line.bbox.y0
+
+
+def _join_row(lines: list[PdfTextLine]) -> PdfTextLine | None:
+    """Join disjoint fragments on one baseline; overlapping extraction abstains."""
+    ordered = sorted(lines, key=lambda line: line.bbox.x0)
+    if any(a.bbox.x1 > b.bbox.x0 + 2 for a, b in zip(ordered, ordered[1:])):
+        return None
+    for a, b in zip(ordered, ordered[1:]):
+        size = max((span.size or 0 for row in (a, b) for span in row.spans), default=0)
+        if (
+            any(c.isalpha() for c in a.text)
+            and any(c.isalpha() for c in b.text)
+            and b.bbox.x0 - a.bbox.x1 > 3 * size
+        ):
+            # Distant text columns are not fragments of one reference row.
+            return None
+    first = ordered[0]
+    return first.model_copy(
+        update={
+            "text": " ".join(line.text for line in ordered),
+            "spans": [span for line in ordered for span in line.spans],
+            "bbox": BBox(
+                x0=first.bbox.x0,
+                y0=min(line.bbox.y0 for line in ordered),
+                x1=max(line.bbox.x1 for line in ordered),
+                y1=max(line.bbox.y1 for line in ordered),
+            ),
+        }
+    )
+
+
+def _page_heading(page: PdfPage) -> tuple[PdfTextLine, str] | None:
+    lines = [line for block in page.text_blocks for line in block.lines if line.text.strip()]
+    if any(
+        _collapsed_heading_text(line.text).startswith("TABLEOFCONTENTS")
+        for line in lines
+        if _is_tail_heading_line(line, page)
+    ):
+        return None
+    for line in lines:
+        if not _is_tail_heading_line(line, page):
+            continue
+        peers = [other for other in lines if abs(_line_y(other) - _line_y(line)) <= 2]
+        row = _join_row(peers)
+        if row is None:
+            continue
+        keyword = _is_references_heading(row)
+        if keyword is not None:
+            size = max((s.size or 0 for s in row.spans), default=0)
+            if any(2 < abs(_line_y(other) - _line_y(row)) < size * 1.5 for other in lines):
+                continue
+            return row, keyword
     return None
 
 
@@ -251,11 +326,9 @@ def _find_references_heading_forward(
     for page in pdf_doc.pages:
         if page.page_number < body_start:
             continue
-        for block in page.text_blocks:
-            for line in block.lines:
-                kw = _is_references_heading(line)
-                if kw is not None:
-                    return page.page_number, kw
+        heading = _page_heading(page)
+        if heading is not None:
+            return page.page_number, heading[1]
     return None
 
 
@@ -270,14 +343,9 @@ def _find_references_heading_tail(pdf_doc: PdfDocument) -> tuple[int, str] | Non
     for page in pdf_doc.pages:
         if page.page_number < tail_start:
             continue
-        for block in page.text_blocks:
-            for line in block.lines:
-                if not _is_tail_heading_line(line, page):
-                    continue
-                kw = _is_references_heading(line)
-                if kw is not None:
-                    matches.append((page.page_number, kw))
-                    break
+        heading = _page_heading(page)
+        if heading is not None:
+            matches.append((page.page_number, heading[1]))
 
     if len(matches) != 1:
         return None
@@ -288,13 +356,21 @@ def _localize_references_heading(
     pdf_doc: PdfDocument,
     body_start: int | None,
 ) -> tuple[int, str] | None:
-    """P071: forward scan from body_start, then conservative tail fallback."""
+    """Scan all body pages, or require a unique document-wide heading without a body anchor."""
     if body_start is not None:
         forward = _find_references_heading_forward(pdf_doc, body_start)
         if forward is not None:
             return forward
+        return _find_references_heading_tail(pdf_doc)
 
-    return _find_references_heading_tail(pdf_doc)
+    if len(pdf_doc.pages) < _TAIL_SCAN_MIN_DOC_PAGES:
+        return None
+    matches = [
+        (page.page_number, heading[1])
+        for page in pdf_doc.pages
+        if (heading := _page_heading(page)) is not None
+    ]
+    return matches[0] if len(matches) == 1 else None
 
 
 def _count_body_pages(pdf_doc: PdfDocument, body_start: int) -> int:
@@ -327,7 +403,16 @@ def _collect_references_section_pages(
             for block in page.text_blocks:
                 for line in block.lines:
                     clean = " ".join(line.text.strip().split())
-                    if _matches_chapter_appendix_heading(clean):
+                    if (
+                        _matches_chapter_appendix_heading(clean)
+                        and _is_standalone_body_heading_line(line, page)
+                        and not _TOC_LEADER_RE.search(clean)
+                        and (
+                            clean == clean.upper()
+                            or clean.split()[0] in {"CHAPTER", "APPENDIX"}
+                            or all(span.bold for span in line.spans if span.text.strip())
+                        )
+                    ):
                         # New chapter/appendix starts — end references section.
                         return section_pages
 
@@ -381,7 +466,10 @@ def _collect_lines_from_section(
     return all_lines
 
 
-def _group_entries(lines: list[PdfTextLine]) -> list[list[PdfTextLine]]:
+def _group_entries(
+    lines: list[PdfTextLine],
+    line_pages: dict[int, int] | None = None,
+) -> list[list[PdfTextLine]]:
     """Group lines into entry candidates using line-pitch (y0-to-y0) heuristic.
 
     Lines whose y0 baseline is within _INTRA_ENTRY_Y0_GAP_PT of the previous
@@ -398,7 +486,8 @@ def _group_entries(lines: list[PdfTextLine]) -> list[list[PdfTextLine]]:
     for line in lines[1:]:
         prev_y0 = groups[-1][-1].bbox.y0
         y0_gap = line.bbox.y0 - prev_y0
-        if y0_gap <= _INTRA_ENTRY_Y0_GAP_PT:
+        same_page = line_pages is None or line_pages[id(line)] == line_pages[id(groups[-1][-1])]
+        if same_page and y0_gap <= _INTRA_ENTRY_Y0_GAP_PT:
             groups[-1].append(line)
         else:
             groups.append([line])
@@ -459,7 +548,7 @@ def _detect_multicolumn(lines: list[PdfTextLine]) -> bool:
 
 def _check_heading(
     pdf_doc: PdfDocument,
-    body_start: int,
+    body_start: int | None,
     body_page_count: int,
 ) -> tuple[AuditFinding | None, int | None, str | None]:
     """Run heading check.  Returns (finding_or_None, heading_page_or_None, heading_kw_or_None).
@@ -480,10 +569,13 @@ def _check_heading(
         return None, None, None
 
     # Long document with no recognized heading — emit finding.
+    absence_page = (
+        body_start if body_start is not None else _tail_scan_start_page(len(pdf_doc.pages))
+    )
     finding = AuditFinding(
         rule_id=_RULE_ID,
         severity=Severity.WARNING,
-        page=body_start,
+        page=absence_page,
         message=(
             "No references section heading (REFERENCES, BIBLIOGRAPHY, WORKS CITED, or "
             "LITERATURE CITED) was detected in the body pages of this document. "
@@ -491,7 +583,7 @@ def _check_heading(
         ),
         details={
             "issue_type": "references_section_heading_not_detected",
-            "body_start_page": str(body_start),
+            "body_start_page": str(absence_page),
             "body_page_count": str(body_page_count),
             "heading_type": "None",
             "confidence": "medium",
@@ -558,9 +650,7 @@ def _check_indentation(
         return None
 
     # Count affected entries: those whose delta differs significantly from median.
-    affected = sum(
-        1 for d in deltas if abs(d - median_delta) >= _HANGING_INDENT_THRESHOLD_PT
-    )
+    affected = sum(1 for d in deltas if abs(d - median_delta) >= _HANGING_INDENT_THRESHOLD_PT)
 
     median_first_x = statistics.median(first_xs) if first_xs else 0.0
     median_cont_x = statistics.median(cont_xs) if cont_xs else 0.0
@@ -604,6 +694,7 @@ def _check_spacing(
     heading_page: int,
     section_page_count: int,
     heading_kw: str,
+    line_pages: dict[int, int] | None = None,
 ) -> AuditFinding | None:
     """Check whether inter-entry vertical gaps are consistent.
 
@@ -618,6 +709,11 @@ def _check_spacing(
     # bboxes and is robust across PDF extraction variations.
     gaps: list[float] = []
     for i in range(len(entries) - 1):
+        if (
+            line_pages is not None
+            and line_pages[id(entries[i][-1])] != line_pages[id(entries[i + 1][0])]
+        ):
+            continue
         last_line_y0 = entries[i][-1].bbox.y0
         next_first_y0 = entries[i + 1][0].bbox.y0
         gap = next_first_y0 - last_line_y0
@@ -671,6 +767,234 @@ def _check_spacing(
     return finding
 
 
+# OS-009 compliance checks use boundaries independent of vertical spacing.
+# The reviewer specifies single-within/double-between; these evidence bands
+# deliberately report only clear single-like separators / double-like wraps.
+# They are not an NJIT point-size standard or a change to P023/R036 thresholds.
+_NUMBERED_ENTRY_RE = re.compile(r"^\s*(?:\[(\d+)\]|\((\d+)\)|(\d+)\.)\s+\S")
+_SINGLE_PITCH_FONT_MIN = 0.9
+_SINGLE_PITCH_FONT_MAX = 1.35
+_DOUBLE_PITCH_FONT_MIN = 1.8
+_DOUBLE_PITCH_FONT_MAX = 2.6
+
+
+def _reference_rows(page: PdfPage, heading_page: int) -> list[PdfTextLine]:
+    heading = _page_heading(page)
+    if page.page_number == heading_page and heading is None:
+        return []
+    lower = heading[0].bbox.y1 if heading is not None else page.height * 0.08
+    # Keep short continuation lines and detached numeric labels. Discard only
+    # empty text and the page's header/footer region, never by paragraph length.
+    lines = sorted(
+        [
+            line
+            for block in page.text_blocks
+            for line in block.lines
+            if line.text.strip() and lower < line.bbox.y0 < page.height * 0.92
+        ],
+        key=lambda line: (_line_y(line), line.bbox.x0),
+    )
+    rows: list[list[PdfTextLine]] = []
+    for line in lines:
+        if rows and abs(_line_y(line) - _line_y(rows[-1][0])) <= 2:
+            rows[-1].append(line)
+        else:
+            rows.append([line])
+    merged = [_join_row(row) for row in rows]
+    if any(row is None for row in merged):
+        return []
+    return [row for row in merged if row is not None]
+
+
+def _anchored_entries(rows: list[PdfTextLine]) -> tuple[list[list[PdfTextLine]], str]:
+    """Recognize sequential labels or repeated hanging indents, never by gap.
+
+    Page-leading unanchored text may continue an entry from the previous page;
+    it is excluded. No measured pair crosses a physical page boundary.
+    """
+    markers = [
+        (i, match)
+        for i, row in enumerate(rows)
+        if (match := _NUMBERED_ENTRY_RE.match(row.text)) is not None
+    ]
+    starts: list[int]
+    if markers:
+        label_x = min(rows[i].bbox.x0 for i, _ in markers)
+        # A year or numeric identifier on an indented wrapped line is not a
+        # new entry. Only the leftmost label column may establish boundaries.
+        if any(2 < rows[i].bbox.x0 - label_x < _HANGING_INDENT_THRESHOLD_PT for i, _ in markers):
+            return [], ""
+        markers = [(i, match) for i, match in markers if rows[i].bbox.x0 <= label_x + 2]
+        if len(markers) < _MIN_ENTRIES_FOR_SPACING_CHECK:
+            return [], ""
+        numbers = [int(next(value for value in match.groups() if value)) for _, match in markers]
+        if any(b != a + 1 for a, b in zip(numbers, numbers[1:])):
+            return [], ""
+        starts = [i for i, _ in markers]
+        xs = [rows[i].bbox.x0 for i in starts]
+        if max(xs) - min(xs) > 2:
+            return [], ""
+        mode = "sequential_numeric_labels"
+    else:
+        # Citation text is deliberately not parsed as author/year syntax.
+        # Require two tight indentation bands, recurring complete multiline
+        # entries, and no other left margins before using unnumbered geometry.
+        clusters = _cluster_lines_by_x0(rows)
+        if len(clusters) != 2:
+            return [], ""
+        left, right = clusters
+        if any(
+            max(r.bbox.x0 for r in band) - min(r.bbox.x0 for r in band) > 2 for band in clusters
+        ):
+            return [], ""
+        delta = right[0].bbox.x0 - left[0].bbox.x0
+        if not _HANGING_INDENT_THRESHOLD_PT <= delta <= _HIGH_X_VARIANCE_THRESHOLD_PT:
+            return [], ""
+        starts = [i for i, row in enumerate(rows) if abs(row.bbox.x0 - left[0].bbox.x0) <= 2]
+        mode = "repeated_hanging_indent"
+    if len(starts) < _MIN_ENTRIES_FOR_SPACING_CHECK:
+        return [], ""
+    entries = [rows[start:end] for start, end in zip(starts, starts[1:] + [len(rows)])]
+    if any(not _is_usable_entry_line(entry[0]) for entry in entries):
+        return [], ""
+    if mode == "repeated_hanging_indent" and any(len(entry) < 2 for entry in entries):
+        return [], ""
+    # A numbered wrapped line cannot precede its own label column.
+    if any(line.bbox.x0 < entry[0].bbox.x0 - 2 for entry in entries for line in entry[1:]):
+        return [], ""
+    return entries, mode
+
+
+def _row_font_size(line: PdfTextLine) -> float | None:
+    sizes = [
+        span.size
+        for span in line.spans
+        if span.size and any(character.isalpha() for character in span.text)
+    ]
+    if not sizes:
+        # Short numeric/URL continuations still need measured font metadata.
+        sizes = [span.size for span in line.spans if span.size and span.text.strip()]
+    return statistics.median(sizes) if sizes else None
+
+
+def _measured_pair(a: PdfTextLine, b: PdfTextLine) -> tuple[float, float] | None:
+    a_size, b_size = _row_font_size(a), _row_font_size(b)
+    if not a_size or not b_size or max(a_size, b_size) / min(a_size, b_size) > 1.1:
+        return None
+    size = (a_size + b_size) / 2
+    if any(line.bbox.height > 1.6 * size for line in (a, b)):
+        return None
+    # Use actual baselines when both are measured; otherwise compare like y0s.
+    pitch = (
+        b.baseline_y - a.baseline_y
+        if a.baseline_y is not None and b.baseline_y is not None
+        else b.bbox.y0 - a.bbox.y0
+    )
+    if pitch <= 2:
+        return None
+    return pitch, size
+
+
+def _check_spacing_pattern(
+    section_pages: list[PdfPage], heading_page: int, heading_kw: str
+) -> list[AuditFinding]:
+    findings: list[AuditFinding] = []
+    for page in section_pages:
+        rows = _reference_rows(page, heading_page)
+        if _detect_multicolumn(rows):
+            continue
+        entries, mode = _anchored_entries(rows)
+        if not entries:
+            continue
+        internal = [
+            pair
+            for entry in entries
+            for a, b in zip(entry, entry[1:])
+            if (pair := _measured_pair(a, b)) is not None
+        ]
+        if len(internal) < _MIN_MULTILINE_FOR_INDENT_CHECK:
+            continue
+        single = [
+            pitch
+            for pitch, size in internal
+            if _SINGLE_PITCH_FONT_MIN <= pitch / size <= _SINGLE_PITCH_FONT_MAX
+        ]
+        large = [
+            pitch
+            for pitch, size in internal
+            if _DOUBLE_PITCH_FONT_MIN <= pitch / size <= _DOUBLE_PITCH_FONT_MAX
+        ]
+        common = {
+            "page_number": str(page.page_number),
+            "references_start_page": str(heading_page),
+            "entry_candidate_count": str(len(entries)),
+            "boundary_evidence": mode,
+            "heading_type": _HEADING_TYPE_MAP[heading_kw],
+            "confidence": "medium",
+            "triage_tier": "medium",
+            "source_q_rule_basis": "References spacing reviewer guidance 2026-11-09; "
+            "Formatting Guidelines para 139 (citation-style flexibility)",
+            "suggested_fix": "Use single spacing within each reference and double spacing "
+            "between consecutive references. Keep the citation style agreed "
+            "with your advisor.",
+        }
+        if len(large) >= 2:
+            findings.append(
+                AuditFinding(
+                    rule_id=_RULE_ID,
+                    severity=Severity.WARNING,
+                    page=page.page_number,
+                    message="Reference entries contain line gaps consistent with double spacing. "
+                    "Use single spacing within each reference and double spacing "
+                    "between entries.",
+                    details={
+                        **common,
+                        "issue_type": "references_entry_not_single_spaced",
+                        "affected_gap_count": str(len(large)),
+                        "median_internal_pitch_pt": f"{statistics.median(large):.1f}",
+                    },
+                )
+            )
+        if len(single) < _MIN_MULTILINE_FOR_INDENT_CHECK:
+            continue
+        single_pitch = statistics.median(single)
+        # Local wrap evidence must itself be coherent; never calibrate from
+        # uniformly double-spaced wraps or blend incompatible font populations.
+        if max(single) - min(single) > single_pitch * 0.15:
+            continue
+        between = [
+            pair
+            for a, b in zip(entries, entries[1:])
+            if (pair := _measured_pair(a[-1], b[0])) is not None
+        ]
+        tight = [
+            pitch
+            for pitch, size in between
+            if _SINGLE_PITCH_FONT_MIN <= pitch / size <= _SINGLE_PITCH_FONT_MAX
+            and pitch <= single_pitch * 1.25
+        ]
+        if len(tight) >= 3:
+            findings.append(
+                AuditFinding(
+                    rule_id=_RULE_ID,
+                    severity=Severity.WARNING,
+                    page=page.page_number,
+                    message="Consecutive reference entries have gaps close to the measured "
+                    "single-line spacing within entries. Use double spacing between references "
+                    "while keeping each reference single-spaced internally.",
+                    details={
+                        **common,
+                        "issue_type": "references_inter_entry_spacing_too_tight",
+                        "affected_gap_count": str(len(tight)),
+                        "measured_inter_entry_gap_count": str(len(between)),
+                        "single_line_pitch_pt": f"{single_pitch:.1f}",
+                        "median_inter_entry_pitch_pt": f"{statistics.median(tight):.1f}",
+                    },
+                )
+            )
+    return findings
+
+
 # ---------------------------------------------------------------------------
 # Public function
 # ---------------------------------------------------------------------------
@@ -681,10 +1005,12 @@ def check_pdf_references_citations_structural(
 ) -> list[AuditFinding]:
     """Emit P064 warnings for references/citations structural issues.
 
-    Three conservative checks:
+    Structural checks plus page-local spacing compliance:
       A. references_section_heading_not_detected — heading absent in long doc.
       B. references_entry_indentation_inconsistent — mixed indent pattern.
       C. references_entry_spacing_inconsistent — irregular inter-entry gaps.
+      D. references_entry_not_single_spaced — supported double-like internal gaps.
+      E. references_inter_entry_spacing_too_tight — supported single-like separators.
 
     Returns an empty list when skip conditions apply.
     Privacy: no reference entry text, author names, or citation content in findings.
@@ -696,24 +1022,20 @@ def check_pdf_references_citations_structural(
     body_start = _find_body_start_page(pdf_doc)
     if body_start is not None:
         body_page_count = _count_body_pages(pdf_doc, body_start)
-        effective_body_start = body_start
     elif page_count >= _TAIL_SCAN_MIN_DOC_PAGES:
         tail_start = _tail_scan_start_page(page_count)
         body_page_count = page_count - tail_start + 1
-        effective_body_start = tail_start
     else:
         return []
 
     # --- Check A: Heading detection (P071 localization wired in _check_heading) ---
-    heading_finding, heading_page, heading_kw = _check_heading(
-        pdf_doc, effective_body_start, body_page_count
-    )
+    heading_finding, heading_page, heading_kw = _check_heading(pdf_doc, body_start, body_page_count)
 
     if heading_finding is not None:
         # Heading not found, document long enough to warrant a finding.
         return [heading_finding]
 
-    if heading_page is None:
+    if heading_page is None or heading_kw is None:
         # No heading found but document too short to require one — skip silently.
         return []
 
@@ -724,8 +1046,10 @@ def check_pdf_references_citations_structural(
 
     section_page_count = len(section_pages)
 
+    findings = _check_spacing_pattern(section_pages, heading_page, heading_kw)
+
     # --- Collect and group entry candidates ---
-    lines = _collect_lines_from_section(section_pages, heading_page, heading_kw)  # type: ignore[arg-type]
+    lines = _collect_lines_from_section(section_pages, heading_page, heading_kw)
 
     if not lines:
         # No text-layer content — image-only or flattened pages.
@@ -740,25 +1064,36 @@ def check_pdf_references_citations_structural(
     if _detect_multicolumn(lines):
         return []
 
-    entries = _group_entries(lines)
+    line_pages = {
+        id(line): page.page_number
+        for page in section_pages
+        for block in page.text_blocks
+        for line in block.lines
+    }
+    entries = _group_entries(lines, line_pages)
     entry_count = len(entries)
 
     # Skip: too few entries to be meaningful.
     if entry_count < _MIN_ENTRIES_FOR_SECTION_NONEMPTY:
-        return []
-
-    findings: list[AuditFinding] = []
+        return findings
 
     # --- Check B: Indentation consistency ---
     indent_finding = _check_indentation(
-        entries, heading_page, section_page_count, heading_kw  # type: ignore[arg-type]
+        entries,
+        heading_page,
+        section_page_count,
+        heading_kw,
     )
     if indent_finding is not None:
         findings.append(indent_finding)
 
     # --- Check C: Spacing consistency ---
     spacing_finding = _check_spacing(
-        entries, heading_page, section_page_count, heading_kw  # type: ignore[arg-type]
+        entries,
+        heading_page,
+        section_page_count,
+        heading_kw,
+        line_pages,
     )
     if spacing_finding is not None:
         findings.append(spacing_finding)

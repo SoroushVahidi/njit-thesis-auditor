@@ -1199,23 +1199,25 @@
   {
     "id": "P064",
     "title": "References/citations structural check",
-    "description": "Emits warnings for structural issues in the references/bibliography section: (A) references_section_heading_not_detected — no REFERENCES, BIBLIOGRAPHY, WORKS CITED, or LITERATURE CITED heading found in body pages of a document with >=5 body pages; (B) references_entry_indentation_inconsistent — multi-line reference entries show mixed hanging-indent patterns (stdev of indent deltas > threshold); (C) references_entry_spacing_inconsistent — inter-entry vertical gaps are highly irregular (>=20% outliers differing >2x median AND absolute range >15 pt). Does not check citation style compliance (APA/IEEE/etc.) — advisor-dependent. Privacy-safe: no reference entry text, author names, DOIs, or URLs in findings.",
+    "description": "Emits warnings for structural issues in the references/bibliography section: (A) references_section_heading_not_detected — no REFERENCES, BIBLIOGRAPHY, WORKS CITED, or LITERATURE CITED heading found in body pages of a document with >=5 body pages; (B) references_entry_indentation_inconsistent — multi-line reference entries show mixed hanging-indent patterns (stdev of indent deltas > threshold); (C) references_entry_spacing_inconsistent — inter-entry vertical gaps are highly irregular (>=20% outliers differing >2x median AND absolute range >15 pt). OS-009 additionally checks single spacing within reliably anchored entries and double spacing between entries using page-local wrap/font geometry, per reviewer feedback dated 2026-11-09. Does not check citation style compliance (APA/IEEE/etc.) — advisor-dependent. Privacy-safe: no reference entry text, author names, DOIs, or URLs in findings.",
     "phase": "pdf_layout",
     "source_q_rule_ids": [],
-    "source_q_rule_basis": "Q028/Q029 analogy (Bio Sketch); Self-Assessment Sheet p.4; Formatting Guidelines para 138; Front Matter Lorem Ipsum p.9",
+    "source_q_rule_basis": "Q028/Q029 analogy (Bio Sketch); Self-Assessment Sheet p.4; Formatting Guidelines para 138; Front Matter Lorem Ipsum p.9; references spacing reviewer guidance 2026-11-09",
     "implementation_status": "implemented",
     "implementation_module": "njit_auditor.rules.pdf_references_citations_structural",
     "triage_tier": "medium",
     "issue_types": [
       "references_section_heading_not_detected",
       "references_entry_indentation_inconsistent",
-      "references_entry_spacing_inconsistent"
+      "references_entry_spacing_inconsistent",
+      "references_entry_not_single_spaced",
+      "references_inter_entry_spacing_too_tight"
     ],
     "scope_doc": "docs/planning/p064_references_citations_structural_check_scope_and_design.md",
     "section": "PDF Layout — References/Bibliography",
     "question": "Does the document have a recognized references section heading and are reference entries consistently formatted (indentation and spacing)?",
-    "rule_definition": "The document must include a REFERENCES, BIBLIOGRAPHY, WORKS CITED, or LITERATURE CITED heading in the body pages (for documents >= 5 body pages). Within the references section, multi-line entries should exhibit a consistent hanging-indent pattern and entries should have consistent inter-entry vertical spacing. Only structural geometry is checked; citation style (APA/IEEE/etc.) is advisor-dependent and out of scope.",
-    "remediation": "Add a REFERENCES or BIBLIOGRAPHY section heading if missing. Review reference entries for consistent formatting: either all entries use a hanging indent or all use flush-left style; inter-entry spacing should be uniform throughout.",
+    "rule_definition": "The document must include a REFERENCES, BIBLIOGRAPHY, WORKS CITED, or LITERATURE CITED heading in the body pages (for documents >= 5 body pages). Within the references section, multi-line entries should exhibit a consistent hanging-indent pattern and entries should have consistent inter-entry vertical spacing. Reviewer guidance dated 2026-11-09 specifies single spacing within each reference and double spacing between consecutive references. Compliance checks require reliable sequential-label or hanging-indent boundaries and measured font/line-pitch evidence; ambiguous and cross-page pairs abstain. Only structural geometry is checked; citation style (APA/IEEE/etc.) is advisor-dependent and out of scope.",
+    "remediation": "Add a REFERENCES or BIBLIOGRAPHY section heading if missing. Review reference entries for consistent formatting: either all entries use a hanging indent or all use flush-left style; use single spacing within each reference and double spacing between references, preserving the citation style agreed with your advisor.",
     "severity": "warning",
     "source_file": "project_added",
     "checkability": "deterministic",
@@ -1223,7 +1225,7 @@
       "pdf"
     ],
     "priority": "medium",
-    "notes": "Conservative v1: geometry-only checks; no citation style enforcement. Skip conditions: no body region detected; document < 5 body pages (heading check); < 5 entry candidates (spacing check); < 3 multi-line entries (indent check); high x-variance > 50 pt (noisy geometry); multi-column layout detected; image-only or flattened pages. Limitation: uniform wrong formatting (all entries flush-left) not flagged — consistency-only metric cannot detect uniform noncompliance. IEEE-style numbered flush-left lists produce no false positives (all-flush-left skip). Guideline basis: Self-Assessment Sheet p.4 requires consistent formatting; Q028/Q029 analogy from Bio Sketch section applied to main References section."
+    "notes": "Conservative geometry-only checks; OS-009 adds small-span heading-artifact recovery, document-wide fallback, and spacing compliance for independently anchored entries. No exact point-pitch requirement is established by the guideline or feedback; intermediate spacing and unsupported boundaries abstain. Existing consistency thresholds remain unchanged; no citation style enforcement. Skip conditions: no body anchor in a short document; document < 5 body pages (heading check); < 5 entry candidates (spacing check); < 3 multi-line entries (indent check); high x-variance > 50 pt (noisy geometry); multi-column layout detected; image-only or flattened pages. Uniform flush-left indentation remains permitted. Spacing compliance abstains on ambiguous unnumbered flush-left entries, sparse pages, missing font evidence, intermediate pitches, and cross-page pairs. At least five anchored entries and three measured internal pairs per page are required; missing double spacing additionally needs coherent single-line wrap calibration. Guideline basis: Self-Assessment Sheet p.4 requires consistent formatting; Q028/Q029 analogy from Bio Sketch section applied to main References section."
   },
   {
     "id": "P065",

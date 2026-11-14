@@ -10,9 +10,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import fitz
+import pytest
 
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.rules.pdf_references_citations_structural import (
+    _find_body_start_page,
+    _localize_references_heading,
     check_pdf_references_citations_structural,
 )
 
@@ -705,9 +708,351 @@ def test_p064_heading_type_field_in_finding(tmp_path: Path) -> None:
 
     findings = _p064_findings(pdf_path)
     heading_findings = [
-        f for f in findings
+        f
+        for f in findings
         if f.details.get("issue_type") == "references_section_heading_not_detected"
     ]
     assert heading_findings
     for f in heading_findings:
         assert f.details.get("heading_type") == "None"
+
+
+# OS-009: synthetic extraction and geometric controls; no private source text.
+def _os009_pdf(
+    path: Path,
+    *,
+    gap: float = 28,
+    pitch: float = 14,
+    style: str = "detached",
+    hanging: bool = True,
+    pages: int = 1,
+    short_wrap: bool = False,
+    noisy: bool = False,
+) -> Path:
+    doc = _new_doc_with_chapter(7 + pages)
+    _insert_heading(doc, 6, "References")
+    number = 1
+    for page_index in range(6, 6 + pages):
+        y = 140.0
+        if page_index > 6:
+            # A previous entry's continuation is not a new reference.
+            doc[page_index].insert_text((108, 100), "continued placeholder from previous page")
+        for _ in range(6):
+            first = "Placeholder synthetic reference entry text"
+            x = 72.0
+            if style == "detached":
+                doc[page_index].insert_text((72, y), f"{number}.", fontsize=12)
+                x = 108
+            elif style == "bracketed":
+                first = f"[{number}] " + first
+            elif style == "parenthesized":
+                first = f"({number}) " + first
+            elif style == "dotted":
+                first = f"{number}. " + first
+            elif style == "ambiguous":
+                first = "ordinary unmarked placeholder text"
+            elif style == "noise":
+                first = f"[{number * 3}] " + first
+            doc[page_index].insert_text((x, y), first, fontsize=12)
+            cont_x = 108.0 if hanging else x
+            doc[page_index].insert_text(
+                (cont_x, y + pitch),
+                "17." if short_wrap else "wrapped continuation placeholder text",
+                fontsize=12,
+            )
+            if noisy:
+                doc[page_index].insert_text((cont_x + 5, y + pitch), "overlap noise", fontsize=12)
+            y += pitch + gap
+            number += 1
+        doc[page_index].insert_text((300, 750), str(page_index - 4), fontsize=12)
+    doc.save(path)
+    doc.close()
+    return path
+
+
+@pytest.mark.parametrize("page_count,heading_index", [(45, 34), (90, 64)])
+def test_os009_late_heading_small_numeric_extraction_prefix(
+    tmp_path: Path,
+    page_count: int,
+    heading_index: int,
+) -> None:
+    doc = _new_doc_with_chapter(page_count)
+    page = doc[heading_index]
+    # Invisible small text precedes the visible heading in the extracted line.
+    page.insert_text((220, 100), "11", fontsize=8, color=(1, 1, 1))
+    page.insert_text((229, 100), "REFERENCES", fontsize=12, fontname="hebo")
+    page.insert_text((300, 750), "29", fontsize=12)
+    path = tmp_path / "fragmented_heading.pdf"
+    doc.save(path)
+    doc.close()
+    model = load_pdf_layout(str(path))
+    assert _localize_references_heading(model, _find_body_start_page(model)) == (
+        heading_index + 1,
+        "REFERENCES",
+    )
+    assert not any(
+        f.details["issue_type"] == "references_section_heading_not_detected"
+        for f in _p064_findings(path)
+    )
+
+
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "References",
+        "references:",
+        "BIBLIOGRAPHY",
+        "Works Cited",
+        "Literature Cited",
+        "R E F E R E N C E S",
+    ],
+)
+def test_os009_heading_variants(tmp_path: Path, heading: str) -> None:
+    doc = _new_doc_with_chapter(9)
+    _insert_heading(doc, 8, heading)
+    path = tmp_path / "variant.pdf"
+    doc.save(path)
+    doc.close()
+    assert not _p064_findings(path)
+
+
+@pytest.mark.parametrize("kind", ["missing", "leader", "split_toc", "prose", "numbered"])
+def test_os009_heading_false_positive_controls(tmp_path: Path, kind: str) -> None:
+    doc = _new_doc_with_chapter(9)
+    page = doc[8]
+    if kind == "leader":
+        page.insert_text((72, 120), "REFERENCES ........ 200", fontsize=12)
+    elif kind == "split_toc":
+        page.insert_text((220, 80), "TABLE OF CONTENTS", fontsize=12)
+        page.insert_text((72, 120), "REFERENCES", fontsize=12)
+        page.insert_text((500, 120), "200", fontsize=12)
+    elif kind == "prose":
+        page.insert_text((72, 120), "See references for additional information.", fontsize=12)
+    elif kind == "numbered":
+        page.insert_text((72, 120), "3.1 References", fontsize=12)
+    path = tmp_path / "no_heading.pdf"
+    doc.save(path)
+    doc.close()
+    assert [f.details["issue_type"] for f in _p064_findings(path)] == [
+        "references_section_heading_not_detected",
+    ]
+
+
+@pytest.mark.parametrize("style", ["detached", "bracketed", "parenthesized", "dotted", "author"])
+@pytest.mark.parametrize("gap,expected", [(28, False), (14, True)])
+def test_os009_uniform_inter_entry_spacing(
+    tmp_path: Path, style: str, gap: float, expected: bool
+) -> None:
+    path = _os009_pdf(tmp_path / "spacing.pdf", style=style, gap=gap)
+    findings = _p064_findings(path)
+    tight = [
+        f for f in findings if f.details["issue_type"] == "references_inter_entry_spacing_too_tight"
+    ]
+    assert bool(tight) is expected
+    if expected:
+        assert tight[0].page == 7
+        assert int(tight[0].details["affected_gap_count"]) == 5
+    else:
+        assert findings == []
+
+
+@pytest.mark.parametrize("style", ["detached", "bracketed", "author"])
+def test_os009_double_spaced_inside_entries(tmp_path: Path, style: str) -> None:
+    path = _os009_pdf(tmp_path / "internal.pdf", style=style, pitch=28)
+    findings = _p064_findings(path)
+    assert [f.details["issue_type"] for f in findings] == [
+        "references_entry_not_single_spaced",
+    ]
+
+
+@pytest.mark.parametrize("style,hanging", [("bracketed", False), ("author", True)])
+def test_os009_wrapping_and_page_boundaries(tmp_path: Path, style: str, hanging: bool) -> None:
+    path = _os009_pdf(tmp_path / "crossing.pdf", style=style, hanging=hanging, pages=2)
+    assert _p064_findings(path) == []
+
+
+def test_os009_short_wrapped_line_retained(tmp_path: Path) -> None:
+    path = _os009_pdf(tmp_path / "short.pdf", gap=14, short_wrap=True)
+    findings = _p064_findings(path)
+    assert [f.details["issue_type"] for f in findings] == [
+        "references_inter_entry_spacing_too_tight",
+    ]
+
+
+@pytest.mark.parametrize(
+    "style,noisy", [("ambiguous", False), ("noise", False), ("bracketed", True)]
+)
+def test_os009_ambiguous_boundaries_abstain(tmp_path: Path, style: str, noisy: bool) -> None:
+    path = _os009_pdf(tmp_path / "ambiguous.pdf", style=style, hanging=False, gap=14, noisy=noisy)
+    assert _p064_findings(path) == []
+
+
+def test_os009_document_wide_without_body_anchor(tmp_path: Path) -> None:
+    doc = fitz.open()
+    for _ in range(90):
+        doc.new_page()
+    _insert_heading(doc, 45, "Bibliography")
+    path = tmp_path / "unanchored.pdf"
+    doc.save(path)
+    doc.close()
+    model = load_pdf_layout(str(path))
+    assert _localize_references_heading(model, None) == (46, "BIBLIOGRAPHY")
+    assert _p064_findings(path) == []
+
+
+def test_os009_wrapped_prose_word_is_not_heading(tmp_path: Path) -> None:
+    doc = _new_doc_with_chapter(9)
+    for y, text in [
+        (100, "ordinary placeholder prose with"),
+        (114, "references"),
+        (128, "continued ordinary placeholder prose"),
+    ]:
+        doc[8].insert_text((72, y), text, fontsize=12)
+    path = tmp_path / "wrapped_prose.pdf"
+    doc.save(path)
+    doc.close()
+    assert (
+        _p064_findings(path)[0].details["issue_type"] == "references_section_heading_not_detected"
+    )
+
+
+@pytest.mark.parametrize(
+    "text", ["2001. placeholder continuation text", "[8] placeholder continuation text"]
+)
+def test_os009_numeric_wrapped_text_is_not_entry(tmp_path: Path, text: str) -> None:
+    path = _os009_pdf(tmp_path / "numeric_wrap.pdf", gap=14)
+    model = load_pdf_layout(str(path))
+    for block in model.pages[6].text_blocks:
+        for line in block.lines:
+            if "wrapped continuation" in line.text:
+                line.text = text
+    findings = check_pdf_references_citations_structural(model)
+    assert [f.details["issue_type"] for f in findings] == [
+        "references_inter_entry_spacing_too_tight"
+    ]
+    assert findings[0].details["affected_gap_count"] == "5"
+
+
+@pytest.mark.parametrize("mutation", ["missing_font", "mixed_font", "intermediate_pitch"])
+def test_os009_weak_spacing_evidence_abstains(tmp_path: Path, mutation: str) -> None:
+    path = _os009_pdf(tmp_path / "weak.pdf", gap=20 if mutation == "intermediate_pitch" else 14)
+    model = load_pdf_layout(str(path))
+    if mutation != "intermediate_pitch":
+        for block in model.pages[6].text_blocks:
+            for line in block.lines:
+                for span in line.spans:
+                    if mutation == "missing_font":
+                        span.size = None
+                    elif "wrapped continuation" in line.text:
+                        span.size = 18
+    assert check_pdf_references_citations_structural(model) == []
+
+
+@pytest.mark.parametrize("boundary", ["APPENDIX A", "CHAPTER 9"])
+def test_os009_section_stops_before_next_major_heading(tmp_path: Path, boundary: str) -> None:
+    from njit_auditor.rules.pdf_references_citations_structural import (
+        references_section_page_numbers,
+    )
+
+    path = _os009_pdf(tmp_path / "boundary.pdf", pages=2, gap=14)
+    doc = fitz.open(path)
+    doc[7].insert_text((200, 70), boundary, fontsize=12)
+    destination = tmp_path / "bounded.pdf"
+    doc.save(destination)
+    doc.close()
+    model = load_pdf_layout(str(destination))
+    assert references_section_page_numbers(model) == frozenset({7})
+    assert [f.page for f in check_pdf_references_citations_structural(model)] == [7]
+
+
+def test_os009_no_legacy_cross_page_gap(tmp_path: Path) -> None:
+    from njit_auditor.rules.pdf_references_citations_structural import (
+        _check_spacing,
+        _group_entries,
+    )
+
+    path = _os009_pdf(tmp_path / "page_edges.pdf")
+    model = load_pdf_layout(str(path))
+    line = next(
+        row
+        for block in model.pages[6].text_blocks
+        for row in block.lines
+        if "wrapped continuation" in row.text
+    )
+    # Independent page coordinates can increase as well as decrease at a break.
+    lines = [line.model_copy(deep=True) for _ in range(5)]
+    for row, y in zip(lines, [100, 114, 128, 142, 600]):
+        row.bbox.y0 = y
+    owners = {id(row): i + 1 for i, row in enumerate(lines)}
+    entries = _group_entries(lines, owners)
+    assert len(entries) == 5
+    assert _check_spacing(entries, 1, 5, "REFERENCES", owners) is None
+
+
+def test_os009_new_findings_are_privacy_safe_and_actionable(tmp_path: Path) -> None:
+    from njit_auditor.polished_comments import resolve_suggested_fix_for_display
+
+    path = _os009_pdf(tmp_path / "safe.pdf", gap=14)
+    for finding in _p064_findings(path):
+        serialized = finding.model_dump_json().lower()
+        assert "placeholder" not in serialized
+        assert "wrapped continuation" not in serialized
+        fix = resolve_suggested_fix_for_display(
+            "P064",
+            finding.details["issue_type"],
+            existing=finding.details["suggested_fix"],
+        )
+        assert "single spacing within" in fix
+        assert "double spacing between" in fix
+
+
+def test_os009_two_column_rows_abstain(tmp_path: Path) -> None:
+    from njit_auditor.rules.pdf_references_citations_structural import _check_spacing_pattern
+
+    doc = _new_doc_with_chapter(8)
+    _insert_heading(doc, 6, "References")
+    for y in range(140, 420, 42):
+        for x in (72, 360):
+            doc[6].insert_text((x, y), "Synthetic entry placeholder", fontsize=10)
+            doc[6].insert_text((x + 18, y + 12), "continued placeholder", fontsize=10)
+    path = tmp_path / "columns.pdf"
+    doc.save(path)
+    doc.close()
+    model = load_pdf_layout(str(path))
+    assert _check_spacing_pattern([model.pages[6]], 7, "REFERENCES") == []
+
+
+@pytest.mark.parametrize("font_size", [10, 11, 14])
+@pytest.mark.parametrize("gap,expected", [(14, True), (28, False)])
+def test_os009_spacing_scales_with_font(
+    tmp_path: Path, font_size: float, gap: float, expected: bool
+) -> None:
+    path = _os009_pdf(tmp_path / "font_scale.pdf", gap=gap)
+    model = load_pdf_layout(str(path))
+    scale = font_size / 12
+    for block in model.pages[6].text_blocks:
+        for line in block.lines:
+            line.bbox.y0 = 100 + (line.bbox.y0 - 100) * scale
+            line.bbox.y1 = 100 + (line.bbox.y1 - 100) * scale
+            if line.baseline_y is not None:
+                line.baseline_y = 100 + (line.baseline_y - 100) * scale
+            for span in line.spans:
+                if span.size:
+                    span.size *= scale
+    findings = check_pdf_references_citations_structural(model)
+    assert bool(findings) is expected
+    assert all(
+        f.details["issue_type"] == "references_inter_entry_spacing_too_tight" for f in findings
+    )
+
+
+def test_os009_chapter_mention_does_not_end_references(tmp_path: Path) -> None:
+    from njit_auditor.rules.pdf_references_citations_structural import (
+        references_section_page_numbers,
+    )
+
+    path = _os009_pdf(tmp_path / "chapter_mention.pdf", pages=2)
+    model = load_pdf_layout(str(path))
+    first = model.pages[7].text_blocks[0].lines[0]
+    first.text = "Chapter 2 is discussed in this continuation text"
+    assert references_section_page_numbers(model) == frozenset({7, 8, 9})
