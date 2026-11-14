@@ -791,6 +791,26 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Spacing between reference entries on this page appears inconsistent. "
         "Use uniform spacing between all reference entries."
     ),
+    ("P064", "references_entry_not_single_spaced"): (
+        "Lines within one or more reference entries appear double-spaced. "
+        "NJIT reviewer guidance asks for single spacing within each reference "
+        "and double spacing between consecutive references. "
+        "Open the References page and compare the line spacing inside a "
+        "multi-line entry with the larger gap between entries. "
+        "If the text layer is ambiguous or your citation style sets different "
+        "internal spacing, review the entry manually with your advisor rather "
+        "than forcing an automatic change."
+    ),
+    ("P064", "references_inter_entry_spacing_too_tight"): (
+        "Gaps between consecutive reference entries appear close to the "
+        "single-line spacing measured inside those entries. "
+        "NJIT reviewer guidance asks for double spacing between references "
+        "while keeping each reference single-spaced internally. "
+        "Open the References page and check the blank space between the end of "
+        "one entry and the start of the next. "
+        "If wrapping, column layout, or citation-style rules make the intended "
+        "gap unclear, prefer a careful manual review over an automatic rewrite."
+    ),
     # --- P068 approval page structure ---
     ("P068", "approval_page_advisor_role_label_missing"): (
         "The Approval Page may be missing a recognizable advisor or committee role "

@@ -647,6 +647,16 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "appears inconsistent. Use uniform spacing between all reference "
         "entries throughout the section."
     ),
+    ("P064", "references_entry_not_single_spaced"): (
+        "Likely problem: Lines within reference entries on page {page} appear "
+        "double-spaced. Use single spacing within each reference, while keeping "
+        "double spacing between consecutive entries."
+    ),
+    ("P064", "references_inter_entry_spacing_too_tight"): (
+        "Likely problem: Gaps between reference entries on page {page} are close "
+        "to the single-line spacing within entries. Use double spacing between "
+        "consecutive references and keep each reference single-spaced internally."
+    ),
     # --- P068 approval page structure ---
     ("P068", "approval_page_advisor_role_label_missing"): (
         "Problem: The Approval Page on page {page} lists {role_label_count} "
