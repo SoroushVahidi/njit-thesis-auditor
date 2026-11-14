@@ -7,6 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from njit_auditor.ester_warning_wording import student_warning_remediation
+from njit_auditor.float_layout_advice import float_layout_suggested_fix
 from njit_auditor.issue_type_explanations import humanize_issue_type
 from njit_auditor.report_outputs import derive_source_issue_type
 from njit_auditor.resource_paths import resource_path
@@ -531,20 +532,20 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     # --- P035 figure/table layout ---
     ("P035", "table_caption_not_above_body"): (
-        "Likely problem: A table caption on page {page} does not appear above "
-        "the table body. NJIT expects table captions to appear above the table."
+        "Likely problem: A table title on page {page} does not appear above "
+        "the table body. NJIT expects table titles to appear above the table."
     ),
     ("P035", "figure_caption_not_below_body"): (
-        "Likely problem: A figure caption on page {page} does not appear below "
-        "the figure body. NJIT expects figure captions to appear below the figure."
+        "Likely problem: A figure description on page {page} does not appear below "
+        "the figure body. NJIT expects figure descriptions to appear below the figure."
     ),
     ("P035", "table_body_not_centered"): (
         "Likely problem: A table body block on page {page} does not appear "
-        "centered within the text area. Center the table within the page margins."
+        "centered between the page margins."
     ),
     ("P035", "figure_body_not_centered"): (
         "Likely problem: A figure body block on page {page} does not appear "
-        "centered within the text area. Center the figure within the page margins."
+        "centered between the page margins."
     ),
     # --- P039 TOC hierarchy indentation ---
     ("P039", "toc_l2_not_indented_relative_to_l1"): (
@@ -896,10 +897,12 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "preserve proper names, acronyms and notation."
     ),
     ("P024", "unexpected_terminal_punctuation"): "",
-    ("P035", "table_caption_not_above_body"): "",
-    ("P035", "figure_caption_not_below_body"): "",
-    ("P035", "table_body_not_centered"): "",
-    ("P035", "figure_body_not_centered"): "",
+    ("P035", "table_caption_not_above_body"): "Place the table title above the table body.",
+    ("P035", "figure_caption_not_below_body"): (
+        "Place the figure description below the figure body."
+    ),
+    ("P035", "table_body_not_centered"): "Center the table within the page margins.",
+    ("P035", "figure_body_not_centered"): "Center the figure within the page margins.",
     ("P041", "dedication_top_margin_header_text"): "",
     ("P043", "acknowledgements_first_paragraph_indented"): "",
     ("P043", "acknowledgements_subsequent_paragraph_not_indented"): "",
@@ -2208,8 +2211,13 @@ def resolve_suggested_fix_for_display(
     issue_type: str = "",
     *,
     existing: str = "",
+    float_number: str = "",
 ) -> str:
-    """Return a student-facing suggested fix, preferring detector text then rule remediation."""
+    """Resolve advice, retaining recorded R035 identity over older generic text."""
+    if rule_id == "P035" and float_number.strip():
+        numbered_fix = float_layout_suggested_fix(issue_type, float_number)
+        if numbered_fix:
+            return numbered_fix
     cleaned = sanitize_suggested_fix_for_web(rule_id, existing.strip())
     if cleaned:
         return cleaned

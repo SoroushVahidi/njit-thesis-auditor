@@ -1286,6 +1286,7 @@ def build_grouped_findings(
     The raw ``findings`` list is preserved unchanged elsewhere. This structure is
     additive and intended for compact web/Markdown display.
     """
+    from njit_auditor.float_layout_advice import float_layout_suggested_fix
     from njit_auditor.polished_comments import (
         build_polished_comment,
         finalize_student_facing_comment_and_fix,
@@ -1316,6 +1317,7 @@ def build_grouped_findings(
             rule_id,
             issue_type,
             existing=details.get("suggested_fix", "").strip(),
+            float_number=details.get("float_number", ""),
         )
         polished_comment, suggested_fix = finalize_student_facing_comment_and_fix(
             rule_id,
@@ -1332,7 +1334,10 @@ def build_grouped_findings(
             details=details,
         )
         normalized_fix = _normalize_grouping_text(
-            suggested_fix,
+            # Object identity belongs to each occurrence, not the repeated-
+            # problem grouping key. Keep numbered actions in serialized output.
+            (float_layout_suggested_fix(issue_type) or suggested_fix)
+            if rule_id == "P035" else suggested_fix,
             audit_type=audit_type,
             page=page,
             details=details,
@@ -3772,7 +3777,8 @@ def individual_finding_comment_and_fix(
             details=details,
         )
         fix = resolve_suggested_fix_for_display(
-            rule_id, issue_type, existing=str(details.get("suggested_fix", ""))
+            rule_id, issue_type, existing=str(details.get("suggested_fix", "")),
+            float_number=str(details.get("float_number", "")),
         )
 
     return finalize_student_facing_comment_and_fix(rule_id, issue_type, comment, fix)

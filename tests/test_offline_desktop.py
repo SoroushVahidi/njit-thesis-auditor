@@ -45,6 +45,27 @@ def _pdf(kind: str) -> bytes:
             page.insert_text((210, 85), heading, fontname="Times-Bold", fontsize=12)
             for row, text in enumerate(entries):
                 page.insert_text((108, 140 + row * 25), text, fontsize=10)
+    elif kind == "ester_stage2":
+        for index, (kind_name, misplaced) in enumerate([
+            ("table", False), ("figure", False), ("table", True), ("figure", True)
+        ]):
+            if index:
+                page = doc.new_page(width=612, height=792)
+            if kind_name == "table":
+                title_y = 240 if misplaced else 130
+                number = "4.8" if misplaced else "2.7"
+                page.insert_text((108, title_y),
+                                 f"Table {number} Synthetic Experimental Results", fontsize=12)
+                for row_y in (160, 185):
+                    page.insert_text((108, row_y), "Result alpha compared with beta", fontsize=12)
+            else:
+                description_y = 130 if misplaced else 300
+                number = "5.9" if misplaced else "3.4"
+                page.insert_text((108, description_y),
+                                 f"Figure {number} Synthetic experimental results.", fontsize=12)
+                pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 16, 16), False)
+                pix.clear_with(90)
+                page.insert_image(fitz.Rect(108, 160, 250, 260), pixmap=pix)
     elif kind == "rotated":
         page.set_rotation(90)
     elif kind == "unicode":
@@ -136,7 +157,9 @@ def _filter_script(page_html: str) -> str:
     )
 
 
-@pytest.mark.parametrize("kind", ["normal", "unicode", "rotated", "low_text", "ester_stage1"])
+@pytest.mark.parametrize(
+    "kind", ["normal", "unicode", "rotated", "low_text", "ester_stage1", "ester_stage2"]
+)
 def test_online_offline_parity(kind: str) -> None:
     data = _pdf(kind)
     with TemporaryDirectory() as online_dir, TemporaryDirectory() as offline_dir:
@@ -211,6 +234,33 @@ def test_online_offline_parity(kind: str) -> None:
             assert {category for _, category, _ in _finding_order(online_page)} >= {
                 "list_of_figures", "list_of_tables", "table_of_contents"
             }
+        if kind == "ester_stage2":
+            for rendered in (online_page, offline_page,
+                             online_text.decode(), offline_text.decode(),
+                             online_md.decode(), offline_md.decode(),
+                             " ".join(text for text, _ in _report_pdf_content(
+                                 online_combined.content)),
+                             " ".join(text for text, _ in _report_pdf_content(
+                                 offline_combined.content))):
+                rendered = " ".join(rendered.split())
+                for action in (
+                    "Center Table 2.7 within the page margins.",
+                    "Center Figure 3.4 within the page margins.",
+                    "Place the table title for Table 4.8 above the table body.",
+                    "Place the figure description for Figure 5.9 below the figure body.",
+                ):
+                    assert action in rendered
+                assert "Center figure/table body blocks" not in rendered
+            layout = [f for f in online_report["findings"] if f["rule_id"] == "P035"]
+            assert {f["details"]["issue_type"] for f in layout} == {
+                "table_body_not_centered", "figure_body_not_centered",
+                "table_caption_not_above_body", "figure_caption_not_below_body"
+            }
+            for finding in layout:
+                action = finding["details"]["suggested_fix"]
+                other = "figure" if finding["details"]["float_type"] == "table" else "table"
+                assert other not in action.lower() and "caption" not in action.lower()
+                assert finding["details"]["float_number"] in action
         assert online_status["finding_count"] == offline_status["finding_count"]
         assert _normalize(online_report) == _normalize(offline_report)
         assert _normalize(online_findings) == _normalize(offline_findings)

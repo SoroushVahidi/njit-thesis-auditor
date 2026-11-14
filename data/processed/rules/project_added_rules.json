@@ -623,8 +623,8 @@
     "id": "P035",
     "section": "PDF figure/table layout",
     "question": "Do body-page figure/table floats appear centered with captions in the expected position?",
-    "rule_definition": "Conservative heuristic on body pages: infer adjacent text-layer figure/table body blocks near detected Figure N / Table N captions; flag horizontal centering drift from the text-area center and caption placement violations (table caption above body, figure caption below body). Skips image-only floats, TOC/LoF/LoT/references pages, and ambiguous multi-block pages.",
-    "remediation": "Center figure/table body blocks within the text area; place table captions above the table body and figure captions below the figure body per NJIT formatting guidance.",
+    "rule_definition": "Conservative heuristic on body pages: infer adjacent text-layer figure/table body blocks near detected Figure N / Table N captions; flag horizontal centering drift from the text-area center and title/description placement violations (table title above body, figure description below body). Skips image-only floats, TOC/LoF/LoT/references pages, and ambiguous multi-block pages.",
+    "remediation": "Center figure/table body blocks within the text area; place table titles above the table body and figure descriptions below the figure body per NJIT formatting guidance.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -635,7 +635,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_figure_table_layout",
     "priority": "medium",
-    "notes": "Conservative v1 PDF heuristic for Self-Assessment figure/table centering and caption placement. Reuses caption detection from pdf_captions.py. Skips image-only floats and non-text-layer bodies. issue_types: table_body_not_centered, figure_body_not_centered, table_caption_not_above_body, figure_caption_not_below_body."
+    "notes": "Conservative v1 PDF heuristic for Self-Assessment figure/table centering and title/description placement. Reuses caption detection from pdf_captions.py. Skips image-only floats and non-text-layer bodies. issue_types: table_body_not_centered, figure_body_not_centered, table_caption_not_above_body, figure_caption_not_below_body."
   },
   {
     "id": "P036",
