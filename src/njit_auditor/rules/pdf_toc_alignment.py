@@ -1658,8 +1658,17 @@ def _add_entry_consistency_findings(
                 ),
             )
 
+    ambiguous: dict[int, str] = {}
+    if context.page_type == "table_of_contents":
+        # Local import: P060 uses this module's logical-entry extraction.
+        from njit_auditor.rules.pdf_toc_entry_number_ordering import ambiguous_collapsed_subsections
+
+        ambiguous = ambiguous_collapsed_subsections(entries)
+    # An uncertain level must neither receive indent advice nor set its peers' baseline.
+    # Keep these entries in the independent page-number and leader checks above.
     entries_with_indent = [
-        entry for entry in entries if entry.page_number_right_x is not None
+        entry for index, entry in enumerate(entries)
+        if entry.page_number_right_x is not None and index not in ambiguous
     ]
     indent_outlier_pairs = _find_hierarchy_indent_outliers(entries_with_indent)
     if indent_outlier_pairs:
