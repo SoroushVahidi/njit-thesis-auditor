@@ -377,4 +377,4 @@ def test_catalog_p018_card_range_matches_implemented_cards(
         assert ranges, field
         assert all(f"P018{letter}" == last for letter in ranges), (field, ranges)
     rule_ids = sorted(rule["id"] for rule in rules if re.fullmatch(r"P\d{3}", rule["id"]))
-    assert rule_ids[-1] == "P086"
+    assert rule_ids[-1] == "P087"

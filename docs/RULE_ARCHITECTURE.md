@@ -9,7 +9,7 @@ the codebase as of this audit (2026-07-13) so future changes don't add more of i
 | Term | Meaning |
 |---|---|
 | **Q-rule** | A rule from Esther's original formatting-review spreadsheets (`data/specs/ester_q_matrix.json`, `data/specs/ester_p_rule_feedback.json`). Not all Q-rules are automatable; many require human/manual review. |
-| **P-rule** ("project-added rule") | This project's internal rule ID (`P001`-`P086` today). A P-rule may implement one Q-rule, several Q-rules (a "broad" rule), or no Q-rule at all (project-added, e.g. infrastructure rules). |
+| **P-rule** ("project-added rule") | This project's internal rule ID (`P001`-`P087` today). A P-rule may implement one Q-rule, several Q-rules (a "broad" rule), or no Q-rule at all (project-added, e.g. infrastructure rules). |
 | **Public question / public rule card** | The student-facing rendering of a P-rule on `/rules` and per-finding pages. Not every P-rule is a standalone public card — see "Detector vs. reporting-only" below. |
 | **Issue type** | A specific machine-readable string a detector emits (e.g. `possible_body_font_size_issue`). One P-rule can emit several issue types. |
 | **Detector** | The `src/njit_auditor/rules/*.py` function that actually inspects the document and produces `AuditFinding` objects. |
@@ -22,7 +22,7 @@ the codebase as of this audit (2026-07-13) so future changes don't add more of i
 
 ## Detector vs. reporting-only vs. experimental vs. evaluation-only
 
-- **Detector rules** (most of P011-P068, P074-P075, P078, P084-P086, and opt-in P082): have a dedicated module under
+- **Detector rules** (most of P011-P068, P074-P075, P078, P084-P087, and opt-in P082): have a dedicated module under
   `src/njit_auditor/rules/`, are called directly from `audit_runner.py`, and can produce
   standalone `AuditFinding`s with their own issue types.
 - **Reporting-only / infrastructure rules** (P069–P073, P076, P077, P079, P081): improve
@@ -109,7 +109,7 @@ Checks TeX source files without compiling — recursively loads `\input{}`/`\inc
 | Q005 | Abstract first-person pronouns |
 | Q006 | Graduation month validation (Aug/Dec/May) |
 
-### PDF layout audit (P011-P068, P074-P075, P078, P084-P086 standalone; P069-P073/P076/P077/P079/P081 infrastructure)
+### PDF layout audit (P011-P068, P074-P075, P078, P084-P087 standalone; P069-P073/P076/P077/P079/P081 infrastructure)
 
 | Rule | Area | Check |
 |------|------|-------|
@@ -177,6 +177,7 @@ Checks TeX source files without compiling — recursively loads `\input{}`/`\inc
 | P084 | Biographical Sketch | High-confidence birth-information pattern check for place/date of birth (Q023); Biographical Sketch page only |
 | P085 | PDF body structure | First body chapter must begin with the required literal CHAPTER 1 heading |
 | P086 | PDF body structure | Bold run-in heading-shaped phrase without a section number |
+| P087 | PDF front matter / TOC | TOC Abstract entries and repeated generic TOC titles |
 | P082 | Page numbering | **Experimental, opt-in.** Landscape page-number orientation/position advisory; disabled by default |
 
 **Infrastructure/reporting refinements (no standalone issue types):** P069 front-matter heading

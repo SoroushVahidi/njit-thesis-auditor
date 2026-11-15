@@ -14,7 +14,7 @@
 | Baseline validation | **5002 passed, 7 skipped**, full local suite on the reviewed PR #647 tree; its squash-merge tree was identical. The focused 91-test suite, Ruff and mypy were repeated on `5576e3b`. These are separate runs, not added counts. |
 | CI at that baseline | Branch/PR and post-merge CI passed on Python 3.10–3.12; [post-merge run 41769820136](https://github.com/SoroushVahidi/njit-thesis-auditor/actions/runs/41769820136). Browser tools were not installed by the normal matrix; local browser results are separate evidence. |
 | Unresolved PRs at inspection | 25 pre-existing open PRs, including #640–643; none were closed or merged by this organization task |
-| Rule inventory | P001–P086 registered; P082 remains opt-in. Next unused internal ID P087; no new detector work is authorized by this snapshot. |
+| Rule inventory | P001–P087 registered; P082 remains opt-in. Next unused internal ID P088; no new detector work is authorized by this snapshot. |
 
 The manifest snapshot fields refer to this **observed baseline** (`5576e3b`,
 5002 passed, 7 skipped), not a predicted maintenance merge SHA or test count.
@@ -61,7 +61,7 @@ part of this organization work. See [wording](../STUDENT_WORDING_USABILITY.md) a
 - The historical 19-PDF output/reviewer-triage status and detector limitations below
   were not re-audited here. Do not infer completed reviews or new detector priorities
   from this maintenance snapshot. No remaining non-inventory project task IDs are
-  introduced; the registered range remains P001–P086.
+  introduced; the registered range remains P001–P087.
 
 ## Historical snapshot — 2026-10-12
 
@@ -80,7 +80,7 @@ the current live process remains `/version` and the deployment worktree.
 | Historical Ester judgment regression gate | 136/136 case checks passed at the merge commit, with no unexpected removals or liveness errors; this is prior reviewer evidence, not a review of the new 19-PDF output |
 | Expanded Ester run | Completed successfully on 2026-10-11: 19 authorized PDFs, 63 applicable R rules, exit code 0 at the deployed SHA; finding review and deduplication remain pending |
 | Maintenance-branch checks | Phase 1 ran 173 targeted tests; Phase 2 ran 188 targeted status, manifest, registry, deployment, and stale-doc tests on `chore/repository-refresh-20261012`. Neither is a full suite result for the documentation branch. |
-| Rule inventory | P001–P086 registered; next unused internal ID P087. P082 remains opt-in. |
+| Rule inventory | P001–P087 registered; next unused internal ID P088. P082 remains opt-in. |
 
 The two full-suite counts above came from **different runs and trees**. The six
 private tests were run separately after the post-merge suite; their passing
@@ -125,7 +125,7 @@ SHAs, deployment notes, and pending statements are historical.
 | Samples A–D | 1052 raw, 362 actionable, 362 cards, 0 PASS; visible R011 cards A 0 / B 20 / C 20 / D 50; Sample D raw R011 57 |
 | Direct review-ledger replay (`--ledger-root <scratch copy>`) | 46 reviewed false positives (0 remaining), 4 reviewed true positives (0 missing), 0 unresolved, 0 ambiguous |
 | Local `/Rotate` inventory | 2,217 corpus pages, 0 with non-zero `/Rotate`: all rotation work below is synthetic-tested and has zero real-document delta |
-| Rule inventory | P001–P086 implemented and formally registered (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; next unused internal rule ID is P087 |
+| Rule inventory | P001–P087 implemented and formally registered (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; next unused internal rule ID is P088 |
 
 The replay figures cover only the cases stored in the direct review ledger.
 They do not mean every policy question in the guidelines is settled.
@@ -259,7 +259,7 @@ redeployed. Earlier rule decisions and deployment history remain below._
 | Deployment | Pending for PR #558; repository and running service are at different commits. No production deployment was performed as part of PR #558 or this status update |
 | Manifest status snapshot | `1002a99`; **3708 passed**, 0 failed (pre-merge full pytest result) |
 | R036 final-pass validation | `ruff check .` clean; `mypy src` clean; `python -m pytest`: **3539 passed**, 5 skipped, 3 warnings |
-| Rule inventory | P001–P086 implemented and formally registered (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; next unused internal rule ID is P087 (see "R086 Current State" below for provenance; verified free: no existing source file or reference) |
+| Rule inventory | P001–P087 implemented and formally registered (`data/processed/rules/project_added_rules.json`); no remaining non-inventory project task IDs; next unused internal rule ID is P088 (see "R086 Current State" below for provenance; verified free: no existing source file or reference) |
 
 ## Historical evaluation corpus
 
