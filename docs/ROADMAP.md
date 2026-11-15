@@ -8,7 +8,7 @@ a snapshot — it should change rarely and shouldn't need dated entries.
 
 - **TeX source audit (P001–P010, Q004–Q006):** structure/label/reference/caption checks on
   uncompiled LaTeX source trees.
-- **PDF layout audit (P011–P068, P074–P075, P078, P084–P086):** heuristic, deterministic checks on compiled PDF
+- **PDF layout audit (P011–P068, P074–P075, P078, P084–P087):** heuristic, deterministic checks on compiled PDF
   geometry, fonts, spacing, headings, TOC/List of Tables/List of Figures structure, page
   numbering, front matter, and references — see
   [docs/RULE_ARCHITECTURE.md](RULE_ARCHITECTURE.md) for the full rule taxonomy.

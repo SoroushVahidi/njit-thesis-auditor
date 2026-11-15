@@ -626,6 +626,15 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "in ascending order. Reorder entries so listed page numbers increase "
         "from top to bottom."
     ),
+    ("P087", "toc_abstract_entry_present"): (
+        "Likely problem: A Table of Contents entry on page {page} is titled Abstract. "
+        "Remove Abstract from the TOC; keep only the front-matter Abstract."
+    ),
+    ("P087", "toc_generic_title_repeated"): (
+        "Likely problem: The Table of Contents repeats a generic heading across "
+        "chapters on or near page {page}. Qualify each repeated heading so readers "
+        "can tell the sections apart."
+    ),
     ("P060", "toc_entry_numbers_not_nondecreasing"): (
         "Problem: Table of Contents section numbers on page {page} do not "
         "appear in non-decreasing order. Reorder entries so section numbers "

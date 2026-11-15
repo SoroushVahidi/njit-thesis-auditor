@@ -746,6 +746,16 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Table of Contents section numbers on this page do not appear in "
         "non-decreasing order. Reorder entries so section numbers increase correctly."
     ),
+    ("P087", "toc_abstract_entry_present"): (
+        "A Table of Contents entry on page {page} is titled Abstract. "
+        "NJIT dissertations include the Abstract only in the front matter. "
+        "Remove this Abstract entry from the TOC."
+    ),
+    ("P087", "toc_generic_title_repeated"): (
+        "The Table of Contents repeats the same generic heading on multiple "
+        "entries. Qualify each repeated heading with the chapter topic or another "
+        "distinctive title so readers can tell the sections apart."
+    ),
     ("P057", "lot_page_numbers_not_nondecreasing"): (
         "List of Tables page numbers on this page do not appear to be in "
         "non-decreasing order down the list. Reorder entries, or correct the "
@@ -958,6 +968,11 @@ _RULE_FALLBACKS: dict[str, str] = {
         "pronouns. Replace \"paper\" or \"article\" with \"dissertation,\" "
         "\"study,\" \"work,\" or \"research,\" and rewrite sentences to remove "
         "first-person pronouns such as \"I,\" \"me,\" \"my,\" \"we,\" or \"our.\""
+    ),
+    "P087": (
+        "A Table of Contents title-structure issue was detected. Remove Abstract "
+        "entries from the TOC, and qualify repeated generic headings so readers "
+        "can tell chapter sections apart."
     ),
 }
 

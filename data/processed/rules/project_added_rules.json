@@ -1873,5 +1873,29 @@
     "remediation": "Add the appropriate section number if the phrase is intended as a numbered heading, or remove the bold styling if it is not.",
     "source_file": "project_added",
     "notes": "Ester confirmed the Youra physical-page-101 case (R015 follow-up, 2026-08-31) and stated bold is reserved for numbered heading levels 1-4. Implemented 2026-09-22 (PR #551) after a design gate confirmed a narrow, structural reading was achievable without inventing broader policy. Only the Youra page-101 finding is reviewer-confirmed; other corpus findings are unreviewed candidates, not adjudicated verdicts."
+  },
+  {
+    "id": "P087",
+    "title": "TOC Abstract Entries and Repeated Generic Titles",
+    "description": "Detects Abstract entries listed in the Table of Contents and repeated generic article-style TOC titles that make navigation ambiguous.",
+    "section": "PDF front matter / Table of Contents",
+    "question": "Does the Table of Contents list Abstract entries, or repeat indistinguishable generic section titles across chapters?",
+    "rule_definition": "TABLE OF CONTENTS pages only. F03: flag reliable TOC entries whose normalized title is Abstract (front-matter Abstract heading is not a TOC entry and is not flagged). F02: when an allowlisted generic title (Introduction, Materials and Methods, Methods, Results and Discussion, Results, Discussion, Conclusion/Conclusions) appears at least twice with distinct section numbers or pages, emit one review-level finding listing structural section numbers. Does not invent replacement titles, does not ban article-based chapter structure, and does not scan LoT/LoF or body prose.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_toc_title_structure",
+    "rule_type": "detection",
+    "source_q_rule_ids": [],
+    "source_files": [
+      "src/njit_auditor/rules/pdf_toc_title_structure.py"
+    ],
+    "issue_types": [
+      "toc_abstract_entry_present",
+      "toc_generic_title_repeated"
+    ],
+    "remediation": "Remove Abstract from the TOC (keep only the front-matter Abstract). For repeated generic titles, qualify each TOC heading with the chapter topic or another distinctive label.",
+    "source_file": "project_added",
+    "notes": "Batch A from Ester Flaim November 9/10 2026 feedback (F03/F02). Abstract prohibition is an explicit requirement; repeated generic titles are review-level navigation advice without a universal ban on recurring section names."
   }
 ]

@@ -122,6 +122,8 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "toc_l2_not_indented_relative_to_l1": "TOC level-2 entry not indented relative to level-1",
     "toc_l3_not_indented_relative_to_l2": "TOC level-3 entry not indented relative to level-2",
     "toc_subsection_number_ambiguous": "Possible missing dot in TOC subsection number",
+    "toc_abstract_entry_present": "Abstract entry listed in the Table of Contents",
+    "toc_generic_title_repeated": "Repeated generic TOC section title",
     "toc_level_capitalization": "TOC entry capitalization issue",
     "list_of_tables_title_case": "List of Tables title case issue",
     "list_of_figures_title_case": "List of Figures description sentence case issue",
@@ -764,6 +766,15 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P060", "toc_entry_numbers_not_nondecreasing"): (
         "This means Table of Contents section numbers do not appear in "
         "non-decreasing order on this page."
+    ),
+    ("P087", "toc_abstract_entry_present"): (
+        "This means a Table of Contents entry is titled Abstract. The dissertation "
+        "Abstract belongs only in the front matter, not in the TOC."
+    ),
+    ("P087", "toc_generic_title_repeated"): (
+        "This means the same generic section title appears more than once in the "
+        "Table of Contents. Qualify each repeated heading so readers can tell the "
+        "sections apart."
     ),
     ("P057", "lot_page_numbers_not_nondecreasing"): (
         "This means List of Tables page numbers do not appear in "

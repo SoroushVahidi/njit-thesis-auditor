@@ -72,7 +72,7 @@ def test_q001_q052_q007_classifications() -> None:
 def test_project_added_rules_implemented() -> None:
     project_rules = _load_json("data/processed/rules/project_added_rules.json")
     assert project_rules
-    assert len(project_rules) == 86
+    assert len(project_rules) == 87
     by_id = {str(item["id"]): item for item in project_rules}
     assert by_id["P028"]["phase"] == "pdf_layout"
     assert (
@@ -479,6 +479,20 @@ def test_project_added_rules_implemented() -> None:
     assert by_id["P086"]["source_q_rule_ids"] == []
     assert by_id["P086"]["issue_types"] == ["bold_heading_without_section_number"]
     assert public_display_rule_id("P086") == "R086"
+    assert "P087" in by_id
+    assert by_id["P087"]["implementation_status"] == "implemented"
+    assert by_id["P087"]["phase"] == "pdf_layout"
+    assert (
+        by_id["P087"]["implementation_module"]
+        == "njit_auditor.rules.pdf_toc_title_structure"
+    )
+    assert by_id["P087"]["rule_type"] == "detection"
+    assert by_id["P087"]["source_q_rule_ids"] == []
+    assert by_id["P087"]["issue_types"] == [
+        "toc_abstract_entry_present",
+        "toc_generic_title_repeated",
+    ]
+    assert public_display_rule_id("P087") == "R087"
     assert all(
         item["implementation_status"] == "implemented"
         for item in project_rules

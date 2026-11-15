@@ -148,6 +148,7 @@ from njit_auditor.rules.pdf_toc_page_number_ordering import (
     check_pdf_toc_page_number_ordering,
 )
 from njit_auditor.rules.pdf_toc_terminal_period import check_pdf_toc_terminal_period
+from njit_auditor.rules.pdf_toc_title_structure import check_pdf_toc_title_structure
 from njit_auditor.rules.pdf_unnumbered_bold_heading import check_pdf_unnumbered_bold_heading
 from njit_auditor.upload_handling import (
     DEFAULT_MAX_UPLOAD_BYTES,
@@ -359,6 +360,7 @@ def collect_pdf_layout_findings(
     findings.extend(run_check(check_pdf_toc_page_number_ordering, content_doc))
     findings.extend(run_check(check_pdf_lot_lof_entry_number_ordering, content_doc))
     findings.extend(run_check(check_pdf_toc_entry_number_ordering, content_doc))
+    findings.extend(run_check(check_pdf_toc_title_structure, content_doc))
     findings.extend(run_check(check_pdf_lot_lof_cross_page_entry_ordering, content_doc))
     findings.extend(run_check(check_pdf_toc_cross_page_entry_ordering, content_doc))
     findings.extend(run_check(check_pdf_appendix_body_headings, content_doc))
