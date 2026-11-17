@@ -16,13 +16,13 @@ def _entry(y=140, label="2.1", number="12"):
     )
 
 
-def _list(*entries, heading="LIST OF FIGURES"):
+def _list(*entries, heading="LIST OF TABLES"):
     return _doc([_line(80, (heading, 180, 360)), *entries])
 
 
 def test_singleton_missing_prefix_has_exact_trace_and_high_confidence():
     (finding,) = check_pdf_lot_lof_entry_type(_list(_entry()))
-    assert finding.details["issue_type"] == "lof_entry_missing_figure_prefix"
+    assert finding.details["issue_type"] == "lot_entry_missing_table_prefix"
     assert finding.details["bbox"] == "108.0,140.0,128.0,152.0"
     assert finding.details["page_number_bbox"] == "528.0,140.0,540.0,152.0"
     assert finding.details["confidence"] == "high"
@@ -34,13 +34,17 @@ def test_singleton_missing_prefix_has_exact_trace_and_high_confidence():
 @pytest.mark.parametrize(
     "heading,issue",
     [
-        ("LIST OF FIGURES", "lof_entry_missing_figure_prefix"),
+        ("LIST OF FIGURES", None),
         ("LIST OF TABLES", "lot_entry_missing_table_prefix"),
     ],
 )
 def test_appendix_and_numeric_labels_follow_same_prefix_policy(label, heading, issue):
-    (finding,) = check_pdf_lot_lof_entry_type(_list(_entry(label=label), heading=heading))
-    assert finding.details["issue_type"] == issue
+    findings = check_pdf_lot_lof_entry_type(_list(_entry(label=label), heading=heading))
+    if issue is None:
+        assert findings == []
+    else:
+        assert len(findings) == 1
+        assert findings[0].details["issue_type"] == issue
 
 
 @pytest.mark.parametrize(
@@ -51,7 +55,9 @@ def test_singleton_correct_appendix_prefix_is_not_reported(heading, prefix):
 
 
 def test_wrong_type_appendix_entry_stays_detectable():
-    (finding,) = check_pdf_lot_lof_entry_type(_list(_entry(label="Table A.1")))
+    (finding,) = check_pdf_lot_lof_entry_type(
+        _list(_entry(label="Table A.1"), heading="LIST OF FIGURES")
+    )
     assert finding.details["issue_type"] == "lof_entry_is_table"
 
 
@@ -94,7 +100,7 @@ def test_separately_stored_wrapped_folio_keeps_the_violation():
         _line(154, ("continuation and leaders........", 150, 510), ("12", 528, 540)),
     )
     (finding,) = check_pdf_lot_lof_entry_type(doc)
-    assert finding.details["issue_type"] == "lof_entry_missing_figure_prefix"
+    assert finding.details["issue_type"] == "lot_entry_missing_table_prefix"
     assert "bbox" in finding.details
 
 

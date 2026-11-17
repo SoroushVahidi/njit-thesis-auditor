@@ -142,7 +142,7 @@ def test_r055_valid_figure_prefix():
 
 
 def test_r055_numeric_only_lof_entry():
-    """Test numeric-only LoF entry should generate missing Figure prefix finding"""
+    """Ester 2026-11-17: numeric-only LoF entries are valid"""
     doc = make_mock_list_doc(
         [
             ("1.1 System Architecture", 12),
@@ -151,14 +151,11 @@ def test_r055_numeric_only_lof_entry():
         "list_of_figures",
     )
     findings = check_pdf_lot_lof_entry_type(doc)
-    assert any(
-        "lof_entry_missing_figure_prefix" in f.details.get("issue_type", "")
-        for f in findings
-    )
+    assert findings == []
 
 
 def test_r055_missing_prefix_suggested_fix_names_the_prefix():
-    """Ester (2026-09-04): entries need the literal Table/Figure prefix.
+    """The retained List of Tables requirement needs a precise prefix fix.
 
     A numeric-only entry is not a misplaced entry, so its suggested fix must
     ask for the prefix rather than reuse the cross-type "move" remediation.
@@ -167,7 +164,6 @@ def test_r055_missing_prefix_suggested_fix_names_the_prefix():
 
     for section, issue_type, word in (
         ("list_of_tables", "lot_entry_missing_table_prefix", "Table"),
-        ("list_of_figures", "lof_entry_missing_figure_prefix", "Figure"),
     ):
         doc = make_mock_list_doc(
             [("1.1 System Architecture", 12), ("1.2 Experimental Setup", 15)],
@@ -192,7 +188,8 @@ def test_r055_public_card_describes_prefix_requirement():
     from njit_auditor.web_app import _build_rule_catalog
 
     card = next(r for r in _build_rule_catalog()["student_rules"] if r["id"] == "P055")
-    for text in (card["title"], card["how_to_correct"]):
-        assert "'Table'" in text and "'Figure'" in text
+    assert "body references" in card["title"]
+    assert "do not need that prefix" in card["how_to_correct"]
+    assert "'Table'" in card["how_to_correct"]
     assert "only a number" in card["what_it_checks"]
-    assert "misplaced entry" in card["what_it_checks"]
+    assert "misplaced entries" in card["what_it_checks"]

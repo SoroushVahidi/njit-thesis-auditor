@@ -173,15 +173,15 @@ _WORD_RE = re.compile(
 # to the heading text — so this pattern is P020's own signal to recognize the
 # following line as a Level 3+ (sentence-case) heading and exclude it, per this
 # module's documented scope (Level 3+ is not checked by P020).
-_LEVEL3PLUS_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+){2,4}$")
-_LEVEL2_NUMBER_ONLY_RE = re.compile(r"^\d+\.\d+$")
-_SAME_LINE_LEVEL2_HEADING_RE = re.compile(r"^\d+\.\d+\s+\S")
+_LEVEL3PLUS_NUMBER_ONLY_RE = re.compile(r"^(?:\d+|[A-Z])(?:\.\d+){2,4}$")
+_LEVEL2_NUMBER_ONLY_RE = re.compile(r"^(?:\d+|[A-Z])\.\d+$")
+_SAME_LINE_LEVEL2_HEADING_RE = re.compile(r"^(?:\d+|[A-Z])\.\d+\s+\S")
 
 # Same-line Level 3+ numbered heading (3–5 numeric components), after optional
 # reconstruction of a missing space between the number and the title text.
 # Level 3–5 use sentence case, so they are out of P020 title-case scope.
 _SAME_LINE_LEVEL3PLUS_HEADING_RE = re.compile(
-    r"^\d+(?:\.\d+){2,4}\s+\S"
+    r"^(?:\d+|[A-Z])(?:\.\d+){2,4}\s+\S"
 )
 _LIST_MARKER_PREFIX_RE = re.compile(r"^[A-Za-z][.)]\s+")
 
@@ -190,7 +190,7 @@ _LIST_MARKER_PREFIX_RE = re.compile(r"^[A-Za-z][.)]\s+")
 # "3.3.9.4Robustness to input variations." Insert that boundary when a dotted
 # section number is immediately followed by a letter-started title token.
 _SECTION_NUMBER_GLUE_RE = re.compile(
-    r"^(?P<num>\d+(?:\.\d+){1,4})(?P<body>[A-Za-z].*)$"
+    r"^(?P<num>(?:\d+|[A-Z])(?:\.\d+){1,4})(?P<body>[A-Za-z].*)$"
 )
 
 # Statistical / mathematical notation must never be forced to title case.

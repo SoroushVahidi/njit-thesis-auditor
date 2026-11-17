@@ -47,7 +47,7 @@ def test_wrapped_figure_entries_ignore_interior_numbers_and_count_once() -> None
             _line(80, ("LIST OF FIGURES", 190, 350)),
             _line(
                 140,
-                ("2.1 Sample measurements across", 108, 295),
+                ("Table 2.1 Sample measurements across", 108, 295),
                 ("20", 305, 320),
                 ("trial sites", 325, 480),
             ),
@@ -55,12 +55,12 @@ def test_wrapped_figure_entries_ignore_interior_numbers_and_count_once() -> None
             _line(168, ("with a final caption and leaders. . . . 5", 150, 540)),
             _line(
                 192,
-                ("2.2 Another fabricated result from", 108, 350),
+                ("Table 2.2 Another fabricated result from", 108, 350),
                 ("800", 360, 385),
                 ("observations", 390, 510),
             ),
             _line(206, ("in a separate setting. . . . 6", 150, 540)),
-            _line(230, ("2.3 Third synthetic result with a wrapped", 108, 510)),
+            _line(230, ("Table 2.3 Third synthetic result with a wrapped", 108, 510)),
             _line(244, ("caption and its own page column. . . . 7", 150, 540)),
         ]
     )
@@ -72,7 +72,7 @@ def test_wrapped_figure_entries_ignore_interior_numbers_and_count_once() -> None
 
     findings = check_pdf_lot_lof_entry_type(doc)
     assert [finding.details["issue_type"] for finding in findings] == [
-        "lof_entry_missing_figure_prefix"
+        "lof_entry_is_table"
     ] * 3
     assert [finding.details["entry_index"] for finding in findings] == ["0", "1", "2"]
 
@@ -82,22 +82,22 @@ def test_roman_letter_start_of_prose_is_not_a_numbered_entry() -> None:
         [
             _line(80, ("LIST OF FIGURES", 190, 350)),
             _line(140, ("in a synthetic continuation. . . . 5", 108, 540)),
-            _line(164, ("I.1 Numbered example with a real page. . . . 6", 108, 540)),
+            _line(164, ("Table I.1 Numbered example with a real page. . . . 6", 108, 540)),
             _line(188, ("Figure I.2 Correctly prefixed entry. . . . 7", 108, 540)),
         ]
     )
     findings = check_pdf_lot_lof_entry_type(doc)
     assert len(findings) == 1
-    assert findings[0].details["issue_type"] == "lof_entry_missing_figure_prefix"
+    assert findings[0].details["issue_type"] == "lof_entry_is_table"
 
 
 def test_numeric_continuation_with_page_token_keeps_owning_entry() -> None:
     doc = _doc(
         [
             _line(80, ("LIST OF FIGURES", 190, 350)),
-            _line(140, ("3.1 Results from a study of", 108, 510)),
+            _line(140, ("Table 3.1 Results from a study of", 108, 510)),
             _line(155, ("2 groups and 20 measurements 41", 149, 540)),
-            _line(180, ("3.2 Independent second result 42", 108, 540)),
+            _line(180, ("Table 3.2 Independent second result 42", 108, 540)),
             _line(205, ("Figure 3.3 Compliant third result 43", 108, 540)),
         ]
     )
@@ -105,8 +105,8 @@ def test_numeric_continuation_with_page_token_keeps_owning_entry() -> None:
     assert entries[0].page_number_token is None
     findings = check_pdf_lot_lof_entry_type(doc)
     assert [(f.details["entry_index"], f.details["issue_type"]) for f in findings] == [
-        ("0", "lof_entry_missing_figure_prefix"),
-        ("1", "lof_entry_missing_figure_prefix"),
+        ("0", "lof_entry_is_table"),
+        ("1", "lof_entry_is_table"),
     ]
 
 
@@ -114,9 +114,9 @@ def test_leaderless_wrapped_and_dot_leader_entries() -> None:
     doc = _doc(
         [
             _line(80, ("LIST OF FIGURES", 190, 350)),
-            _line(140, ("4.1 Long title containing 100 trials", 108, 510)),
+            _line(140, ("Table 4.1 Long title containing 100 trials", 108, 510)),
             _line(155, ("and its conclusion 51", 149, 540)),
-            _line(180, ("4.2 Another independent title. . . . 52", 108, 540)),
+            _line(180, ("Table 4.2 Another independent title. . . . 52", 108, 540)),
             _line(205, ("Figure 4.3 Properly prefixed title. . . . 53", 108, 540)),
         ]
     )
@@ -128,9 +128,9 @@ def test_glued_numbered_title_and_near_baseline_fragments() -> None:
     doc = _doc(
         [
             _line(80, ("LIST OF FIGURES", 190, 350)),
-            _line(140, ("5.4Synthetic title with a wrapped", 108, 510)),
+            _line(140, ("Table 5.4Synthetic title with a wrapped", 108, 510)),
             _line(155, ("completion with leaders. . . . 72", 149, 540)),
-            _line(180, ("5.5", 108, 125)),
+            _line(180, ("Table 5.5", 108, 125)),
             _line(180.4, ("Another title split on the same baseline", 138, 510)),
             _line(195, ("with its page number. . . . 73", 149, 540)),
             _line(220, ("Figure 5.6 Compliant entry. . . . 74", 108, 540)),

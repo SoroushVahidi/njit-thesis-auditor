@@ -39,10 +39,10 @@ from njit_auditor.rules.pdf_title_capitalization import (
 )
 
 # Numbered section patterns — most specific first.
-_L5_RE = re.compile(r"^(\d+\.\d+\.\d+\.\d+\.\d+)\s+(.+)$")
-_L4_RE = re.compile(r"^(\d+\.\d+\.\d+\.\d+)\s+(.+)$")
-_L3_RE = re.compile(r"^(\d+\.\d+\.\d+)\s+(.+)$")
-_L2_RE = re.compile(r"^(\d+\.\d+)\s+(.+)$")
+_L5_RE = re.compile(r"^((?:\d+|[A-Z])\.\d+\.\d+\.\d+\.\d+)\s+(.+)$")
+_L4_RE = re.compile(r"^((?:\d+|[A-Z])\.\d+\.\d+\.\d+)\s+(.+)$")
+_L3_RE = re.compile(r"^((?:\d+|[A-Z])\.\d+\.\d+)\s+(.+)$")
+_L2_RE = re.compile(r"^((?:\d+|[A-Z])\.\d+)\s+(.+)$")
 
 # Level 1 body-chapter pattern: "CHAPTER N ..." or "APPENDIX A ...".
 _CHAPTER_RE = re.compile(r"^(CHAPTER|APPENDIX)\s+[\dA-Z]+\s*(.*)$")
@@ -794,7 +794,7 @@ def check_pdf_heading_level_styles(pdf_doc: PdfDocument) -> list[AuditFinding]:
 
 # A bold line holding only a section number ("3.4.3"), with the heading text
 # extracted as a separate line on the same baseline to its right.
-_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)+\.?$")
+_NUMBER_ONLY_RE = re.compile(r"^(?:\d+|[A-Z])(?:\.\d+)+\.?$")
 _SPLIT_BASELINE_TOLERANCE_PT = 2.0
 _SPLIT_MAX_GAP_PT = 72.0
 

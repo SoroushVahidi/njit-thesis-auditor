@@ -617,8 +617,11 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "before its number. Prepend 'Table ' to each List of Tables entry."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
-        "Problem: A List of Figures entry on page {page} is missing the required 'Figure' prefix "
-        "before its number. Prepend 'Figure ' to each List of Figures entry."
+        "List of Figures entries may begin with a number; the word Figure is not required "
+        "before each entry. Review body references separately."
+    ),
+    ("P055", "body_figure_reference_abbreviated"): (
+        "Use the full word 'Figure' before the number in this body reference."
     ),
     # --- P058/P060 TOC ordering ---
     ("P058", "toc_page_numbers_not_nondecreasing"): (
@@ -929,8 +932,8 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P044", "abstract_subsequent_paragraph_not_indented"): "",
     ("P053", "lot_entry_has_terminal_period"): "",
     ("P054", "toc_entry_has_terminal_period"): "",
-    ("P055", "lot_entry_is_figure"): "",
-    ("P055", "lof_entry_is_table"): "",
+    ("P055", "lot_entry_is_figure"): "Move this misplaced entry to the List of Figures.",
+    ("P055", "lof_entry_is_table"): "Move this misplaced entry to the List of Tables.",
     # The P055 catalog remediation describes misplaced entries; a numeric-only
     # entry needs the literal prefix instead (Ester, 2026-09-04).
     ("P055", "lot_entry_missing_table_prefix"): (
@@ -938,8 +941,11 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "number (for example, Table 1.1)."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
-        "Begin this List of Figures entry with the word 'Figure' before its "
-        "number (for example, Figure 1.1)."
+        "List of Figures entries may begin with a number; the word Figure is not required "
+        "before each entry. Review body references separately."
+    ),
+    ("P055", "body_figure_reference_abbreviated"): (
+        "Use the full word 'Figure' before the number in this body reference."
     ),
     ("P068", "approval_page_advisor_role_label_missing"): "",
     ("P068", "approval_page_signature_blocks_sparse"): "",
