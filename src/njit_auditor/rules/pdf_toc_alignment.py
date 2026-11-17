@@ -453,6 +453,11 @@ def _extract_page_number_token(
 
 
 def _line_mid_y(line: PdfTextLine) -> float:
+    # Glyph boxes can have different heights even when PDF text origins share
+    # one visual baseline. Prefer the extracted origin for TOC column grouping;
+    # box centers are only a fallback for synthetic/older layout models.
+    if line.baseline_y is not None:
+        return line.baseline_y
     return (line.bbox.y0 + line.bbox.y1) / 2.0
 
 
