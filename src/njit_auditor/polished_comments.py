@@ -617,11 +617,10 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "before its number. Prepend 'Table ' to each List of Tables entry."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
-        "List of Figures entries may begin with a number; the word Figure is not required "
-        "before each entry. Review body references separately."
+        "This saved List of Figures prefix advisory reflects an older policy."
     ),
     ("P055", "body_figure_reference_abbreviated"): (
-        "Use the full word 'Figure' before the number in this body reference."
+        "This body reference uses the abbreviation 'Fig.' before its number."
     ),
     # --- P058/P060 TOC ordering ---
     ("P058", "toc_page_numbers_not_nondecreasing"): (

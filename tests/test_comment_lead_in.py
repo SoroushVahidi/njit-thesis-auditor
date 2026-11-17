@@ -76,3 +76,24 @@ def test_report_view_cards_have_single_lead_in_and_keep_numbering() -> None:
     for card in cards:
         assert card.polished_comment.startswith("Review needed: "), card.polished_comment
         assert not card.polished_comment.startswith(_STACKED), card.polished_comment
+
+
+@pytest.mark.parametrize("confidence", ["low", "medium", "high"])
+@pytest.mark.parametrize(
+    "issue_type,explanation",
+    [
+        ("lof_entry_missing_figure_prefix", "older policy"),
+        ("body_figure_reference_abbreviated", "abbreviation 'Fig.'"),
+    ],
+)
+def test_r055_explanation_survives_separate_fix_cleanup(confidence, issue_type, explanation):
+    finding = _finding("P055", issue_type, 9, confidence=confidence)
+    payload = audit_findings_to_json_dict([finding], {"audit_type": "pdf"})
+    (card,) = build_report_view(payload).findings
+    assert explanation in payload["grouped_findings"][0]["problem"]
+    assert explanation in card.polished_comment
+    assert card.polished_comment.startswith("Review needed: ")
+    assert card.suggested_fix
+    assert "Figure" in card.suggested_fix
+    assert card.polished_comment != card.suggested_fix
+    assert "Begin this List of Figures" not in card.polished_comment + card.suggested_fix
