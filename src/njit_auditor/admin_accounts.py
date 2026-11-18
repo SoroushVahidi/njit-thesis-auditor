@@ -17,7 +17,7 @@ from typing import Any
 from argon2 import PasswordHasher
 from argon2.low_level import Type
 
-from njit_auditor.admin_feedback import _connection, _now, normalize_username
+from njit_auditor.admin_feedback import _REVIEWER_USERNAMES, _connection, _now, normalize_username
 
 _HASHER = PasswordHasher(type=Type.ID)
 
@@ -35,16 +35,22 @@ def _display_name(value: str) -> str | None:
     return name or None
 
 
-def create_account(username: str, password: str, display_name: str = "") -> str:
+def create_account(username: str, password: str, display_name: str = "",
+                   *, role: str = "admin") -> str:
     """Create one account from an operator-supplied password held only in memory."""
     canonical = normalize_username(username)
+    if role not in {"admin", "reviewer"}:
+        raise ValueError("Unknown account role.")
+    if role == "reviewer" and canonical not in _REVIEWER_USERNAMES:
+        raise ValueError("HTTP beta reviewers must be soroush or ester.")
     name = _display_name(display_name)
     password_hash = _HASHER.hash(_validated_password(password))
     admin_id = secrets.token_urlsafe(16)
     with _connection() as db:
         db.execute("BEGIN IMMEDIATE")
-        db.execute("""INSERT INTO admins(id,username,password_hash,active,created_at,display_name)
-            VALUES (?,?,?,1,?,?)""", (admin_id, canonical, password_hash, _now(), name))
+        db.execute("""INSERT INTO admins(
+            id,username,password_hash,active,created_at,display_name,role)
+            VALUES (?,?,?,1,?,?,?)""", (admin_id, canonical, password_hash, _now(), name, role))
     return admin_id
 
 
@@ -75,15 +81,15 @@ def reset_password(username: str, password: str) -> None:
 def list_accounts() -> list[dict[str, Any]]:
     with _connection() as db:
         return [dict(row) for row in db.execute(
-            "SELECT id,username,active,created_at,display_name FROM admins ORDER BY username"
+            "SELECT id,username,active,created_at,display_name,role FROM admins ORDER BY username"
         )]
 
 
 def _prompt_password() -> str:
     if not sys.stdin.isatty() or not sys.stderr.isatty():
         raise ValueError("An interactive terminal is required to enter a password.")
-    first = getpass.getpass("New administrator password: ")
-    second = getpass.getpass("Repeat administrator password: ")
+    first = getpass.getpass("New account password: ")
+    second = getpass.getpass("Repeat account password: ")
     if not hmac.compare_digest(first, second):
         raise ValueError("Passwords do not match.")
     return _validated_password(first)
@@ -97,14 +103,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     create = commands.add_parser("create")
     create.add_argument("username")
     create.add_argument("--display-name", default="")
+    reviewer = commands.add_parser("create-reviewer")
+    reviewer.add_argument("username", choices=sorted(_REVIEWER_USERNAMES))
+    reviewer.add_argument("--display-name", default="")
     for command in ("disable", "enable", "reset"):
         commands.add_parser(command).add_argument("username")
     commands.add_parser("list")
     args = parser.parse_args(argv)
     try:
-        if args.command == "create":
-            create_account(args.username, _prompt_password(), args.display_name)
-            print("Administrator account created.")
+        if args.command in {"create", "create-reviewer"}:
+            role = "reviewer" if args.command == "create-reviewer" else "admin"
+            create_account(args.username, _prompt_password(), args.display_name, role=role)
+            print(f"{role.capitalize()} account created.")
         elif args.command == "disable":
             set_active(args.username, False)
             print("Administrator account disabled.")
@@ -118,7 +128,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             for account in list_accounts():
                 state = "active" if account["active"] else "disabled"
                 display = account["display_name"] or ""
-                print(f"{account['username']}\t{state}\t{account['created_at']}\t{display}")
+                print(f"{account['username']}\t{account['role']}\t{state}\t"
+                      f"{account['created_at']}\t{display}")
     except (ValueError, LookupError, sqlite3.IntegrityError, OSError, RuntimeError) as exc:
         if isinstance(exc, sqlite3.IntegrityError):
             print("Administrator account already exists.", file=sys.stderr)

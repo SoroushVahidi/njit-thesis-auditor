@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Reviewer Access — NJIT Thesis Auditor{% endblock %}
+{% block content %}
+<main class="card" style="max-width:32rem">
+  <h1>Reviewer Access</h1>
+  {% if error %}<div class="alert-error" role="alert">{{ error }}</div>{% endif %}
+  {% if login_csrf %}
+  <form action="/reviewer/login" method="post">
+    <input type="hidden" name="csrf_token" value="{{ login_csrf }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <label for="reviewer-username">Username</label>
+    <input id="reviewer-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="32" style="width:100%;padding:.5rem;margin-bottom:.8rem">
+    <label for="reviewer-password">Password</label>
+    <input id="reviewer-password" name="password" type="password" autocomplete="current-password" required style="width:100%;padding:.5rem;margin-bottom:.8rem">
+    <button type="submit">Log in</button>
+  </form>
+  {% endif %}
+</main>
+{% endblock %}

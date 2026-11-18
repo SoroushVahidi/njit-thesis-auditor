@@ -1894,17 +1894,21 @@ def _render(
     templates = getattr(request.app.state, "templates", _templates)
     context = {**context, "offline_mode": getattr(request.app.state, "offline_mode", False)}
     if not context["offline_mode"]:
-        from njit_auditor.admin_feedback import session
+        from njit_auditor.admin_feedback import _reviewer_enabled, reviewer_session, session
 
         admin_session = session(request)
+        reviewer_auth = reviewer_session(request)
         context["admin_mode"] = admin_session is not None
         context["admin_csrf_token"] = admin_session["csrf_token"] if admin_session else ""
+        context["reviewer_beta_enabled"] = _reviewer_enabled(request)
+        context["reviewer_mode"] = reviewer_auth is not None
+        context["reviewer_csrf_token"] = reviewer_auth["csrf_token"] if reviewer_auth else ""
     if context["offline_mode"]:
         context["csrf_token"] = request.app.state.csrf_token
         context["deletion_status"] = request.query_params.get("deletion", "")
     response = templates.TemplateResponse(request=request, name=template, context=context,
                                           status_code=status_code)
-    if context.get("admin_mode"):
+    if context.get("admin_mode") or context.get("reviewer_mode"):
         response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -2376,14 +2380,23 @@ async def job_page(request: Request, job_id: str, sort: str = SORT_MODE_DEFAULT)
 
     sort_mode = normalize_sort_mode(sort)
     context = _job_page_context(job, sort_mode=sort_mode)
-    from njit_auditor.admin_feedback import CLASSIFICATIONS, list_feedback_for_audit, session
+    from njit_auditor.admin_feedback import (
+        CLASSIFICATIONS,
+        list_feedback_for_audit,
+        reviewer_session,
+        session,
+    )
 
-    if session(request) is not None and job.state == "complete":
+    admin_auth = session(request)
+    reviewer_auth = reviewer_session(request)
+    if admin_auth is not None and job.state == "complete":
         by_finding: dict[str, list[dict[str, Any]]] = {}
         for record in list_feedback_for_audit(job_id):
             by_finding.setdefault(record["finding_ref"], []).append(record)
         context["admin_feedback_by_finding"] = by_finding
         context["admin_feedback_classifications"] = CLASSIFICATIONS
+        context["feedback_notice"] = request.query_params.get("feedback") == "saved"
+    elif reviewer_auth is not None and job.state == "complete":
         context["feedback_notice"] = request.query_params.get("feedback") == "saved"
     return _render(request, "job.html", context)
 
