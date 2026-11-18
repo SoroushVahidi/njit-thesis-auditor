@@ -592,29 +592,21 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Remove the final period from each Table of Contents entry."
         ),
     },
-    # Ester (2026-09-04): List of Tables / List of Figures entries should
-    # always show the word "Table" or "Figure" before the X.x number. The
-    # detector enforces that prefix as well as the original cross-type check.
+    # Ester 2026-11-17: numeric-only LoF entries are valid. Body references
+    # use Figure; preserve the separate LoT and misplaced-entry requirements.
     "P055": {
-        "question": (
-            "Does each List of Tables entry begin with the word 'Table', and "
-            "each List of Figures entry with the word 'Figure', before its "
-            "number?"
-        ),
+        "question": ("Are list entries in the correct list, and is 'Figure' "
+                     "written out in body references?"),
         "rule_definition": (
-            "Conservative automated check. Each complete List of Tables "
-            "entry should begin with 'Table' and each complete List of "
-            "Figures entry with 'Figure', followed by its number. This rule "
-            "emits an advisory when an entry starts with only a number, or "
-            "when a List of Tables entry starts with 'Figure' or a List of "
-            "Figures entry starts with 'Table' (a misplaced entry). "
-            "Findings contain only structural metadata -- no title text."
+            "Checks misplaced entries between the List of Tables and List of Figures, "
+            "missing 'Table' prefixes in the List of Tables, and explicit 'Fig.' "
+            "abbreviations in body references. List of Figures entries may begin "
+            "with only a number. Bare body numbers are not classified as figure references."
         ),
         "remediation": (
-            "Begin each List of Tables entry with the word 'Table' and each "
-            "List of Figures entry with the word 'Figure' before its number "
-            "(for example, Table 1.1 or Figure 1.1). Move any misplaced entry "
-            "to the correct list."
+            "Move any misplaced entry to the correct list. Begin List of Tables "
+            "entries with 'Table'. Use the full word 'Figure' in body references; "
+            "List of Figures entries do not need that prefix."
         ),
     },
     "P074": {

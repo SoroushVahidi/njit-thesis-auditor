@@ -38,6 +38,7 @@
     "tests/test_ester_r018_folio_baselines_20261117.py",
     "tests/test_ester_r018_r024_r040_regressions.py",
     "tests/test_ester_r018_wrapped_leader_folio_20261117.py",
+    "tests/test_ester_r024_r055_20261117.py",
     "tests/test_ester_remediation_targets.py",
     "tests/test_ester_rule_wording_pass1.py",
     "tests/test_ester_stage1.py",

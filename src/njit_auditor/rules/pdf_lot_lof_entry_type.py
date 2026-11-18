@@ -7,8 +7,10 @@ Heuristic PDF coverage for Q063/Q072:
 Emits an advisory when:
   - A List of Tables entry starts with "Figure" (lot_entry_is_figure) or
     is numeric-only (lot_entry_missing_table_prefix).
-  - A List of Figures entry starts with "Table" (lof_entry_is_table) or
-    is numeric-only (lof_entry_missing_figure_prefix).
+  - A List of Figures entry starts with "Table" (lof_entry_is_table).
+
+Numeric-only LoF entries are valid (Ester 2026-11-17). The word Figure is
+required for body references, not before every number in this list.
 
 TOC pages are excluded. Findings contain only structural metadata — no title text.
 """
@@ -20,6 +22,7 @@ import re
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, format_bbox_detail
+from njit_auditor.rules.pdf_captions import _page_context, detect_caption_lines
 from njit_auditor.rules.pdf_toc_alignment import (
     RIGHT_COLUMN_MIN_X_OFFSET_PT,
     RIGHT_EDGE_TOLERANCE_PT,
@@ -225,38 +228,67 @@ def _check_lof_entry_type_page(
                     },
                 )
             )
-        elif _NUMERIC_PREFIX_RE.match(text):
-            findings.append(
-                AuditFinding(
+    return findings
+
+
+_BODY_REFERENCE_RE = re.compile(
+    r"(?:\b(?:see|in|from|of|to|with|by)\s+(?P<inline>fig\.)\s*"
+    r"(?:[A-Z][.\-])?\d+(?:[.\-]\d+)*(?!\w|\.\d)|"
+    r"^(?P<leading>fig\.)\s*(?:[A-Z][.\-])?\d+(?:[.\-]\d+)*\s+"
+    r"(?:shows|illustrates|depicts|presents|compares)\b)",
+    re.IGNORECASE,
+)
+
+
+def _check_body_figure_references(
+    pdf_document: PdfDocument, list_pages: set[int]
+) -> list[AuditFinding]:
+    """Check explicit prose references only; bare numbers are ambiguous.
+
+    Caption formatting has separate owners. Never infer a body reference from
+    a numeric list entry or a figure caption. A short same-block line wrap may
+    separate Fig. from its number; page boundaries are never joined.
+    """
+    captions = detect_caption_lines(pdf_document)
+    findings: list[AuditFinding] = []
+    for page in pdf_document.pages:
+        if page.page_number in list_pages or _page_context(page) != "body":
+            continue
+        boxes = [c.bbox for c in captions if c.page_number == page.page_number and c.bbox]
+        for block in page.text_blocks:
+            for index, line in enumerate(block.lines):
+                if any(b.y0 <= line.bbox.y0 < b.y1 for b in boxes):
+                    continue
+                text = " ".join(line.text.split())
+                if index + 1 < len(block.lines) and text.lower().endswith("fig."):
+                    following = block.lines[index + 1]
+                    if 0 <= following.bbox.y0 - line.bbox.y1 <= line.bbox.y1 - line.bbox.y0:
+                        text += " " + " ".join(following.text.split())
+                if not _BODY_REFERENCE_RE.search(text):
+                    continue
+                findings.append(AuditFinding(
                     rule_id="P055",
                     severity=Severity.WARNING,
-                    page=context.page.page_number,
-                    message=(
-                        "List of Figures entry is missing the required 'Figure' prefix. "
-                        "NJIT guidelines require that each entry in the List of Figures "
-                        "begin with the word 'Figure'."
-                    ),
+                    page=page.page_number,
+                    message="A body reference abbreviates 'Figure' as 'Fig.'.",
                     details={
-                        "issue_type": "lof_entry_missing_figure_prefix",
-                        "page": str(context.page.page_number),
-                        "section_type": "list_of_figures",
-                        "entry_index": str(page_entry_offset + idx),
-                        "observed_entry_type": "numeric_only",
-                        "expected_entry_type": "figure",
-                        "page_number_token_present": "true",
-                        "triage_tier": "medium",
-                        "source_q_rule_id": "Q072",
+                        "issue_type": "body_figure_reference_abbreviated",
+                        "section_type": "body",
+                        "bbox": format_bbox_detail(line.bbox),
+                        "confidence": "medium",
+                        "suggested_fix": ("Use the full word 'Figure' before the number "
+                                          "in this body reference."),
                     },
-                )
-            )
+                ))
     return findings
 
 
 def check_pdf_lot_lof_entry_type(pdf_document: PdfDocument) -> list[AuditFinding]:
-    """Emit P055 warnings for cross-type or missing prefix LoT/LoF entries."""
+    """Check list entry types and explicitly abbreviated body figure references."""
     findings: list[AuditFinding] = []
     entry_offset = 0
-    for context in detect_toc_like_pages(pdf_document):
+    contexts = detect_toc_like_pages(pdf_document)
+    for context in contexts:
         if context.page_type == "list_of_tables":
             entries = extract_toc_logical_entry_lines(context, require_right_edge=True)
             page_findings = _check_lot_entry_type_page(context, entries, entry_offset)
@@ -270,4 +302,7 @@ def check_pdf_lot_lof_entry_type(pdf_document: PdfDocument) -> list[AuditFinding
             finding.details.update(_entry_evidence(context, entry))
         findings.extend(page_findings)
         entry_offset += len(entries)
+    findings.extend(_check_body_figure_references(
+        pdf_document, {context.page.page_number for context in contexts}
+    ))
     return findings

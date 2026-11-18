@@ -430,7 +430,7 @@
     ],
     "implementation_module": "njit_auditor.rules.pdf_toc_list_formatting",
     "priority": "high",
-    "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Ester Q051 TOC Level 3 sentence-case requirement; Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Level 3 emits only for complete, aligned entries with two ordinary noninitial capitalized words, or an exact two-word title whose second word is repeatedly lowercase in ordinary body prose. It abstains on ambiguous names, notation, and unsupported short titles. issue_type values: toc_level_capitalization (public R018A-C), list_of_tables_title_case (public R024D), list_of_figures_title_case (legacy compatibility key for sentence case, public R024E). The former unexpected_terminal_punctuation issue type is no longer emitted; List of Tables terminal periods are owned by P053.",
+    "notes": "Conservative heuristic. Sources: Titles Examples Level 1 to 5.docx (L1=ALL CAPS, L2=Title Case); Ester Q051 TOC Level 3 sentence-case requirement; Thesis and Dissertation Formatting Guidelines (WIP).docx. TOC level classified by numbering pattern (1.1, 1.1.1, CHAPTER) and indentation clusters. Level 3 emits only for complete, aligned entries with two ordinary noninitial capitalized words, or an exact two-word title whose second word is repeatedly lowercase in ordinary body prose. It abstains on ambiguous names, notation, and unsupported short titles. issue_type values: toc_level_capitalization (public R018A-C), list_of_tables_title_case (public R024D), list_of_figures_title_case (legacy compatibility key for sentence case, public R024E). The former unexpected_terminal_punctuation issue type is no longer emitted; List of Tables terminal periods are owned by P053. Appendix letter prefixes occupy the first hierarchy component: B.1=level 2; B.1.7=level 3. Explicit numbering takes precedence over indentation; depths 4+ remain outside TOC capitalization scope (Ester 2026-11-17).",
     "source_q_rule_ids": [
       "Q049",
       "Q050",
@@ -982,9 +982,9 @@
   {
     "id": "P055",
     "section": "PDF List of Tables / List of Figures cross-type entry check",
-    "question": "Are table entries listed only in the List of Tables and figure entries listed only in the List of Figures?",
-    "rule_definition": "Conservative heuristic check. NJIT guidelines (Q063/Q072) define the List of Tables as containing only table entries and the List of Figures as containing only figure entries. P055 emits an advisory when a complete LoT entry (with page-number token) starts with 'Figure', or a complete LoF entry starts with 'Table'. This catches misplaced entries that indicate a copy-paste error or misconfigured template. Findings contain only structural metadata — no title text.",
-    "remediation": "Move each misplaced entry to the correct section: table entries belong in the List of Tables, and figure entries belong in the List of Figures.",
+    "question": "Are list entries in the correct list, and is 'Figure' written out in body references?",
+    "rule_definition": "List entry checks extend Q063/Q072. Check complete LoT entries starting with Figure or lacking Table, complete LoF entries starting with Table, and explicit Fig. abbreviations in body references. Numeric-only List of Figures entries are valid. Body references require Figure (Ester 2026-11-17); bare numbers and ambiguous text are not classified as references. Caption checks remain separate.",
+    "remediation": "Move misplaced entries to the correct list. Keep Table prefixes in the List of Tables. Write Figure in full in body references; numeric-only List of Figures entries need no prefix.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -994,7 +994,7 @@
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Q063/Q072 extension. Planned module: njit_auditor.rules.pdf_lot_lof_entry_type. issue_types: lot_entry_is_figure, lof_entry_is_table. Gate: entry must have page_number_token, text >= 10 chars; prefix must be 'Figure' or 'Table' followed by whitespace+digit. triage_tier: medium. See docs/planning/p055_scope_and_design.md.",
+    "notes": "Q063/Q072 list-entry type extension. Ester 2026-11-17 supersedes the earlier LoF per-entry prefix interpretation. Q072 concerns the Figure column header, checked separately. issue_types: lot_entry_is_figure, lof_entry_is_table, lot_entry_missing_table_prefix, body_figure_reference_abbreviated. Legacy lof_entry_missing_figure_prefix is no longer emitted. Body checks require explicit prose reference cues and exclude detected list pages and captions.",
     "implementation_module": "njit_auditor.rules.pdf_lot_lof_entry_type"
   },
   {

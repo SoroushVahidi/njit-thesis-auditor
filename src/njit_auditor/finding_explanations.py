@@ -730,8 +730,11 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Each entry in the List of Tables must begin with the word 'Table' (e.g., Table 1.1)."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
-        "A List of Figures entry on this page is missing the required 'Figure' prefix. "
-        "Each entry in the List of Figures must begin with the word 'Figure' (e.g., Figure 1.1)."
+        "List of Figures entries may begin with a number; the word Figure is not required "
+        "before each entry. Review body references separately."
+    ),
+    ("P055", "body_figure_reference_abbreviated"): (
+        "Use the full word 'Figure' before the number in this body reference."
     ),
     # --- P058/P060 TOC ordering ---
     ("P058", "toc_page_numbers_not_nondecreasing"): (
