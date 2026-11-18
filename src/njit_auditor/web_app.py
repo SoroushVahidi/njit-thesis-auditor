@@ -2376,12 +2376,14 @@ async def job_page(request: Request, job_id: str, sort: str = SORT_MODE_DEFAULT)
 
     sort_mode = normalize_sort_mode(sort)
     context = _job_page_context(job, sort_mode=sort_mode)
-    from njit_auditor.admin_feedback import list_feedback_for_audit, session
+    from njit_auditor.admin_feedback import CLASSIFICATIONS, list_feedback_for_audit, session
 
     if session(request) is not None and job.state == "complete":
-        context["admin_feedback_by_finding"] = {
-            record["finding_ref"]: record for record in list_feedback_for_audit(job_id)
-        }
+        by_finding: dict[str, list[dict[str, Any]]] = {}
+        for record in list_feedback_for_audit(job_id):
+            by_finding.setdefault(record["finding_ref"], []).append(record)
+        context["admin_feedback_by_finding"] = by_finding
+        context["admin_feedback_classifications"] = CLASSIFICATIONS
         context["feedback_notice"] = request.query_params.get("feedback") == "saved"
     return _render(request, "job.html", context)
 

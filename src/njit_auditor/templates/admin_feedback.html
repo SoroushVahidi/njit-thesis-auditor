@@ -29,9 +29,9 @@
       <select id="status-{{ item.id }}" name="status">{% for value in statuses %}<option value="{{ value }}"{% if item.status == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select>
       <button type="submit" name="action" value="save">Save changes</button>
     </form>
-    <form action="/admin/feedback/{{ item.id }}" method="post" onsubmit="return confirm('Delete this feedback record? This cannot be undone.');" style="margin-top:.7rem">
+    <form action="/admin/feedback/{{ item.id }}" method="post" style="margin-top:.7rem">
       <input type="hidden" name="csrf_token" value="{{ admin_csrf_token }}">
-      <input type="hidden" name="confirm_delete" value="yes">
+      <label><input type="checkbox" name="confirm_delete" value="yes" required> I confirm deletion of this feedback record.</label>
       <button type="submit" name="action" value="delete" class="btn-secondary">Delete feedback</button>
     </form>
   </article>

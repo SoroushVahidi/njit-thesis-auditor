@@ -167,6 +167,8 @@
   .admin-feedback legend { font-weight: 700; margin-bottom: 0.4rem; }
   .admin-feedback label { display: flex; gap: 0.45rem; align-items: baseline; font-weight: 400; }
   .admin-feedback textarea { display: block; width: 100%; min-height: 5rem; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 5px; }
+  .admin-feedback-history { grid-column: 1 / -1; margin-top: 0.4rem; overflow-wrap: anywhere; }
+  .admin-feedback-history p { margin: 0.45rem 0; }
   .margin-checks { margin: 0.45rem 0; padding-left: 1.2rem; font-size: 0.83rem; }
   .margin-checks li { margin: 0.2rem 0; }
   .margin-checks .margin-answer--no { color: #9f1d16; }
@@ -664,17 +666,22 @@
           {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">All findings on this page</a>{% endif %}
         </div>
         {% if admin_mode %}
-        {% set saved = admin_feedback_by_finding.get(f.finding_id) if admin_feedback_by_finding else none %}
+        {% set saved = admin_feedback_by_finding.get(f.finding_id, []) if admin_feedback_by_finding else [] %}
+        {% if saved %}
+        <details class="admin-feedback-history"><summary>{{ saved|length }} saved administrator review{% if saved|length != 1 %}s{% endif %}</summary>
+          {% for entry in saved %}<p><strong>{{ admin_feedback_classifications[entry.classification] }}</strong> · {{ entry.status }} · {{ entry.created_at }}{% if entry.comment %}<br>{{ entry.comment }}{% endif %}</p>{% endfor %}
+        </details>
+        {% endif %}
         <form class="admin-feedback" action="/audits/{{ job_id }}/feedback/{{ f.finding_id }}" method="post">
           <input type="hidden" name="csrf_token" value="{{ admin_csrf_token }}">
           <fieldset><legend>Administrator feedback for {{ f.finding_id }}</legend>
-            <label><input type="radio" name="classification" value="true_positive" required{% if saved and saved.classification == 'true_positive' %} checked{% endif %}> True Positive — The flagged problem is genuine and correctly detected.</label>
-            <label><input type="radio" name="classification" value="false_positive" required{% if saved and saved.classification == 'false_positive' %} checked{% endif %}> False Positive — The reported problem is incorrect.</label>
-            <label><input type="radio" name="classification" value="unclear" required{% if saved and saved.classification == 'unclear' %} checked{% endif %}> Unclear / Needs Clarification — The finding, supporting evidence, or explanation is difficult to understand or evaluate.</label>
-            <label><input type="radio" name="classification" value="other" required{% if saved and saved.classification == 'other' %} checked{% endif %}> Other — Any other feedback or suggested improvement.</label>
+            <label><input type="radio" name="classification" value="true_positive" required> True Positive — The flagged problem is genuine and correctly detected.</label>
+            <label><input type="radio" name="classification" value="false_positive" required> False Positive — The reported problem is incorrect.</label>
+            <label><input type="radio" name="classification" value="unclear" required> Unclear / Needs Clarification — The finding, supporting evidence, or explanation is difficult to understand or evaluate.</label>
+            <label><input type="radio" name="classification" value="other" required> Other — Any other feedback or suggested improvement.</label>
           </fieldset>
           <label for="comment-{{ f.finding_id }}">Additional comments (optional)</label>
-          <textarea id="comment-{{ f.finding_id }}" name="comment" maxlength="4000">{{ saved.comment if saved else '' }}</textarea>
+          <textarea id="comment-{{ f.finding_id }}" name="comment" maxlength="4000"></textarea>
           <button type="submit">Save Feedback</button>
         </form>
         {% endif %}
