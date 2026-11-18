@@ -1893,11 +1893,20 @@ def _render(
         context = {**context, "windows_download": windows_download()}
     templates = getattr(request.app.state, "templates", _templates)
     context = {**context, "offline_mode": getattr(request.app.state, "offline_mode", False)}
+    if not context["offline_mode"]:
+        from njit_auditor.admin_feedback import session
+
+        admin_session = session(request)
+        context["admin_mode"] = admin_session is not None
+        context["admin_csrf_token"] = admin_session["csrf_token"] if admin_session else ""
     if context["offline_mode"]:
         context["csrf_token"] = request.app.state.csrf_token
         context["deletion_status"] = request.query_params.get("deletion", "")
-    return templates.TemplateResponse(request=request, name=template, context=context,
-                                      status_code=status_code)
+    response = templates.TemplateResponse(request=request, name=template, context=context,
+                                          status_code=status_code)
+    if context.get("admin_mode"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 
@@ -2366,7 +2375,17 @@ async def job_page(request: Request, job_id: str, sort: str = SORT_MODE_DEFAULT)
         return _index_notice(request, _expired_job_notice(), status_code=404)
 
     sort_mode = normalize_sort_mode(sort)
-    return _render(request, "job.html", _job_page_context(job, sort_mode=sort_mode))
+    context = _job_page_context(job, sort_mode=sort_mode)
+    from njit_auditor.admin_feedback import CLASSIFICATIONS, list_feedback_for_audit, session
+
+    if session(request) is not None and job.state == "complete":
+        by_finding: dict[str, list[dict[str, Any]]] = {}
+        for record in list_feedback_for_audit(job_id):
+            by_finding.setdefault(record["finding_ref"], []).append(record)
+        context["admin_feedback_by_finding"] = by_finding
+        context["admin_feedback_classifications"] = CLASSIFICATIONS
+        context["feedback_notice"] = request.query_params.get("feedback") == "saved"
+    return _render(request, "job.html", context)
 
 
 @app.get("/audits/{job_id}/problems/category/{category_slug}", response_class=HTMLResponse)
@@ -3151,3 +3170,9 @@ async def about_page(request: Request) -> HTMLResponse:
 async def rules_page(request: Request) -> HTMLResponse:
     catalog = _build_rule_catalog()
     return _render(request, "rules.html", catalog)
+
+
+# Registered last so the offline application can explicitly omit these web-only routes.
+from njit_auditor.admin_feedback import router as admin_feedback_router  # noqa: E402
+
+app.include_router(admin_feedback_router)

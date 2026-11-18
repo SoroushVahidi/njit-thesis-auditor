@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Feedback dashboard — NJIT Thesis Auditor{% endblock %}
+{% block content %}
+<main>
+  <h1>Administrator feedback</h1>
+  {% if notice == 'saved' %}<div class="alert-info" role="status">Feedback saved.</div>{% endif %}
+  <form method="get" action="/admin/feedback" class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.6rem">
+    <div><label for="filter-rule">Rule</label><input id="filter-rule" name="rule_id" value="{{ filters.rule_id }}" maxlength="50"></div>
+    <div><label for="filter-classification">Classification</label><select id="filter-classification" name="classification"><option value="">All</option>{% for value,label in classifications.items() %}<option value="{{ value }}"{% if filters.classification == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div><label for="filter-status">Status</label><select id="filter-status" name="status"><option value="">All</option>{% for value in statuses %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></div>
+    <div><label for="filter-from">From</label><input id="filter-from" type="date" name="from_date" value="{{ filters.from_date }}"></div>
+    <div><label for="filter-to">To</label><input id="filter-to" type="date" name="to_date" value="{{ filters.to_date }}"></div>
+    <button type="submit">Filter</button>
+  </form>
+  <p>{{ feedback|length }} saved records shown on page {{ page }}.</p>
+  {% for item in feedback %}
+  <article class="card" style="overflow-wrap:anywhere">
+    <h2>{{ item.rule_id }} · {{ item.finding_ref }}</h2>
+    <p>Audit reference: {{ item.audit_ref }} · Issue: {{ item.issue_type }}{% if item.pdf_page %} · PDF page {{ item.pdf_page }}{% endif %}</p>
+    <p>Original confidence: {{ item.original_confidence }} · Submitted: {{ item.created_at }} by {{ item.submitted_by_username or 'Legacy (unattributed)' }} · Status: {{ item.status }}</p>
+    <p>Last modified by: {{ item.last_modified_by_username or 'Legacy (unattributed)' }}{% if item.resolved_at %} · Resolved by: {{ item.resolved_by_username or 'Legacy (unattributed)' }}{% endif %}</p>
+    <p>{{ item.context }}</p>
+    <form action="/admin/feedback/{{ item.id }}" method="post">
+      <input type="hidden" name="csrf_token" value="{{ admin_csrf_token }}">
+      <label for="classification-{{ item.id }}">Classification</label>
+      <select id="classification-{{ item.id }}" name="classification">{% for value,label in classifications.items() %}<option value="{{ value }}"{% if item.classification == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <label for="comment-{{ item.id }}">Additional comments (optional)</label>
+      <textarea id="comment-{{ item.id }}" name="comment" maxlength="4000" style="width:100%;min-height:5rem">{{ item.comment }}</textarea>
+      <label for="status-{{ item.id }}">Workflow status</label>
+      <select id="status-{{ item.id }}" name="status">{% for value in statuses %}<option value="{{ value }}"{% if item.status == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select>
+      <button type="submit" name="action" value="save">Save changes</button>
+    </form>
+    <form action="/admin/feedback/{{ item.id }}" method="post" style="margin-top:.7rem">
+      <input type="hidden" name="csrf_token" value="{{ admin_csrf_token }}">
+      <label><input type="checkbox" name="confirm_delete" value="yes" required> I confirm deletion of this feedback record.</label>
+      <button type="submit" name="action" value="delete" class="btn-secondary">Delete feedback</button>
+    </form>
+  </article>
+  {% endfor %}
+  <nav aria-label="Feedback pages">{% if previous_url %}<a href="{{ previous_url }}">Previous page</a>{% endif %}{% if next_url %} <a href="{{ next_url }}">Next page</a>{% endif %}</nav>
+</main>
+{% endblock %}
