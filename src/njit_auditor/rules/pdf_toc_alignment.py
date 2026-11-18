@@ -59,6 +59,9 @@ SECTION_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)*$")
 # Lettered appendix subsections such as "A.1 …" / "B.2.3 …" (require at least one
 # ".digit" segment so a bare letter is not treated as a numbered level).
 LETTERED_SECTION_PREFIX_RE = re.compile(r"^([A-Z](?:\.\d+)+)\.?[\s:]")
+ABBREVIATED_LIST_ENTRY_RE = re.compile(
+    r"^(?:fig|tab)\.\s+(?:[A-Z]\.)?\d+(?:\.\d+)*\b", re.IGNORECASE
+)
 # Word-prefix TOC roots that sit at chapter / back-matter level.
 TOP_LEVEL_TOC_WORD_PREFIX_RE = re.compile(
     r"^(APPENDIX|CHAPTER|REFERENCES|BIBLIOGRAPHY|ABSTRACT|"
@@ -453,6 +456,11 @@ def _extract_page_number_token(
 
 
 def _line_mid_y(line: PdfTextLine) -> float:
+    # Glyph boxes can have different heights even when PDF text origins share
+    # one visual baseline. Prefer the extracted origin for TOC column grouping;
+    # box centers are only a fallback for synthetic/older layout models.
+    if line.baseline_y is not None:
+        return line.baseline_y
     return (line.bbox.y0 + line.bbox.y1) / 2.0
 
 
@@ -554,9 +562,67 @@ def _looks_like_wrap_continuation(cleaned_text: str) -> bool:
     return cleaned_text[0].islower()
 
 
+def _has_expression_continuation_start(cleaned_text: str) -> bool:
+    """An equation continuation is distinct from an unmarked new title."""
+
+    stripped = cleaned_text.lstrip()
+    return bool(stripped and stripped[0] in "=+-−–—")
+
+
 def _has_prefix_entry_shape(cleaned_text: str) -> bool:
     upper = cleaned_text.upper()
     return bool(PREFIX_ENTRY_RE.match(upper) or NUMERIC_PREFIX_RE.match(cleaned_text))
+
+
+def _has_entry_identifier(cleaned_text: str) -> bool:
+    """Recognize a possible numbered or named entry start in extracted text."""
+
+    return _has_prefix_entry_shape(cleaned_text) or _has_lettered_or_abbreviated_identifier(
+        cleaned_text
+    )
+
+
+def _has_lettered_or_abbreviated_identifier(cleaned_text: str) -> bool:
+    return bool(
+        LETTERED_SECTION_PREFIX_RE.match(cleaned_text.upper())
+        or ABBREVIATED_LIST_ENTRY_RE.match(cleaned_text)
+    )
+
+
+def _starts_independent_logical_entry(
+    text: str, parent_text: str, page_type: str
+) -> bool:
+    """Stop at explicit entry starts while retaining numeric title continuations.
+
+    A number at the start of a Figure/Table title can be ordinary title text
+    on a hanging list row. Numeric TOC starts and numeric-to-numeric list
+    starts that advance the list sequence are independent; lettered appendix
+    and word prefixes are explicit boundaries in every TOC/List type.
+    """
+
+    if _has_lettered_or_abbreviated_identifier(text) or PREFIX_ENTRY_RE.match(text):
+        return True
+    follower_number = NUMERIC_PREFIX_RE.match(text)
+    if follower_number is None:
+        return False
+    if page_type == "table_of_contents":
+        return True
+    following_title = text[follower_number.end() :].lstrip()
+    if re.match(r"^[A-Z][a-z]{2,}\b", following_title):
+        # An entry title can begin after a number even when a List switches
+        # numbering styles or has an out-of-order entry. Require a title-like
+        # word: a short unit such as W, Pa, or MHz after a decimal is not one.
+        return True
+    parent_number = NUMERIC_PREFIX_RE.match(parent_text)
+    if parent_number is None:
+        return False
+    # A list's numbered entries progress through their figure/table labels.
+    # A scalar at the start of a wrapped mathematical caption (for example
+    # 0.417 after 5.12) is not evidence of a new list entry.
+    def parts(match: re.Match[str]) -> tuple[int, ...]:
+        return tuple(int(part) for part in match.group().strip().rstrip(".").split("."))
+
+    return parts(follower_number) > parts(parent_number)
 
 
 _LEADER_DOT_SPAN_RE = re.compile(r"[.…][.…\s]*[.…]")
@@ -692,6 +758,8 @@ def _strip_trailing_page_token(text: str, token: str | None) -> str:
 def _merge_wrapped_entries(
     entries: list[TocEntryLine],
     auxiliary_lines: list[PdfTextLine],
+    *,
+    preserve_lettered_boundaries: bool = False,
 ) -> list[TocEntryLine]:
     if not entries:
         return entries
@@ -722,7 +790,10 @@ def _merge_wrapped_entries(
                     y_gap = nxt.line.bbox.y0 - prev_y
                     if y_gap > WRAPPED_ENTRY_Y_GAP_PT:
                         break
-                    if _has_prefix_entry_shape(nxt.cleaned_text):
+                    if _has_prefix_entry_shape(nxt.cleaned_text) or (
+                        preserve_lettered_boundaries
+                        and _has_lettered_or_abbreviated_identifier(nxt.cleaned_text)
+                    ):
                         break
                     cont = _strip_trailing_page_token(
                         nxt.cleaned_text, nxt.page_number_token
@@ -822,7 +893,10 @@ def collect_toc_visual_rows(
 
 
 def extract_toc_entry_lines(
-    context: TocPageContext, *, require_right_edge: bool = False
+    context: TocPageContext,
+    *,
+    require_right_edge: bool = False,
+    preserve_lettered_boundaries: bool = False,
 ) -> list[TocEntryLine]:
     """Extract likely entry lines below TOC/List heading on a page."""
 
@@ -867,7 +941,11 @@ def extract_toc_entry_lines(
         if matched is not None:
             _apply_auxiliary_page_number(entry, matched)
 
-    entries = _merge_wrapped_entries(entries, unused_auxiliary)
+    entries = _merge_wrapped_entries(
+        entries,
+        unused_auxiliary,
+        preserve_lettered_boundaries=preserve_lettered_boundaries,
+    )
     entries = _drop_merge_orphans(entries)
     entries.sort(key=lambda entry: (entry.line.bbox.y0, entry.line.bbox.x0))
     return entries
@@ -901,17 +979,26 @@ def _append_logical_row(entry: TocEntryLine, row: PdfTextLine, text: str) -> Non
 
 
 def extract_toc_logical_entry_lines(
-    context: TocPageContext, *, require_right_edge: bool = False
+    context: TocPageContext,
+    *,
+    require_right_edge: bool = False,
+    recover_displaced_leader_folio: bool = False,
 ) -> list[TocEntryLine]:
     """Repair demonstrable wrapped entries for R018/R024/R040.
 
     The ordinary extractor deliberately filters rows that do not resemble a
     standalone entry. A wrapped title can contain exactly such a row, or a
     numeral inside its first row can be mistaken for the page number. Rejoin
-    only hanging rows that lead to a page number in the page's established
-    right column. R075 and other rules keep the ordinary extractor.
+    only hanging rows with a terminal folio in the page's established column
+    are normally rejoined. P018's missing-number check can also use a final
+    hanging row's own right-side dot leaders when the column estimate is
+    contaminated. Other rules keep the established entry geometry.
     """
-    entries = extract_toc_entry_lines(context, require_right_edge=require_right_edge)
+    entries = extract_toc_entry_lines(
+        context,
+        require_right_edge=require_right_edge,
+        preserve_lettered_boundaries=recover_displaced_leader_folio,
+    )
     rows = collect_toc_visual_rows(context, require_right_edge=require_right_edge)
     column_edge = _logical_page_column_edge(entries)
     if not entries or not rows:
@@ -1004,6 +1091,10 @@ def extract_toc_logical_entry_lines(
                     context.page_type == "table_of_contents"
                     and _has_prefix_entry_shape(text)
                 )
+                or (
+                    recover_displaced_leader_folio
+                    and _starts_independent_logical_entry(text, first_text, context.page_type)
+                )
                 or len(continuation_rows) >= LOGICAL_WRAP_MAX_ROWS
             ):
                 break
@@ -1021,6 +1112,25 @@ def extract_toc_logical_entry_lines(
                     edge is not None
                     and column_edge is not None
                     and abs(edge - column_edge) <= RIGHT_EDGE_TOLERANCE_PT
+                )
+                or (
+                    # A wrapped title's final hanging line can have its own
+                    # terminal leader and folio even when earlier fragments
+                    # distort the page-wide column estimate. The leader,
+                    # right-side token and non-entry start establish ownership
+                    # without relaxing column alignment for bare numbers.
+                    recover_displaced_leader_folio
+                    # One hanging row alone could be a following entry whose
+                    # identifier was lost in extraction. Require an earlier
+                    # title continuation before using its final leader row.
+                    and len(continuation_rows) >= 2
+                    and edge is not None
+                    and edge >= context.page.width - 100.0
+                    and _has_leader_dot_pattern(text)
+                    and not _has_entry_identifier(text)
+                    and _has_expression_continuation_start(text)
+                    and abs(follower.bbox.x0 - continuation_rows[-2].bbox.x0)
+                    <= INDENT_CLUSTER_TOLERANCE_PT
                 )
             ):
                 final_number, final_edge = token, edge
@@ -1546,9 +1656,16 @@ def _add_entry_consistency_findings(
         # numbers for presence checks, but their span x1 is not the column.
         and _right_edge_page_number_span(entry.line) is not None
     ]
+    # Missing-folio ownership is evaluated with explicit appendix boundaries
+    # and the narrowly gated displaced-folio recovery. Other P018 checks keep
+    # their established entries and geometry.
+    presence_entries = extract_toc_logical_entry_lines(
+        context, recover_displaced_leader_folio=True
+    )
+    presence_positions = {entry: idx for idx, entry in enumerate(presence_entries)}
     entries_missing_page_num = [
         entry
-        for entry in entries
+        for entry in presence_entries
         if entry.page_number_right_x is None
         and not is_toc_structural_column_label(entry.cleaned_text)
         # Wrap continuations (no section/Figure/Table prefix) are not
@@ -1605,7 +1722,7 @@ def _add_entry_consistency_findings(
                     "page_type": context.page_type,
                     "issue_type": "missing_page_number",
                     "affected_entry_count": str(len(entries_missing_page_num)),
-                    "worst_entry_index": str(entry_positions[worst_entry]),
+                    "worst_entry_index": str(presence_positions[worst_entry]),
                     "confidence": "medium",
                 },
                 worst_entry,
