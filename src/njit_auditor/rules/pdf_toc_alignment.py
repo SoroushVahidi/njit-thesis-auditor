@@ -906,15 +906,20 @@ def _append_logical_row(entry: TocEntryLine, row: PdfTextLine, text: str) -> Non
 
 
 def extract_toc_logical_entry_lines(
-    context: TocPageContext, *, require_right_edge: bool = False
+    context: TocPageContext,
+    *,
+    require_right_edge: bool = False,
+    recover_displaced_leader_folio: bool = False,
 ) -> list[TocEntryLine]:
     """Repair demonstrable wrapped entries for R018/R024/R040.
 
     The ordinary extractor deliberately filters rows that do not resemble a
     standalone entry. A wrapped title can contain exactly such a row, or a
     numeral inside its first row can be mistaken for the page number. Rejoin
-    only hanging rows that lead to a page number in the page's established
-    right column. R075 and other rules keep the ordinary extractor.
+    Only hanging rows with a terminal folio in the page's established column
+    are normally rejoined. P018's missing-number check can also use a final
+    hanging row's own right-side dot leaders when the column estimate is
+    contaminated. Other rules keep the established entry geometry.
     """
     entries = extract_toc_entry_lines(context, require_right_edge=require_right_edge)
     rows = collect_toc_visual_rows(context, require_right_edge=require_right_edge)
@@ -1026,6 +1031,18 @@ def extract_toc_logical_entry_lines(
                     edge is not None
                     and column_edge is not None
                     and abs(edge - column_edge) <= RIGHT_EDGE_TOLERANCE_PT
+                )
+                or (
+                    # A wrapped title's final hanging line can have its own
+                    # terminal leader and folio even when earlier fragments
+                    # distort the page-wide column estimate. The leader,
+                    # right-side token and non-entry start establish ownership
+                    # without relaxing column alignment for bare numbers.
+                    recover_displaced_leader_folio
+                    and edge is not None
+                    and edge >= context.page.width - 100.0
+                    and _has_leader_dot_pattern(text)
+                    and not _has_prefix_entry_shape(text)
                 )
             ):
                 final_number, final_edge = token, edge
@@ -1562,6 +1579,25 @@ def _add_entry_consistency_findings(
             _has_prefix_entry_shape(entry.cleaned_text) or entry.has_leader_dots
         )
     ]
+
+    if entries_missing_page_num:
+        # Presence needs less evidence than column alignment: a terminal
+        # leader and folio on the same hanging continuation can prove a number
+        # exists even when apparent numbers inside other titles skew the page
+        # median. Keep the ordinary entries for every other P018 check and for
+        # P024/P040/P055, which rely on their established entry geometry.
+        recovered = extract_toc_logical_entry_lines(
+            context, recover_displaced_leader_folio=True
+        )
+        numbered_starts = {
+            (entry.line.bbox.y0, entry.indent_x)
+            for entry in recovered
+            if entry.page_number_token is not None
+        }
+        entries_missing_page_num = [
+            entry for entry in entries_missing_page_num
+            if (entry.line.bbox.y0, entry.indent_x) not in numbered_starts
+        ]
 
     if len(entries_with_page_num) >= 3:
         right_edges = [
