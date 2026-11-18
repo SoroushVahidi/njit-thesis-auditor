@@ -17,7 +17,8 @@
   <article class="card" style="overflow-wrap:anywhere">
     <h2>{{ item.rule_id }} · {{ item.finding_ref }}</h2>
     <p>Audit reference: {{ item.audit_ref }} · Issue: {{ item.issue_type }}{% if item.pdf_page %} · PDF page {{ item.pdf_page }}{% endif %}</p>
-    <p>Original confidence: {{ item.original_confidence }} · Submitted: {{ item.created_at }} · Status: {{ item.status }}</p>
+    <p>Original confidence: {{ item.original_confidence }} · Submitted: {{ item.created_at }} by {{ item.submitted_by_username or 'Legacy (unattributed)' }} · Status: {{ item.status }}</p>
+    <p>Last modified by: {{ item.last_modified_by_username or 'Legacy (unattributed)' }}{% if item.resolved_at %} · Resolved by: {{ item.resolved_by_username or 'Legacy (unattributed)' }}{% endif %}</p>
     <p>{{ item.context }}</p>
     <form action="/admin/feedback/{{ item.id }}" method="post">
       <input type="hidden" name="csrf_token" value="{{ admin_csrf_token }}">

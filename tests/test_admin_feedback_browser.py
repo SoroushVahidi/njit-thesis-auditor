@@ -13,7 +13,6 @@ from pathlib import Path
 
 import httpx
 import pytest
-from argon2 import PasswordHasher
 from test_about_browser import guard_external
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,7 +21,9 @@ BOOTSTRAP = '''import os, sys
 from datetime import datetime, timezone
 from pathlib import Path
 import uvicorn
+from njit_auditor import admin_accounts
 from njit_auditor import web_app as web
+admin_accounts.create_account('browserreviewer', os.environ.pop('NJIT_TEST_ADMIN_PASSWORD'))
 job_id = sys.argv[3]
 runtime = Path(os.environ['NJIT_AUDITOR_WEB_RUNTIME_DIR'])
 (runtime / job_id).mkdir(parents=True)
@@ -65,7 +66,8 @@ def admin_site(directory: Path):
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src"),
            "NJIT_AUDITOR_ADMIN_ENABLED": "1",
            "NJIT_AUDITOR_ADMIN_HTTPS_VERIFIED": "1",
-           "NJIT_AUDITOR_ADMIN_PASSWORD_HASH": PasswordHasher().hash(password),
+           "NJIT_AUDITOR_ADMIN_SESSION_KEY": secrets.token_urlsafe(32),
+           "NJIT_TEST_ADMIN_PASSWORD": password,
            "NJIT_AUDITOR_ADMIN_DB_PATH": str(private / "feedback.sqlite3"),
            "NJIT_AUDITOR_WEB_RUNTIME_DIR": str(directory / "jobs")}
     with (directory / "server.log").open("wb") as log:
@@ -104,6 +106,7 @@ def test_admin_review_browser_mobile_and_no_javascript_delete(tmp_path: Path) ->
             assert page.goto(audit_url).status == 200
             assert page.locator("form.admin-feedback").count() == 0
             page.get_by_role("link", name="Admin Login").click()
+            page.get_by_label("Administrator username").fill("browserreviewer")
             page.get_by_label("Administrator password").fill(password)
             page.get_by_role("button", name="Log in").click()
             page.wait_for_url(origin + "/admin/feedback")

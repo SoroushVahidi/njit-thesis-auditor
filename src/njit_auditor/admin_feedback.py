@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import hmac
 import os
@@ -12,17 +14,19 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote, urlencode
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
+from argon2.low_level import Type
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 router = APIRouter(include_in_schema=False)
-_HASHER = PasswordHasher()
+_HASHER = PasswordHasher(type=Type.ID)
 _COOKIE = "__Host-njit-admin"
 _LOGIN_CSRF = "__Host-njit-admin-login-csrf"
 _SESSION_SECONDS = 8 * 3600
@@ -33,6 +37,38 @@ CLASSIFICATIONS = {
     "other": "Other",
 }
 STATUSES = {"Open", "In Progress", "Resolved"}
+_FEEDBACK_SELECT = """SELECT f.*, submitter.username AS submitted_by_username,
+    editor.username AS last_modified_by_username, resolver.username AS resolved_by_username
+    FROM feedback AS f
+    LEFT JOIN admins AS submitter ON submitter.id=f.submitted_by_admin_id
+    LEFT JOIN admins AS editor ON editor.id=f.last_modified_by_admin_id
+    LEFT JOIN admins AS resolver ON resolver.id=f.resolved_by_admin_id"""
+
+
+def normalize_username(value: str) -> str:
+    """Store and look up ASCII usernames in one canonical lowercase form."""
+    candidate = value.strip()
+    if not candidate.isascii() or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{2,31}", candidate):
+        raise ValueError(
+            "Username must be 3–32 ASCII letters, digits, dots, dashes, or underscores."
+        )
+    return candidate.lower()
+
+
+def _secret_key() -> bytes | None:
+    raw = os.getenv("NJIT_AUDITOR_ADMIN_SESSION_KEY", "")
+    try:
+        key = base64.b64decode(raw + "=" * (-len(raw) % 4), altchars=b"-_", validate=True)
+    except (ValueError, binascii.Error):
+        return None
+    return key if len(key) >= 32 else None
+
+
+def _required_key() -> bytes:
+    key = _secret_key()
+    if key is None:
+        raise RuntimeError("Administrator session key is unavailable")
+    return key
 
 
 def _enabled(request: Request) -> bool:
@@ -41,7 +77,7 @@ def _enabled(request: Request) -> bool:
         and os.getenv("NJIT_AUDITOR_ADMIN_ENABLED") == "1"
         and os.getenv("NJIT_AUDITOR_ADMIN_HTTPS_VERIFIED") == "1"
         and request.url.scheme == "https"
-        and os.getenv("NJIT_AUDITOR_ADMIN_PASSWORD_HASH", "").startswith("$argon2id$")
+        and _secret_key() is not None
         and bool(os.getenv("NJIT_AUDITOR_ADMIN_DB_PATH", "").strip())
     )
 
@@ -83,6 +119,7 @@ def _connect() -> sqlite3.Connection:
         db.execute("PRAGMA busy_timeout=10000")
         db.execute("PRAGMA journal_mode=DELETE")
         db.execute("PRAGMA secure_delete=ON")
+        db.execute("PRAGMA foreign_keys=ON")
         db.execute("BEGIN IMMEDIATE")
         version = db.execute("PRAGMA user_version").fetchone()[0]
         if version == 0:
@@ -113,7 +150,7 @@ def _connect() -> sqlite3.Connection:
             for statement in schema.split(";"):
                 if statement.strip():
                     db.execute(statement)
-            db.execute("PRAGMA user_version=3")
+            version = 3
         elif version in (1, 2):
             if version == 1:
                 # Preserve every existing review while removing the one-review-per-finding limit.
@@ -142,8 +179,37 @@ def _connect() -> sqlite3.Connection:
             db.execute("""CREATE TABLE sessions (
                 token_hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL
             )""")
-            db.execute("PRAGMA user_version=3")
-        elif version != 3:
+            version = 3
+        if version == 3:
+            db.execute("""CREATE TABLE admins (
+                id TEXT PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                active INTEGER NOT NULL CHECK(active IN (0,1)),
+                created_at TEXT NOT NULL,
+                display_name TEXT
+            )""")
+            for column in (
+                "submitted_by_admin_id", "last_modified_by_admin_id", "resolved_by_admin_id"
+            ):
+                db.execute(f"ALTER TABLE feedback ADD COLUMN {column} TEXT REFERENCES admins(id)")
+            # Shared-password sessions carry no individual identity and cannot survive migration.
+            db.execute("DROP TABLE sessions")
+            db.execute("""CREATE TABLE sessions (
+                token_hash TEXT PRIMARY KEY,
+                admin_id TEXT NOT NULL REFERENCES admins(id),
+                expires_at INTEGER NOT NULL
+            )""")
+            db.execute("CREATE INDEX sessions_admin_idx ON sessions(admin_id)")
+            db.execute("""CREATE TABLE feedback_deletions (
+                feedback_id TEXT PRIMARY KEY,
+                audit_ref TEXT NOT NULL,
+                finding_ref TEXT NOT NULL,
+                deleted_by_admin_id TEXT NOT NULL REFERENCES admins(id),
+                deleted_at TEXT NOT NULL
+            )""")
+            db.execute("PRAGMA user_version=4")
+        elif version != 4:
             raise RuntimeError("Unsupported administrator database schema")
         db.commit()
     except Exception:
@@ -168,13 +234,11 @@ def _now() -> str:
 
 
 def _token_hash(token: str) -> str:
-    key = os.environ["NJIT_AUDITOR_ADMIN_PASSWORD_HASH"].encode()
-    return hmac.new(key, b"session:" + token.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(_required_key(), b"session:" + token.encode(), hashlib.sha256).hexdigest()
 
 
 def _session_csrf(token: str) -> str:
-    key = os.environ["NJIT_AUDITOR_ADMIN_PASSWORD_HASH"].encode()
-    return hmac.new(key, b"csrf:" + token.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(_required_key(), b"csrf:" + token.encode(), hashlib.sha256).hexdigest()
 
 
 def session(request: Request) -> dict[str, Any] | None:
@@ -186,14 +250,16 @@ def session(request: Request) -> dict[str, Any] | None:
     try:
         with _connection() as db:
             row = db.execute(
-                "SELECT expires_at FROM sessions WHERE token_hash=?",
+                """SELECT s.expires_at, a.id AS admin_id, a.username, a.display_name
+                FROM sessions AS s JOIN admins AS a ON a.id=s.admin_id
+                WHERE s.token_hash=? AND a.active=1""",
                 (_token_hash(token),),
             ).fetchone()
     except (OSError, ValueError, RuntimeError, sqlite3.Error):
         return None
     if row is None or row["expires_at"] <= int(time.time()):
         return None
-    return {"expires_at": row["expires_at"], "csrf_token": _session_csrf(token)}
+    return {**dict(row), "csrf_token": _session_csrf(token)}
 
 
 def _origin_ok(request: Request) -> bool:
@@ -245,9 +311,22 @@ def _require(request: Request) -> dict[str, Any] | None:
     return session(request)
 
 
+def _authorization_current(db: sqlite3.Connection, request: Request, admin_id: str) -> bool:
+    """Recheck revocation under the same write lock used for the feedback change."""
+    token = request.cookies.get(_COOKIE, "")
+    if not token:
+        return False
+    row = db.execute(
+        """SELECT 1 FROM sessions AS s JOIN admins AS a ON a.id=s.admin_id
+        WHERE s.token_hash=? AND s.admin_id=? AND s.expires_at>? AND a.active=1""",
+        (_token_hash(token), admin_id, int(time.time())),
+    ).fetchone()
+    return row is not None
+
+
 def _rate_bucket(request: Request) -> str:
-    # Password hash is deployment-specific key material; never persist raw client IPs.
-    key = os.environ["NJIT_AUDITOR_ADMIN_PASSWORD_HASH"].encode()
+    # Never persist raw client IPs; the configured key is outside this database.
+    key = _required_key()
     ip = request.client.host if request.client else "unknown"
     return hmac.new(key, ip.encode(), hashlib.sha256).hexdigest()
 
@@ -271,6 +350,11 @@ def _record_failure(db: sqlite3.Connection, bucket: str, now: int) -> None:
             (key, now + 900, now, now))
 
 
+@lru_cache(maxsize=1)
+def _dummy_hash() -> str:
+    return _HASHER.hash(secrets.token_urlsafe(32))
+
+
 @router.get("/admin/login", response_class=HTMLResponse)
 async def login_page(request: Request) -> Response:
     from njit_auditor import web_app
@@ -292,12 +376,17 @@ async def login(request: Request) -> Response:
         return _deny(request, 503)
     try:
         form = await _form(request)
+        username = str(form.get("username", ""))
         password = str(form.get("password", ""))
         csrf = str(form.get("csrf_token", ""))
     except (ValueError, TypeError):
         return _deny(request)
     if not _csrf_ok(request, csrf, None):
         return _deny(request)
+    try:
+        canonical = normalize_username(username)
+    except ValueError:
+        canonical = ""
     now = int(time.time())
     bucket = _rate_bucket(request)
     denial_status = 0
@@ -309,10 +398,14 @@ async def login(request: Request) -> Response:
         if _rate_limited(db, bucket, now):
             denial_status = 429
         else:
+            account = db.execute(
+                "SELECT id,password_hash,active FROM admins WHERE username=?", (canonical,)
+            ).fetchone()
+            usable = bool(account and account["active"] and
+                          str(account["password_hash"]).startswith("$argon2id$"))
+            candidate_hash = str(account["password_hash"]) if usable else _dummy_hash()
             try:
-                valid = bool(_HASHER.verify(
-                    os.environ["NJIT_AUDITOR_ADMIN_PASSWORD_HASH"], password
-                ))
+                valid = bool(_HASHER.verify(candidate_hash, password)) and usable
             except (VerificationError, InvalidHashError):
                 valid = False
             if not valid:
@@ -321,12 +414,12 @@ async def login(request: Request) -> Response:
             else:
                 db.execute("DELETE FROM login_attempts WHERE bucket=?", (bucket,))
                 token = secrets.token_urlsafe(32)
-                db.execute("INSERT INTO sessions VALUES (?,?)", (
-                    _token_hash(token), now + _SESSION_SECONDS
+                db.execute("INSERT INTO sessions VALUES (?,?,?)", (
+                    _token_hash(token), account["id"], now + _SESSION_SECONDS
                 ))
     if denial_status:
         message = ("Too many login attempts. Try again later." if denial_status == 429
-                   else "Invalid credentials.")
+                   else "Invalid username or password.")
         return _deny(request, denial_status, message, csrf)
     response = RedirectResponse("/admin/feedback", status_code=303)
     response.set_cookie(_COOKIE, token, secure=True, httponly=True, samesite="strict",
@@ -360,19 +453,20 @@ def list_feedback(*, page: int = 1, **filters: str) -> list[dict[str, Any]]:
     params: list[str] = []
     for field in ("rule_id", "classification", "status"):
         if filters.get(field):
-            clauses.append(f"{field}=?")
+            clauses.append(f"f.{field}=?")
             params.append(filters[field])
     if filters.get("from_date"):
-        clauses.append("created_at>=?")
+        clauses.append("f.created_at>=?")
         params.append(filters["from_date"])
     if filters.get("to_date"):
-        clauses.append("created_at<?")
+        clauses.append("f.created_at<?")
         params.append(filters["to_date"] + "T23:59:59.999999+00:00")
-    sql = "SELECT * FROM feedback" + (" WHERE " + " AND ".join(clauses) if clauses else "")
+    sql = _FEEDBACK_SELECT + (" WHERE " + " AND ".join(clauses) if clauses else "")
     with _connection() as db:
         return [
             dict(row) for row in db.execute(
-                sql + " ORDER BY created_at DESC LIMIT 100 OFFSET ?", [*params, (page - 1) * 100]
+                sql + " ORDER BY f.created_at DESC LIMIT 100 OFFSET ?",
+                [*params, (page - 1) * 100]
             )
         ]
 
@@ -380,7 +474,8 @@ def list_feedback(*, page: int = 1, **filters: str) -> list[dict[str, Any]]:
 def list_feedback_for_audit(audit_ref: str) -> list[dict[str, Any]]:
     with _connection() as db:
         return [dict(row) for row in db.execute(
-            "SELECT * FROM feedback WHERE audit_ref=? ORDER BY created_at DESC, id DESC",
+            _FEEDBACK_SELECT +
+            " WHERE f.audit_ref=? ORDER BY f.created_at DESC, f.id DESC",
             (audit_ref,))]
 
 
@@ -461,11 +556,15 @@ async def save_finding_feedback(request: Request, job_id: str, finding_id: str) 
     now = _now()
     with _connection() as db:
         db.execute("BEGIN IMMEDIATE")
+        if not _authorization_current(db, request, auth["admin_id"]):
+            return _deny(request)
         db.execute("""INSERT INTO feedback(id,audit_ref,finding_ref,rule_id,issue_type,
-            pdf_page,original_confidence,classification,comment,status,context,created_at,updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,'Open',?,?,?)""", (
+            pdf_page,original_confidence,classification,comment,status,context,created_at,updated_at,
+            submitted_by_admin_id,last_modified_by_admin_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
             secrets.token_urlsafe(16), job_id, finding_id, rule_id, issue_type, page,
-            confidence, classification, comment, f"Rule {rule_id}; issue {issue_type}", now, now,
+            confidence, classification, comment, "Open", f"Rule {rule_id}; issue {issue_type}",
+            now, now, auth["admin_id"], auth["admin_id"],
         ))
     anchor = quote(str(finding.get("problem_anchor", "")))
     return RedirectResponse(f"/audits/{quote(job_id)}?feedback=saved#{anchor}", status_code=303)
@@ -488,6 +587,8 @@ async def update_feedback(request: Request, feedback_id: str) -> Response:
     denial_status = 0
     with _connection() as db:
         db.execute("BEGIN IMMEDIATE")
+        if not _authorization_current(db, request, auth["admin_id"]):
+            return _deny(request)
         row = db.execute("SELECT * FROM feedback WHERE id=?", (feedback_id,)).fetchone()
         if row is None:
             denial_status = 404
@@ -495,6 +596,11 @@ async def update_feedback(request: Request, feedback_id: str) -> Response:
             if str(form.get("confirm_delete", "")) != "yes":
                 denial_status = 400
             else:
+                db.execute("""INSERT INTO feedback_deletions
+                    (feedback_id,audit_ref,finding_ref,deleted_by_admin_id,deleted_at)
+                    VALUES (?,?,?,?,?)""", (
+                    feedback_id, row["audit_ref"], row["finding_ref"], auth["admin_id"], _now()
+                ))
                 db.execute("DELETE FROM feedback WHERE id=?", (feedback_id,))
         else:
             classification = str(form.get("classification", row["classification"]))
@@ -505,13 +611,18 @@ async def update_feedback(request: Request, feedback_id: str) -> Response:
                 denial_status = 400
             else:
                 resolved_at = row["resolved_at"]
+                resolved_by = row["resolved_by_admin_id"]
                 if status == "Resolved" and row["status"] != "Resolved":
                     resolved_at = _now()
+                    resolved_by = auth["admin_id"]
                 elif status != "Resolved":
                     resolved_at = None
+                    resolved_by = None
                 db.execute("""UPDATE feedback SET classification=?,comment=?,status=?,
-                    updated_at=?,resolved_at=? WHERE id=?""",
-                    (classification, comment, status, _now(), resolved_at, feedback_id))
+                    updated_at=?,resolved_at=?,last_modified_by_admin_id=?,resolved_by_admin_id=?
+                    WHERE id=?""",
+                    (classification, comment, status, _now(), resolved_at, auth["admin_id"],
+                     resolved_by, feedback_id))
     if denial_status:
         return _deny(request, denial_status)
     return RedirectResponse("/admin/feedback?notice=saved", status_code=303)

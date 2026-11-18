@@ -39,6 +39,7 @@ dev = [
 
 [project.scripts]
 njit-audit = "njit_auditor.cli:app"
+njit-admin = "njit_auditor.admin_accounts:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

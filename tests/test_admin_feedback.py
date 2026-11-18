@@ -13,12 +13,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from argon2 import PasswordHasher
-from argon2.low_level import Type
 from fastapi.testclient import TestClient
 from starlette.routing import Route
 
-from njit_auditor import admin_feedback, web_app
+from njit_auditor import admin_accounts, admin_feedback, web_app
 
 
 @pytest.fixture
@@ -27,15 +25,18 @@ def setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, 
     runtime.mkdir()
     db_path = tmp_path / "private.sqlite3"
     password = secrets.token_urlsafe(24)
+    username = "reviewer" + secrets.token_hex(4)
     monkeypatch.setenv("NJIT_AUDITOR_ADMIN_ENABLED", "1")
     monkeypatch.setenv("NJIT_AUDITOR_ADMIN_HTTPS_VERIFIED", "1")
-    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_PASSWORD_HASH", PasswordHasher().hash(password))
+    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_SESSION_KEY", secrets.token_urlsafe(32))
+    monkeypatch.delenv("NJIT_AUDITOR_ADMIN_PASSWORD_HASH", raising=False)
     monkeypatch.setenv("NJIT_AUDITOR_ADMIN_DB_PATH", str(db_path))
     monkeypatch.setenv("NJIT_AUDITOR_WEB_RUNTIME_DIR", str(runtime))
     monkeypatch.setattr(web_app, "RUNTIME_DIR", runtime)
     with web_app._jobs_lock:
         saved = dict(web_app._jobs)
         web_app._jobs.clear()
+    admin_accounts.create_account(username, password)
     client = TestClient(web_app.app, base_url="https://testserver", raise_server_exceptions=False)
     yield client, web_app, db_path, password
     client.close()
@@ -44,12 +45,15 @@ def setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, 
         web_app._jobs.update(saved)
 
 
-def _login(client: TestClient, password: str) -> str:
+def _login(client: TestClient, password: str, username: str | None = None) -> str:
+    if username is None:
+        username = admin_accounts.list_accounts()[0]["username"]
     page = client.get("/admin/login")
     assert page.status_code == 200
     csrf = client.cookies.get(admin_feedback._LOGIN_CSRF)
     assert csrf
-    response = client.post("/admin/login", data={"password": password, "csrf_token": csrf},
+    response = client.post("/admin/login", data={"username": username, "password": password,
+                                                  "csrf_token": csrf},
                            headers={"Origin": "https://testserver"}, follow_redirects=False)
     assert response.status_code == 303
     cookie_header = response.headers["set-cookie"].lower()
@@ -323,9 +327,11 @@ def test_same_rule_page_sort_and_multiple_reviews_keep_exact_finding(
 
 
 def test_v1_migration_and_unknown_version_are_safe(
-    setup: tuple[TestClient, Any, Path, str],
+    setup: tuple[TestClient, Any, Path, str], monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _, _, db_path, _ = setup
+    _, _, configured, _ = setup
+    db_path = configured.parent / "legacy-v1.sqlite3"
+    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_DB_PATH", str(db_path))
     record_id = secrets.token_urlsafe(16)
     audit_ref = secrets.token_urlsafe(16)
     with sqlite3.connect(db_path) as db:
@@ -352,8 +358,11 @@ def test_v1_migration_and_unknown_version_are_safe(
     rows = admin_feedback.list_feedback()
     assert len(rows) == 1 and rows[0]["id"] == record_id
     with sqlite3.connect(db_path) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 3
-        db.execute("INSERT INTO feedback VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert rows[0]["submitted_by_admin_id"] is None
+        db.execute("""INSERT INTO feedback (id,audit_ref,finding_ref,rule_id,issue_type,
+            pdf_page,original_confidence,classification,comment,status,context,created_at,
+            updated_at,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
             secrets.token_urlsafe(16), audit_ref, "f0", "P011", "margin_violation", 1,
             "medium", "unclear", "Second synthetic review", "Open", "Rule P011",
             "2026-01-02T00:00:00+00:00", "2026-01-02T00:00:00+00:00", None,
@@ -379,7 +388,7 @@ def test_backup_restore_keeps_feedback_and_revokes_restored_sessions(
         source.backup(target)
     with sqlite3.connect(backup_path) as backup:
         assert backup.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
-        assert backup.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert backup.execute("PRAGMA user_version").fetchone()[0] == 4
         assert backup.execute("SELECT count(*) FROM feedback").fetchone()[0] == 1
     restored_path = db_path.parent / "restored.sqlite3"
     shutil.copy2(backup_path, restored_path)
@@ -422,16 +431,17 @@ def test_default_denial_forged_scheme_headers_and_secret_nonreflection(
     setup: tuple[TestClient, Any, Path, str], monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client, wa, _, password = setup
-    password_hash = os.environ["NJIT_AUDITOR_ADMIN_PASSWORD_HASH"]
+    with admin_feedback._connection() as db:
+        password_hash = db.execute("SELECT password_hash FROM admins").fetchone()[0]
     assert password_hash.startswith("$argon2id$")
     monkeypatch.delenv("NJIT_AUDITOR_ADMIN_ENABLED")
     assert client.get("/admin/login").status_code == 503
     assert client.get("/admin/feedback").status_code == 403
     assert client.get("/").status_code == 200
     monkeypatch.setenv("NJIT_AUDITOR_ADMIN_ENABLED", "1")
-    argon2i_hash = PasswordHasher(type=Type.I).hash(password)
-    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_PASSWORD_HASH", argon2i_hash)
+    monkeypatch.delenv("NJIT_AUDITOR_ADMIN_SESSION_KEY")
     assert client.get("/admin/login").status_code == 503
+    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_SESSION_KEY", secrets.token_urlsafe(32))
     monkeypatch.setenv("NJIT_AUDITOR_ADMIN_PASSWORD_HASH", password_hash)
     http = TestClient(wa.app, base_url="http://testserver")
     forged = {"X-Forwarded-Proto": "https", "Forwarded": "proto=https",
@@ -443,7 +453,8 @@ def test_default_denial_forged_scheme_headers_and_secret_nonreflection(
     page = client.get("/admin/login")
     csrf = client.cookies.get(admin_feedback._LOGIN_CSRF)
     assert csrf
-    wrong = client.post("/admin/login", data={"password": secrets.token_urlsafe(12),
+    wrong = client.post("/admin/login", data={"username": "unknown-reviewer",
+                                             "password": secrets.token_urlsafe(12),
                                              "csrf_token": csrf},
                         headers={"Origin": "https://testserver"})
     assert wrong.status_code == 401
@@ -505,9 +516,11 @@ def test_database_path_permissions_and_links_fail_closed(
 
 
 def test_failed_migration_rolls_back_without_touching_prior_rows(
-    setup: tuple[TestClient, Any, Path, str],
+    setup: tuple[TestClient, Any, Path, str], monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _, _, db_path, _ = setup
+    _, _, configured, _ = setup
+    db_path = configured.parent / "broken-v1.sqlite3"
+    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_DB_PATH", str(db_path))
     marker = secrets.token_urlsafe(16)
     with sqlite3.connect(db_path) as db:
         db.execute("CREATE TABLE feedback (id TEXT PRIMARY KEY, marker TEXT NOT NULL)")
@@ -525,7 +538,7 @@ def test_failed_migration_rolls_back_without_touching_prior_rows(
         assert migrated is None
 
 
-def test_session_secrets_are_not_stored_and_v2_migration_revokes_sessions(
+def test_session_secrets_are_not_stored(
     setup: tuple[TestClient, Any, Path, str],
 ) -> None:
     client, wa, db_path, password = setup
@@ -535,27 +548,150 @@ def test_session_secrets_are_not_stored_and_v2_migration_revokes_sessions(
     assert _save(client, job_id, "f0", "other", "Preserved synthetic note").status_code == 303
     with sqlite3.connect(db_path) as db:
         columns = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
-        assert columns == {"token_hash", "expires_at"}
+        assert columns == {"token_hash", "admin_id", "expires_at"}
         stored = db.execute("SELECT token_hash FROM sessions").fetchone()[0]
         assert stored != token and stored != csrf
     data = db_path.read_bytes()
     assert token.encode() not in data and csrf.encode() not in data
     assert password.encode() not in data
-    assert os.environ["NJIT_AUDITOR_ADMIN_PASSWORD_HASH"].encode() not in data
-    old_csrf = secrets.token_urlsafe(32)
+    assert os.environ["NJIT_AUDITOR_ADMIN_SESSION_KEY"].encode() not in data
+    assert client.get("/admin/feedback").status_code == 200
+
+
+def test_two_accounts_attribution_revocation_and_legacy_hash_denial(
+    setup: tuple[TestClient, Any, Path, str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, wa, db_path, first_password = setup
+    job_id = _job(wa, count=1)
+    first_username = admin_accounts.list_accounts()[0]["username"]
+    second_password = secrets.token_urlsafe(24)
+    second_id = admin_accounts.create_account("Second.Reviewer", second_password, "Second")
+    first_id = admin_accounts.list_accounts()[0]["id"]
+    assert admin_accounts.list_accounts()[1]["id"] == second_id
+    first_token = _login(client, first_password, first_username.upper())
+    assert _save(client, job_id, "f0", "true_positive", "First note").status_code == 303
+    second = TestClient(wa.app, base_url="https://testserver")
+    second_token = _login(second, second_password, "SECOND.REVIEWER")
+    assert _save(second, job_id, "f0", "false_positive", "Second note").status_code == 303
+    records = {item["comment"]: item for item in admin_feedback.list_feedback()}
+    assert len(records) == 2
+    assert records["First note"]["submitted_by_admin_id"] == first_id
+    assert records["Second note"]["submitted_by_admin_id"] == second_id
+    assert records["Second note"]["submitted_by_username"] == "second.reviewer"
+    feedback_id = records["First note"]["id"]
+    response = second.post(
+        f"/admin/feedback/{feedback_id}",
+        data={"csrf_token": _csrf(second_token), "status": "Resolved", "comment": "Updated"},
+        headers={"Origin": "https://testserver"}, follow_redirects=False,
+    )
+    assert response.status_code == 303
+    edited = next(item for item in admin_feedback.list_feedback() if item["id"] == feedback_id)
+    assert edited["submitted_by_admin_id"] == first_id
+    assert edited["last_modified_by_admin_id"] == second_id
+    assert edited["resolved_by_admin_id"] == second_id
+    admin_accounts.set_active("SECOND.REVIEWER", False)
+    assert second.get("/admin/feedback").status_code == 403
+    disabled_login = TestClient(wa.app, base_url="https://testserver")
+    disabled_login.get("/admin/login")
+    disabled_csrf = disabled_login.cookies.get(admin_feedback._LOGIN_CSRF)
+    assert disabled_login.post(
+        "/admin/login", data={"username": "second.reviewer", "password": second_password,
+                              "csrf_token": disabled_csrf},
+        headers={"Origin": "https://testserver"},
+    ).status_code == 401
     with sqlite3.connect(db_path) as db:
-        db.execute("DROP TABLE sessions")
-        db.execute("""CREATE TABLE sessions (
-            token_hash TEXT PRIMARY KEY, csrf_token TEXT NOT NULL, expires_at INTEGER NOT NULL
-        )""")
-        db.execute("INSERT INTO sessions VALUES (?,?,?)", (stored, old_csrf, 9999999999))
-        db.execute("PRAGMA user_version=2")
+        remaining = db.execute(
+            "SELECT count(*) FROM sessions WHERE admin_id=?", (second_id,)
+        ).fetchone()[0]
+        assert remaining == 0
+    admin_accounts.set_active("second.reviewer", True)
+    _login(second, second_password, "second.reviewer")
+    new_password = secrets.token_urlsafe(24)
+    admin_accounts.reset_password("second.reviewer", new_password)
+    assert second.get("/admin/feedback").status_code == 403
+    _login(second, new_password, "second.reviewer")
+    assert second.get("/admin/feedback").status_code == 200
+    assert client.get("/admin/feedback").status_code == 200
+    assert first_token != second_token
+    delete_response = second.post(
+        f"/admin/feedback/{feedback_id}",
+        data={"csrf_token": _csrf(second.cookies.get(admin_feedback._COOKIE, "")),
+              "action": "delete", "confirm_delete": "yes"},
+        headers={"Origin": "https://testserver"}, follow_redirects=False,
+    )
+    assert delete_response.status_code == 303
+    with sqlite3.connect(db_path) as db:
+        tombstone = db.execute(
+            "SELECT deleted_by_admin_id FROM feedback_deletions WHERE feedback_id=?",
+            (feedback_id,),
+        ).fetchone()
+    assert tombstone is not None and tombstone[0] == second_id
+    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_PASSWORD_HASH", "legacy-shared-hash")
+    anonymous = TestClient(wa.app, base_url="https://testserver")
+    csrf_page = anonymous.get("/admin/login")
+    assert csrf_page.status_code == 200
+    csrf = anonymous.cookies.get(admin_feedback._LOGIN_CSRF)
+    assert anonymous.post(
+        "/admin/login", data={"username": "unknown", "password": first_password,
+                              "csrf_token": csrf},
+        headers={"Origin": "https://testserver"},
+    ).status_code == 401
+
+
+def test_version_3_migration_preserves_feedback_and_revokes_shared_sessions(
+    setup: tuple[TestClient, Any, Path, str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, _, configured, _ = setup
+    db_path = configured.parent / "legacy-v3.sqlite3"
+    feedback_id = secrets.token_urlsafe(16)
+    old_session = secrets.token_urlsafe(32)
+    with sqlite3.connect(db_path) as db:
+        db.executescript("""
+            CREATE TABLE feedback (
+                id TEXT PRIMARY KEY, audit_ref TEXT NOT NULL, finding_ref TEXT NOT NULL,
+                rule_id TEXT NOT NULL, issue_type TEXT NOT NULL, pdf_page INTEGER,
+                original_confidence TEXT NOT NULL, classification TEXT NOT NULL,
+                comment TEXT NOT NULL, status TEXT NOT NULL, context TEXT NOT NULL,
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL, resolved_at TEXT
+            );
+            CREATE TABLE sessions (token_hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL);
+            CREATE TABLE login_attempts (
+                bucket TEXT PRIMARY KEY, count INTEGER NOT NULL, reset_at INTEGER NOT NULL
+            );
+            PRAGMA user_version=3;
+        """)
+        db.execute("INSERT INTO feedback VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+            feedback_id, "old-audit", "f0", "P011", "margin_violation", 1, "medium",
+            "other", "Legacy review", "Open", "Rule P011", "2026-01-01T00:00:00+00:00",
+            "2026-01-01T00:00:00+00:00", None,
+        ))
+        db.execute("INSERT INTO sessions VALUES (?,?)", (old_session, 9999999999))
+    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_DB_PATH", str(db_path))
     rows = admin_feedback.list_feedback()
-    assert len(rows) == 1 and rows[0]["comment"] == "Preserved synthetic note"
+    assert len(rows) == 1 and rows[0]["id"] == feedback_id
+    assert rows[0]["submitted_by_admin_id"] is None
+    assert rows[0]["last_modified_by_admin_id"] is None
     with sqlite3.connect(db_path) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 4
         assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 0
-        columns = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
-        assert columns == {"token_hash", "expires_at"}
-    assert old_csrf.encode() not in db_path.read_bytes()
-    assert client.get("/admin/feedback").status_code == 403
+        assert db.execute("SELECT count(*) FROM admins").fetchone()[0] == 0
+        assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+
+
+def test_account_cli_requires_tty_and_never_exposes_password(
+    setup: tuple[TestClient, Any, Path, str], monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _, _, _, password = setup
+    monkeypatch.setattr(admin_accounts.sys.stdin, "isatty", lambda: False)
+    assert admin_accounts.main(["create", "thirdreviewer"]) == 1
+    assert "interactive terminal" in capsys.readouterr().err
+    assert admin_accounts.main(["list"]) == 0
+    output = capsys.readouterr()
+    assert password not in output.out and "$argon2" not in output.out
+    assert "thirdreviewer" not in output.out
+    with pytest.raises(ValueError):
+        admin_accounts.create_account("bad username", secrets.token_urlsafe(24))
+    with pytest.raises(sqlite3.IntegrityError):
+        existing = admin_accounts.list_accounts()[0]["username"]
+        admin_accounts.create_account(existing.upper(), secrets.token_urlsafe(24))

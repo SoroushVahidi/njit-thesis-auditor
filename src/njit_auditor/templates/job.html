@@ -669,7 +669,7 @@
         {% set saved = admin_feedback_by_finding.get(f.finding_id, []) if admin_feedback_by_finding else [] %}
         {% if saved %}
         <details class="admin-feedback-history"><summary>{{ saved|length }} saved administrator review{% if saved|length != 1 %}s{% endif %}</summary>
-          {% for entry in saved %}<p><strong>{{ admin_feedback_classifications[entry.classification] }}</strong> · {{ entry.status }} · {{ entry.created_at }}{% if entry.comment %}<br>{{ entry.comment }}{% endif %}</p>{% endfor %}
+          {% for entry in saved %}<p><strong>{{ admin_feedback_classifications[entry.classification] }}</strong> · {{ entry.status }} · {{ entry.created_at }} · {{ entry.submitted_by_username or 'Legacy (unattributed)' }}{% if entry.comment %}<br>{{ entry.comment }}{% endif %}</p>{% endfor %}
         </details>
         {% endif %}
         <form class="admin-feedback" action="/audits/{{ job_id }}/feedback/{{ f.finding_id }}" method="post">
