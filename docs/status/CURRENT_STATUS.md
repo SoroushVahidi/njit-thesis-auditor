@@ -932,4 +932,3 @@ As of the F08 integration candidate on 2026-11-18 (draft PR #668; not yet
 merged), the project-added rule inventory covers **P001–P088**, with **P089**
 as the next unused internal rule ID. Earlier dated inventory snapshots above
 remain historical and are intentionally not rewritten.
-
