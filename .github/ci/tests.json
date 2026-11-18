@@ -25,6 +25,7 @@
     "tests/test_ester_20261005_r024_r045_reconciliation.py",
     "tests/test_ester_audit_corrections_20261105.py",
     "tests/test_ester_batch_a_f02_f03.py",
+    "tests/test_ester_batch_b_f08.py",
     "tests/test_ester_batch_package_context.py",
     "tests/test_ester_batch_transition_evidence.py",
     "tests/test_ester_batch_workbook_format.py",

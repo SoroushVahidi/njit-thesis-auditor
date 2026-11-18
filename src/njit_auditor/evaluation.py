@@ -90,6 +90,7 @@ def map_finding_rule_to_category(rule_id: str, details: dict[str, str] | None = 
         "P061": "list_of_tables_figures_toc",
         "P062": "list_of_tables_figures_toc",
         "P087": "list_of_tables_figures_toc",
+        "P088": "list_of_tables_figures_toc",
         "P063": "frontmatter_structure",
         "P064": "references_citations",
         "P065": "frontmatter_structure",
