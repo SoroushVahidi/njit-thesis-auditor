@@ -2,6 +2,8 @@
   "hosted": [
     "tests/test_about.py",
     "tests/test_about_browser.py",
+    "tests/test_admin_feedback.py",
+    "tests/test_admin_feedback_browser.py",
     "tests/test_atomic_presentation_inventory_script.py",
     "tests/test_atomic_presentation_wording_fixes.py",
     "tests/test_audit_runner.py",
@@ -236,6 +238,7 @@
   },
   "browser": [
     "tests/test_about_browser.py",
+    "tests/test_admin_feedback_browser.py",
     "tests/test_ui_help_mobile_overflow.py",
     "tests/test_windows_download.py::test_browser_layout_and_keyboard",
     "tests/test_browser_audit_workflow.py"
