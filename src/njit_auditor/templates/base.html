@@ -495,6 +495,13 @@
     <a href="/rules" class="site-nav__link">Rule Reference</a>
     <span class="site-nav__sep" aria-hidden="true">|</span>
     <a href="/about" class="site-nav__link"{% if request.url.path == "/about" %} aria-current="page"{% endif %}>About Us</a>
+    {% if not offline_mode %}
+      <span class="site-nav__sep" aria-hidden="true">|</span>
+      {% if admin_mode %}
+        <a href="/admin/feedback" class="site-nav__link">Feedback dashboard</a>
+        <form action="/admin/logout" method="post" style="display:inline;margin:0"><input type="hidden" name="csrf_token" value="{{ admin_csrf_token }}"><button type="submit" class="btn btn-secondary">Log out</button></form>
+      {% else %}<a href="/admin/login" class="site-nav__link">Admin Login</a>{% endif %}
+    {% endif %}
     {% if offline_mode %}<form action="/quit" method="post" style="display:inline;margin-left:auto"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Quit</button></form>{% endif %}
   </nav>
   {% block content %}{% endblock %}

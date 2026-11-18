@@ -377,7 +377,9 @@ def create_offline_app(
         return response
 
     for route in web_app.app.router.routes:
-        if isinstance(route, Route) and route.path not in _DISALLOWED:
+        if (isinstance(route, Route) and route.path not in _DISALLOWED
+                and not route.path.startswith("/admin/")
+                and not route.path.endswith("/feedback/{finding_id}")):
             offline.router.routes.append(route)
 
     @offline.get("/app-icon.ico")

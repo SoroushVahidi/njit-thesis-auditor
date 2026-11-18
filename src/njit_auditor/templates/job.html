@@ -162,6 +162,11 @@
     display: inline-flex;
     align-items: center;
   }
+  .admin-feedback { grid-column: 1 / -1; border-top: 1px solid var(--color-border); padding-top: 0.75rem; margin-top: 0.5rem; }
+  .admin-feedback fieldset { border: 0; padding: 0; margin: 0 0 0.7rem; }
+  .admin-feedback legend { font-weight: 700; margin-bottom: 0.4rem; }
+  .admin-feedback label { display: flex; gap: 0.45rem; align-items: baseline; font-weight: 400; }
+  .admin-feedback textarea { display: block; width: 100%; min-height: 5rem; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 5px; }
   .margin-checks { margin: 0.45rem 0; padding-left: 1.2rem; font-size: 0.83rem; }
   .margin-checks li { margin: 0.2rem 0; }
   .margin-checks .margin-answer--no { color: #9f1d16; }
@@ -596,6 +601,7 @@
   </div>
 
   <div id="individual-findings-panel">
+    {% if feedback_notice %}<div class="alert-info" role="status">Feedback saved.</div>{% endif %}
     <div class="individual-findings-list">
       {% for f in findings %}
       <article id="{{ f.problem_anchor if f.problem_anchor else '' }}"
@@ -657,6 +663,21 @@
           {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ "Open highlighted PDF" if f.action_kind == "highlight" else "Open original PDF" }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
           {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">All findings on this page</a>{% endif %}
         </div>
+        {% if admin_mode %}
+        {% set saved = admin_feedback_by_finding.get(f.finding_id) if admin_feedback_by_finding else none %}
+        <form class="admin-feedback" action="/audits/{{ job_id }}/feedback/{{ f.finding_id }}" method="post">
+          <input type="hidden" name="csrf_token" value="{{ admin_csrf_token }}">
+          <fieldset><legend>Administrator feedback for {{ f.finding_id }}</legend>
+            <label><input type="radio" name="classification" value="true_positive" required{% if saved and saved.classification == 'true_positive' %} checked{% endif %}> True Positive — The flagged problem is genuine and correctly detected.</label>
+            <label><input type="radio" name="classification" value="false_positive" required{% if saved and saved.classification == 'false_positive' %} checked{% endif %}> False Positive — The reported problem is incorrect.</label>
+            <label><input type="radio" name="classification" value="unclear" required{% if saved and saved.classification == 'unclear' %} checked{% endif %}> Unclear / Needs Clarification — The finding, supporting evidence, or explanation is difficult to understand or evaluate.</label>
+            <label><input type="radio" name="classification" value="other" required{% if saved and saved.classification == 'other' %} checked{% endif %}> Other — Any other feedback or suggested improvement.</label>
+          </fieldset>
+          <label for="comment-{{ f.finding_id }}">Additional comments (optional)</label>
+          <textarea id="comment-{{ f.finding_id }}" name="comment" maxlength="4000">{{ saved.comment if saved else '' }}</textarea>
+          <button type="submit">Save Feedback</button>
+        </form>
+        {% endif %}
       </article>
       {% endfor %}
     </div>
