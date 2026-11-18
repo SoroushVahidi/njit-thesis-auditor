@@ -117,7 +117,8 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "lot_entry_is_figure": "List of Tables entry describes a figure",
     "lof_entry_is_table": "List of Figures entry describes a table",
     "lot_entry_missing_table_prefix": "List of Tables entry missing 'Table' prefix",
-    "lof_entry_missing_figure_prefix": "List of Figures entry missing 'Figure' prefix",
+    "lof_entry_missing_figure_prefix": "Legacy List of Figures prefix advisory",
+    "body_figure_reference_abbreviated": "Abbreviated body figure reference",
     "lof_entry_missing_terminal_punctuation": "List of Figures entry missing terminal punctuation",
     "toc_l2_not_indented_relative_to_l1": "TOC level-2 entry not indented relative to level-1",
     "toc_l3_not_indented_relative_to_l2": "TOC level-3 entry not indented relative to level-2",
@@ -751,9 +752,11 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "word 'Table' (e.g., Table 1.1 ...)."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
-        "This means a List of Figures entry is missing the required 'Figure' prefix "
-        "before its number. Each entry in the List of Figures should begin with the "
-        "word 'Figure' (e.g., Figure 1.1 ...)."
+        "List of Figures entries may begin with a number; the word Figure is not required "
+        "before each entry. Review body references separately."
+    ),
+    ("P055", "body_figure_reference_abbreviated"): (
+        "Use the full word 'Figure' before the number in this body reference."
     ),
     ("P058", "toc_page_numbers_not_nondecreasing"): (
         "This means Table of Contents page numbers do not appear in ascending "

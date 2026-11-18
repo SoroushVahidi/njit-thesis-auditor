@@ -58,11 +58,12 @@ from njit_auditor.rules.pdf_toc_entry_number_ordering import ambiguous_collapsed
 LINE_PREVIEW_MAX = 80
 MIN_ENTRY_WORDS = 3
 
-# TOC level-classification patterns.
+# TOC level-classification patterns. An appendix letter occupies the chapter
+# component: B.1 is level 2; B.1.7 is level 3. Explicit depth beats indentation.
 _CHAPTER_RE = re.compile(r"^(?:chapter|appendix)\b", re.IGNORECASE)
-_LEVEL2_NUM_RE = re.compile(r"^[0-9]+\.[0-9]+(?:\s|$)")
-_LEVEL3_TITLE_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+\s+(?P<title>.+)$")
-_DEEPER_NUM_RE = re.compile(r"^[0-9]+(?:\.[0-9]+){3,}")
+_LEVEL2_NUM_RE = re.compile(r"^(?:[0-9]+|[A-Z])\.[0-9]+(?:\s|$)")
+_LEVEL3_TITLE_RE = re.compile(r"^(?:[0-9]+|[A-Z])\.[0-9]+\.[0-9]+\s+(?P<title>.+)$")
+_DEEPER_NUM_RE = re.compile(r"^(?:[0-9]+|[A-Z])(?:\.[0-9]+){3,}")
 _SIMPLE_CAPITAL_WORD_RE = re.compile(r"^[A-Z][a-z]{2,}$")
 
 # List-entry prefix: "Table 1." / "Figure 2." etc.
@@ -488,7 +489,7 @@ def _check_list_case_page(
         is_figure = context.page_type == "list_of_figures"
         if is_figure:
             # Remove a numeric-only label too: it is not the first word of the
-            # description. Prefix enforcement remains P055's independent check.
+            # description. Numeric-only LoF labels are valid (Ester 2026-11-17).
             description = _LIST_ENTRY_NUMBER_RE.sub("", entry_text).lstrip(" .):-")
             capitalized = [
                 word for sentence in re.split(
