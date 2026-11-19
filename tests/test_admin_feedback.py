@@ -358,7 +358,7 @@ def test_v1_migration_and_unknown_version_are_safe(
     rows = admin_feedback.list_feedback()
     assert len(rows) == 1 and rows[0]["id"] == record_id
     with sqlite3.connect(db_path) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 5
         assert rows[0]["submitted_by_admin_id"] is None
         db.execute("""INSERT INTO feedback (id,audit_ref,finding_ref,rule_id,issue_type,
             pdf_page,original_confidence,classification,comment,status,context,created_at,
@@ -388,7 +388,7 @@ def test_backup_restore_keeps_feedback_and_revokes_restored_sessions(
         source.backup(target)
     with sqlite3.connect(backup_path) as backup:
         assert backup.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
-        assert backup.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert backup.execute("PRAGMA user_version").fetchone()[0] == 5
         assert backup.execute("SELECT count(*) FROM feedback").fetchone()[0] == 1
     restored_path = db_path.parent / "restored.sqlite3"
     shutil.copy2(backup_path, restored_path)
@@ -672,7 +672,7 @@ def test_version_3_migration_preserves_feedback_and_revokes_shared_sessions(
     assert rows[0]["submitted_by_admin_id"] is None
     assert rows[0]["last_modified_by_admin_id"] is None
     with sqlite3.connect(db_path) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 5
         assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 0
         assert db.execute("SELECT count(*) FROM admins").fetchone()[0] == 0
         assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"

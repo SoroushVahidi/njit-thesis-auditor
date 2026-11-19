@@ -29,6 +29,9 @@ router = APIRouter(include_in_schema=False)
 _HASHER = PasswordHasher(type=Type.ID)
 _COOKIE = "__Host-njit-admin"
 _LOGIN_CSRF = "__Host-njit-admin-login-csrf"
+_REVIEWER_COOKIE = "njit-reviewer-beta"
+_REVIEWER_LOGIN_CSRF = "njit-reviewer-beta-login-csrf"
+_REVIEWER_USERNAMES = {"soroush", "ester"}
 _SESSION_SECONDS = 8 * 3600
 CLASSIFICATIONS = {
     "true_positive": "True Positive",
@@ -208,8 +211,12 @@ def _connect() -> sqlite3.Connection:
                 deleted_by_admin_id TEXT NOT NULL REFERENCES admins(id),
                 deleted_at TEXT NOT NULL
             )""")
-            db.execute("PRAGMA user_version=4")
-        elif version != 4:
+            version = 4
+        if version == 4:
+            db.execute("ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT 'admin' "
+                       "CHECK(role IN ('admin','reviewer'))")
+            db.execute("PRAGMA user_version=5")
+        elif version != 5:
             raise RuntimeError("Unsupported administrator database schema")
         db.commit()
     except Exception:
@@ -241,10 +248,22 @@ def _session_csrf(token: str) -> str:
     return hmac.new(_required_key(), b"csrf:" + token.encode(), hashlib.sha256).hexdigest()
 
 
-def session(request: Request) -> dict[str, Any] | None:
-    if not _enabled(request):
+def _reviewer_enabled(request: Request) -> bool:
+    return (
+        not getattr(request.app.state, "offline_mode", False)
+        and os.getenv("NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED") == "1"
+        and request.url.scheme == "http"
+        and _secret_key() is not None
+        and bool(os.getenv("NJIT_AUDITOR_ADMIN_DB_PATH", "").strip())
+    )
+
+
+def _session_for(request: Request, cookie: str, role: str) -> dict[str, Any] | None:
+    if role == "admin" and not _enabled(request):
         return None
-    token = request.cookies.get(_COOKIE, "")
+    if role == "reviewer" and not _reviewer_enabled(request):
+        return None
+    token = request.cookies.get(cookie, "")
     if not token or len(token) > 128:
         return None
     try:
@@ -252,8 +271,8 @@ def session(request: Request) -> dict[str, Any] | None:
             row = db.execute(
                 """SELECT s.expires_at, a.id AS admin_id, a.username, a.display_name
                 FROM sessions AS s JOIN admins AS a ON a.id=s.admin_id
-                WHERE s.token_hash=? AND a.active=1""",
-                (_token_hash(token),),
+                WHERE s.token_hash=? AND a.active=1 AND a.role=?""",
+                (_token_hash(token), role),
             ).fetchone()
     except (OSError, ValueError, RuntimeError, sqlite3.Error):
         return None
@@ -262,8 +281,16 @@ def session(request: Request) -> dict[str, Any] | None:
     return {**dict(row), "csrf_token": _session_csrf(token)}
 
 
-def _origin_ok(request: Request) -> bool:
-    expected = f"https://{request.url.netloc}"
+def session(request: Request) -> dict[str, Any] | None:
+    return _session_for(request, _COOKIE, "admin")
+
+
+def reviewer_session(request: Request) -> dict[str, Any] | None:
+    return _session_for(request, _REVIEWER_COOKIE, "reviewer")
+
+
+def _origin_ok(request: Request, *, reviewer: bool = False) -> bool:
+    expected = f"{'http' if reviewer else 'https'}://{request.url.netloc}"
     return request.headers.get("origin") == expected
 
 
@@ -287,11 +314,13 @@ async def _form(request: Request) -> dict[str, str]:
     return {key: values[0] for key, values in parsed.items()}
 
 
-def _csrf_ok(request: Request, submitted: str, authenticated: dict[str, Any] | None) -> bool:
-    if not _origin_ok(request):
+def _csrf_ok(request: Request, submitted: str, authenticated: dict[str, Any] | None,
+             *, reviewer: bool = False) -> bool:
+    if not _origin_ok(request, reviewer=reviewer):
         return False
     expected = (
-        authenticated["csrf_token"] if authenticated else request.cookies.get(_LOGIN_CSRF, "")
+        authenticated["csrf_token"] if authenticated else request.cookies.get(
+            _REVIEWER_LOGIN_CSRF if reviewer else _LOGIN_CSRF, "")
     )
     return bool(expected) and hmac.compare_digest(str(expected), submitted)
 
@@ -311,15 +340,16 @@ def _require(request: Request) -> dict[str, Any] | None:
     return session(request)
 
 
-def _authorization_current(db: sqlite3.Connection, request: Request, admin_id: str) -> bool:
+def _authorization_current(db: sqlite3.Connection, request: Request, admin_id: str,
+                           *, reviewer: bool = False) -> bool:
     """Recheck revocation under the same write lock used for the feedback change."""
-    token = request.cookies.get(_COOKIE, "")
+    token = request.cookies.get(_REVIEWER_COOKIE if reviewer else _COOKIE, "")
     if not token:
         return False
     row = db.execute(
         """SELECT 1 FROM sessions AS s JOIN admins AS a ON a.id=s.admin_id
-        WHERE s.token_hash=? AND s.admin_id=? AND s.expires_at>? AND a.active=1""",
-        (_token_hash(token), admin_id, int(time.time())),
+        WHERE s.token_hash=? AND s.admin_id=? AND s.expires_at>? AND a.active=1 AND a.role=?""",
+        (_token_hash(token), admin_id, int(time.time()), "reviewer" if reviewer else "admin"),
     ).fetchone()
     return row is not None
 
@@ -399,7 +429,8 @@ async def login(request: Request) -> Response:
             denial_status = 429
         else:
             account = db.execute(
-                "SELECT id,password_hash,active FROM admins WHERE username=?", (canonical,)
+                "SELECT id,password_hash,active FROM admins WHERE username=? AND role='admin'",
+                (canonical,)
             ).fetchone()
             usable = bool(account and account["active"] and
                           str(account["password_hash"]).startswith("$argon2id$"))
@@ -445,6 +476,123 @@ async def logout(request: Request) -> Response:
             _token_hash(request.cookies.get(_COOKIE, "")),))
     response = RedirectResponse("/", status_code=303)
     response.delete_cookie(_COOKIE, path="/", secure=True, httponly=True, samesite="strict")
+    return response
+
+
+def _reviewer_next(value: str) -> str:
+    return value if re.fullmatch(r"/audits/[A-Za-z0-9_-]{1,100}", value) else "/"
+
+
+def _reviewer_deny(request: Request, status: int = 403,
+                   message: str = "Reviewer access unavailable.",
+                   login_csrf: str = "", next_url: str = "/") -> HTMLResponse:
+    from njit_auditor import web_app
+
+    response = web_app._render(request, "reviewer_login.html", {
+        "error": message, "login_csrf": login_csrf, "next_url": next_url,
+    }, status)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@router.get("/reviewer/login", response_class=HTMLResponse)
+async def reviewer_login_page(request: Request) -> Response:
+    from njit_auditor import web_app
+
+    if not _reviewer_enabled(request):
+        return _reviewer_deny(request, 503)
+    next_url = _reviewer_next(request.query_params.get("next", ""))
+    if reviewer_session(request):
+        return RedirectResponse(next_url, status_code=303)
+    csrf = secrets.token_urlsafe(32)
+    response = web_app._render(request, "reviewer_login.html", {
+        "login_csrf": csrf, "next_url": next_url,
+    })
+    response.set_cookie(_REVIEWER_LOGIN_CSRF, csrf, secure=False, httponly=True,
+                        samesite="strict", path="/")
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@router.post("/reviewer/login")
+async def reviewer_login(request: Request) -> Response:
+    if not _reviewer_enabled(request):
+        return _reviewer_deny(request, 503)
+    try:
+        form = await _form(request)
+        username = str(form.get("username", ""))
+        password = str(form.get("password", ""))
+        csrf = str(form.get("csrf_token", ""))
+        next_url = _reviewer_next(str(form.get("next", "")))
+    except (ValueError, TypeError):
+        return _reviewer_deny(request)
+    if not _csrf_ok(request, csrf, None, reviewer=True):
+        return _reviewer_deny(request)
+    try:
+        canonical = normalize_username(username)
+    except ValueError:
+        canonical = ""
+    now = int(time.time())
+    bucket = _rate_bucket(request)
+    denial_status = 0
+    token = ""
+    with _connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        db.execute("DELETE FROM sessions WHERE expires_at<=?", (now,))
+        db.execute("DELETE FROM login_attempts WHERE reset_at<=?", (now,))
+        if _rate_limited(db, bucket, now):
+            denial_status = 429
+        else:
+            account = db.execute(
+                "SELECT id,password_hash,active FROM admins WHERE username=? AND role='reviewer'",
+                (canonical if canonical in _REVIEWER_USERNAMES else "",),
+            ).fetchone()
+            usable = bool(account and account["active"] and
+                          str(account["password_hash"]).startswith("$argon2id$"))
+            candidate_hash = str(account["password_hash"]) if usable else _dummy_hash()
+            try:
+                valid = bool(_HASHER.verify(candidate_hash, password)) and usable
+            except (VerificationError, InvalidHashError):
+                valid = False
+            if not valid:
+                _record_failure(db, bucket, now)
+                denial_status = 401
+            else:
+                db.execute("DELETE FROM login_attempts WHERE bucket=?", (bucket,))
+                token = secrets.token_urlsafe(32)
+                db.execute("INSERT INTO sessions VALUES (?,?,?)", (
+                    _token_hash(token), account["id"], now + _SESSION_SECONDS
+                ))
+    if denial_status:
+        message = ("Too many login attempts. Try again later." if denial_status == 429
+                   else "Invalid username or password.")
+        return _reviewer_deny(request, denial_status, message, csrf, next_url)
+    response = RedirectResponse(next_url, status_code=303)
+    response.set_cookie(_REVIEWER_COOKIE, token, secure=False, httponly=True,
+                        samesite="strict", path="/", max_age=_SESSION_SECONDS)
+    response.delete_cookie(_REVIEWER_LOGIN_CSRF, path="/", secure=False,
+                           httponly=True, samesite="strict")
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@router.post("/reviewer/logout")
+async def reviewer_logout(request: Request) -> Response:
+    auth = reviewer_session(request)
+    if auth is None:
+        return _reviewer_deny(request)
+    try:
+        form = await _form(request)
+    except (ValueError, TypeError):
+        return _reviewer_deny(request, 400)
+    if not _csrf_ok(request, str(form.get("csrf_token", "")), auth, reviewer=True):
+        return _reviewer_deny(request)
+    with _connection() as db:
+        db.execute("DELETE FROM sessions WHERE token_hash=?", (
+            _token_hash(request.cookies.get(_REVIEWER_COOKIE, "")),))
+    response = RedirectResponse("/", status_code=303)
+    response.delete_cookie(_REVIEWER_COOKIE, path="/", secure=False,
+                           httponly=True, samesite="strict")
     return response
 
 
@@ -519,13 +667,17 @@ async def save_finding_feedback(request: Request, job_id: str, finding_id: str) 
     from njit_auditor import web_app
 
     auth = _require(request)
+    is_reviewer = auth is None
+    if is_reviewer:
+        auth = reviewer_session(request)
     if auth is None:
         return _deny(request)
     try:
         form = await _form(request)
     except (ValueError, TypeError):
         return _deny(request, 400)
-    if not _csrf_ok(request, str(form.get("csrf_token", "")), auth):
+    if not _csrf_ok(request, str(form.get("csrf_token", "")), auth,
+                    reviewer=is_reviewer):
         return _deny(request)
     classification = str(form.get("classification", ""))
     comment = str(form.get("comment", ""))
@@ -556,7 +708,7 @@ async def save_finding_feedback(request: Request, job_id: str, finding_id: str) 
     now = _now()
     with _connection() as db:
         db.execute("BEGIN IMMEDIATE")
-        if not _authorization_current(db, request, auth["admin_id"]):
+        if not _authorization_current(db, request, auth["admin_id"], reviewer=is_reviewer):
             return _deny(request)
         db.execute("""INSERT INTO feedback(id,audit_ref,finding_ref,rule_id,issue_type,
             pdf_page,original_confidence,classification,comment,status,context,created_at,updated_at,

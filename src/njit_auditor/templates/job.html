@@ -604,6 +604,7 @@
 
   <div id="individual-findings-panel">
     {% if feedback_notice %}<div class="alert-info" role="status">Feedback saved.</div>{% endif %}
+    {% if reviewer_beta_enabled and not reviewer_mode and not admin_mode %}<p><a href="/reviewer/login?next=/audits/{{ job_id }}">Reviewer Access</a> lets invited reviewers comment on individual findings.</p>{% endif %}
     <div class="individual-findings-list">
       {% for f in findings %}
       <article id="{{ f.problem_anchor if f.problem_anchor else '' }}"
@@ -665,6 +666,7 @@
           {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ "Open highlighted PDF" if f.action_kind == "highlight" else "Open original PDF" }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
           {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">All findings on this page</a>{% endif %}
         </div>
+        {% if admin_mode or reviewer_mode %}
         {% if admin_mode %}
         {% set saved = admin_feedback_by_finding.get(f.finding_id, []) if admin_feedback_by_finding else [] %}
         {% if saved %}
@@ -672,9 +674,10 @@
           {% for entry in saved %}<p><strong>{{ admin_feedback_classifications[entry.classification] }}</strong> · {{ entry.status }} · {{ entry.created_at }} · {{ entry.submitted_by_username or 'Legacy (unattributed)' }}{% if entry.comment %}<br>{{ entry.comment }}{% endif %}</p>{% endfor %}
         </details>
         {% endif %}
+        {% endif %}
         <form class="admin-feedback" action="/audits/{{ job_id }}/feedback/{{ f.finding_id }}" method="post">
-          <input type="hidden" name="csrf_token" value="{{ admin_csrf_token }}">
-          <fieldset><legend>Administrator feedback for {{ f.finding_id }}</legend>
+          <input type="hidden" name="csrf_token" value="{{ admin_csrf_token if admin_mode else reviewer_csrf_token }}">
+          <fieldset><legend>{{ 'Administrator' if admin_mode else 'Reviewer' }} feedback for {{ f.finding_id }}</legend>
             <label><input type="radio" name="classification" value="true_positive" required> True Positive — The flagged problem is genuine and correctly detected.</label>
             <label><input type="radio" name="classification" value="false_positive" required> False Positive — The reported problem is incorrect.</label>
             <label><input type="radio" name="classification" value="unclear" required> Unclear / Needs Clarification — The finding, supporting evidence, or explanation is difficult to understand or evaluate.</label>

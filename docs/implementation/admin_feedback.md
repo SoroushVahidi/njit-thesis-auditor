@@ -54,20 +54,37 @@ Failed logins are throttled in SQLite (five per client address and thirty global
 15-minute window). When multiple reviewers share one proxy address, the per-address limit applies
 to them together.
 
+## HTTP reviewer beta
+
+The separate reviewer form is disabled unless
+`NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED=1` is set. It works only on HTTP and does
+not enable the HTTPS administrator login. It uses the same protected SQLite path and
+session key described above, with an independent HTTP cookie and eight-hour session.
+The operator must create only the two initial reviewer accounts locally with
+`njit-admin create-reviewer soroush` and `njit-admin create-reviewer ester`; both
+commands prompt for distinct passwords on a terminal. Reviewer accounts can submit
+per-finding feedback but cannot sign in to administrator routes or edit or delete
+feedback. The browser has no registration or password reset interface. Use passwords
+unrelated to NJIT credentials. HTTP carries credentials and session cookies in clear
+text, so enable this mode only for the explicitly accepted beta.
+
+The operator can disable a reviewer with `njit-admin disable <username>`; this also
+revokes that reviewer's sessions. The normal public audit flow requires no login.
+
 ## Schema and privacy
 
-SQLite `PRAGMA user_version=4` is the explicit schema version. `feedback` has a random ID, random
+SQLite `PRAGMA user_version=5` is the explicit schema version. `feedback` has a random ID, random
 audit/job reference, raw-index-based per-audit finding reference, rule ID, issue type, PDF page,
 original confidence, one of four classifications, comment, workflow status, safe rule/issue
 context, creation and update timestamps, and optional resolution timestamp. An index on the audit
 and finding references supports multiple independent reviews of one finding. Status choices are Open,
-In Progress, and Resolved. New reviews record the submitting administrator ID. Edits record the
+In Progress, and Resolved. New reviews record the submitting account ID. Edits record the
 last modifying administrator ID; resolution records the resolving administrator ID. Reopening
 clears the active resolution identity and timestamp. Confirmed deletion removes the review and
 retains a limited tombstone with the deleting administrator ID and finding reference. Legacy
 reviews remain unattributed rather than being assigned an invented identity. The `admins` table
 stores stable random account IDs, unique canonical usernames, Argon2id password hashes, account
-status, creation timestamps, and optional display names. `sessions` stores only keyed token
+role, status, creation timestamps, and optional display names. `sessions` stores only keyed token
 hashes, account IDs, and expiration times;
 CSRF tokens are derived per request and are never stored in the database. `login_attempts`
 stores short-lived pseudonymous throttling buckets. Uploaded PDFs, raw extracted text, file paths,
@@ -96,11 +113,11 @@ that account IDs, review attribution, and login work with a synthetic account in
 Audit files are separate and are not restored with feedback.
 
 Before a future schema migration, make and verify a backup, then deploy a version that explicitly
-supports the existing `user_version`. The application creates version 4 in one transaction and
-refuses unknown versions. Version 1, 2, and 3 databases are migrated in one transaction,
+supports the existing `user_version`. The application creates version 5 in one transaction and
+refuses unknown versions. Version 1, 2, 3, and 4 databases are migrated in one transaction,
 preserving all feedback IDs and records. Version 1 also loses the one-review-per-finding limit.
 Old sessions are revoked during migration, including shared-password sessions from version 3.
-Version 4 backups must be restored with a version 4 compatible application. Document and test every
+Version 5 backups must be restored with a version 5 compatible application. Document and test every
 subsequent version transition before deployment. Roll back by restoring the matching backup and
 application version.
 

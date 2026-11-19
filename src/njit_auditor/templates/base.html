@@ -500,6 +500,10 @@
       {% if admin_mode %}
         <a href="/admin/feedback" class="site-nav__link">Feedback dashboard</a>
         <form action="/admin/logout" method="post" style="display:inline;margin:0"><input type="hidden" name="csrf_token" value="{{ admin_csrf_token }}"><button type="submit" class="btn btn-secondary">Log out</button></form>
+      {% elif reviewer_mode %}
+        <span class="site-nav__link">Reviewer Access</span>
+        <form action="/reviewer/logout" method="post" style="display:inline;margin:0"><input type="hidden" name="csrf_token" value="{{ reviewer_csrf_token }}"><button type="submit" class="btn btn-secondary">Log out</button></form>
+      {% elif reviewer_beta_enabled %}<a href="/reviewer/login" class="site-nav__link">Reviewer Access</a>
       {% else %}<a href="/admin/login" class="site-nav__link">Admin Login</a>{% endif %}
     {% endif %}
     {% if offline_mode %}<form action="/quit" method="post" style="display:inline;margin-left:auto"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Quit</button></form>{% endif %}
