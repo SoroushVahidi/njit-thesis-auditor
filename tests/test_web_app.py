@@ -4819,6 +4819,10 @@ def test_home_and_help_offer_uploads_and_sample_download_only(
 def test_historical_public_sample_downloads_match_original_files(
     client: tuple[TestClient, Any], sample_id: str, expected_sha256: str,
 ) -> None:
+    from njit_auditor.web_samples import get_builtin_sample
+
+    if not get_builtin_sample(sample_id).abs_path.is_file():
+        pytest.skip("Historical PDFs are excluded from nonconfidential CI checkouts")
     c, wa = client
     url = f"/samples/{sample_id}.pdf"
     assert f'href="{url}"' in c.get("/").text
@@ -4829,6 +4833,31 @@ def test_historical_public_sample_downloads_match_original_files(
     assert response.content.startswith(b"%PDF")
     assert hashlib.sha256(response.content).hexdigest() == expected_sha256
     assert not wa._jobs
+
+
+def test_historical_sample_download_checks_whitelist_and_bytes(
+    client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import njit_auditor.web_samples as samples
+
+    relative = "data/raw/ester/synthetic-public-sample.pdf"
+    source = tmp_path / relative
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"%PDF-1.4\nsynthetic test data\n%%EOF\n")
+    expected = hashlib.sha256(source.read_bytes()).hexdigest()
+    monkeypatch.setattr(samples, "_REPO_ROOT", tmp_path)
+    monkeypatch.setitem(samples._BY_ID, "ester_sample_a", samples.SampleInfo(
+        "ester_sample_a", "Synthetic test sample", relative,
+    ))
+    monkeypatch.setitem(samples._PUBLIC_SAMPLE_SHA256, "ester_sample_a", expected)
+    c, wa = client
+    response = c.get("/samples/ester_sample_a.pdf")
+    assert response.status_code == 200
+    assert response.content == source.read_bytes()
+    assert "synthetic-public-sample.pdf" in response.headers["content-disposition"]
+    assert not wa._jobs
+    source.write_bytes(b"%PDF-1.4\nchanged\n%%EOF\n")
+    assert c.get("/samples/ester_sample_a.pdf").status_code == 404
 
 
 def test_historical_sample_download_rejects_unlisted_files(
