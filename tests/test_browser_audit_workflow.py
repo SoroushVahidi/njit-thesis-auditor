@@ -90,6 +90,63 @@ def click_pdf(page, context, link, suffix):
     return payload.body()
 
 
+@pytest.mark.parametrize('browser_name', ['chromium', 'firefox', 'webkit'])
+@pytest.mark.parametrize('mobile', [False, True])
+def test_file_picker_controls_select_and_upload_pdf(
+    tmp_path: Path, browser_name: str, mobile: bool,
+):
+    """A real pointer click must open the chooser and submit its selected PDF."""
+    api = pytest.importorskip('playwright.sync_api')
+    upload = sample_pdf()
+    with gated_website(tmp_path) as origin, api.sync_playwright() as runner:
+        browser = getattr(runner, browser_name).launch()
+        try:
+            context = browser.new_context(
+                viewport={'width': 390 if mobile else 1280, 'height': 844},
+                is_mobile=mobile if browser_name != 'firefox' else False,
+                has_touch=mobile,
+            )
+            attempts = guard_external(context)
+            page = context.new_page()
+            errors = []
+            page.on('pageerror', lambda error: errors.append(str(error)))
+            assert page.goto(origin).status == 200
+
+            # The browser's own file input must work without the drop zone.
+            with page.expect_file_chooser() as native_picker:
+                if mobile:
+                    page.locator('#file').tap()
+                else:
+                    page.locator('#file').click()
+            native_picker.value.set_files({
+                'name': 'synthetic-picker.pdf', 'mimeType': 'application/pdf', 'buffer': upload,
+            })
+            assert 'Selected file: synthetic-picker.pdf' in page.locator(
+                '#file-selection-status').inner_text()
+
+            page.locator('#file').set_input_files([])
+            with page.expect_file_chooser() as zone_picker:
+                if mobile:
+                    page.locator('#upload-drop-zone').tap()
+                else:
+                    page.locator('#upload-drop-zone').click()
+            zone_picker.value.set_files({
+                'name': 'synthetic-picker.pdf', 'mimeType': 'application/pdf', 'buffer': upload,
+            })
+            assert page.locator('#file').evaluate('(input) => input.files.length') == 1
+            page.get_by_role('button', name='Start audit', exact=True).click()
+            page.wait_for_url('**/audits/*')
+            job = urlsplit(page.url).path
+            wait_state(context.request, origin, job, {'running', 'complete'})
+            stored = list((tmp_path/'jobs').glob('*/upload.pdf'))
+            assert len(stored) == 1
+            assert stored[0].read_bytes() == upload
+            assert errors == []
+            assert attempts == []
+        finally:
+            browser.close()
+
+
 def test_refresh_preserves_worker_and_actual_pdf_links(tmp_path: Path):
     api = pytest.importorskip('playwright.sync_api')
     # Generated in memory: no checked-in/LFS/private PDF, public release or production service.
