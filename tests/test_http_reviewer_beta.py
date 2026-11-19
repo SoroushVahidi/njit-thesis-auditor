@@ -144,6 +144,52 @@ def test_http_reviewer_complete_synthetic_audit_workflow(
         public.close()
 
 
+@pytest.mark.parametrize("username", ["soroush", "ester"])
+def test_reviewer_feedback_on_direct_sample_audit(
+    reviewer_site: tuple[TestClient, Path], username: str,
+) -> None:
+    client, db_path = reviewer_site
+    password = secrets.token_urlsafe(24)
+    admin_accounts.create_account(username, password, role="reviewer")
+
+    submitted = client.post(
+        "/sample-audits", data={"sample_id": "synthetic_example"}, follow_redirects=False,
+    )
+    assert submitted.status_code == 303
+    job_url = submitted.headers["location"]
+    job_id = job_url.rsplit("/", 1)[-1]
+    job = web_app._get_job(job_id)
+    assert job is not None and job.state == "complete" and job.findings
+    finding = job.findings[0]
+    finding_id = str(finding["finding_id"])
+    form_url = f"/audits/{job_id}/feedback/{finding_id}"
+    assert client.get(job_url).status_code == 200
+    assert client.post(form_url, data={"classification": "unclear"},
+                       headers={"Origin": "http://testserver"}).status_code == 403
+
+    login = _login(client, username, password, next_url=job_url)
+    assert login.status_code == 303 and login.headers["location"] == job_url
+    assert f"Reviewer feedback for {finding_id}" in client.get(job_url).text
+    token = client.cookies.get(admin_feedback._REVIEWER_COOKIE)
+    assert token
+    comment = "Direct sample review test comment."
+    saved = client.post(form_url, data={
+        "csrf_token": admin_feedback._session_csrf(token),
+        "classification": "unclear", "comment": comment,
+    }, headers={"Origin": "http://testserver"}, follow_redirects=False)
+    assert saved.status_code == 303
+    with sqlite3.connect(db_path) as db:
+        row = db.execute("""SELECT f.audit_ref,f.finding_ref,f.rule_id,f.classification,
+            f.comment,f.created_at,f.status,a.username FROM feedback f JOIN admins a
+            ON a.id=f.submitted_by_admin_id WHERE f.audit_ref=?""", (job_id,)).fetchone()
+        assert row is not None
+        assert row[:5] == (job_id, finding_id, finding["rule_id"], "unclear", comment)
+        assert row[5] and row[6:] == ("Open", username)
+    results = client.get(job_url)
+    assert comment not in results.text
+    assert client.get("/reviewer/feedback").status_code == 404
+
+
 def test_http_reviewer_disabled_expiry_and_role_boundary(
     reviewer_site: tuple[TestClient, Path], monkeypatch: pytest.MonkeyPatch,
 ) -> None:

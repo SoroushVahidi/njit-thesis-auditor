@@ -2000,6 +2000,39 @@ def _submission_error(error: str, status_code: int = 400) -> RedirectResponse:
     return RedirectResponse(url=f"/?{query}", status_code=303)
 
 
+def _queue_pdf_audit(
+    request: Request, background_tasks: BackgroundTasks, content: bytes, filename: str
+) -> RedirectResponse:
+    """Validate a PDF copy and start the ordinary temporary audit lifecycle."""
+    job_id = _new_job_id()
+    jdir = _job_dir(job_id)
+    jdir.mkdir(parents=True, exist_ok=True)
+
+    safe_name = sanitize_upload_filename(filename, default_ext=".pdf")
+    upload_path = _job_pdf_path(jdir)
+    upload_path.write_bytes(content)
+
+    try:
+        validate_upload_path(upload_path, MAX_UPLOAD_BYTES)
+    except UploadValidationError as exc:
+        shutil.rmtree(jdir, ignore_errors=True)
+        return _submission_error(str(exc))
+
+    job = JobState(
+        job_id=job_id,
+        state="pending",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        file_name=safe_name,
+    )
+    _set_job(job)
+    prepare_audit = getattr(request.app.state, "prepare_audit", None)
+    if prepare_audit is not None:
+        prepare_audit(job_id)
+    background_tasks.add_task(getattr(request.app.state, "audit_executor", _run_audit_task), job_id)
+
+    return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
+
+
 def _index_error(request: Request, error: str, status_code: int = 400) -> HTMLResponse:
     return _render(
         request,
@@ -2299,33 +2332,40 @@ async def submit_audit(
     if len(content) > MAX_UPLOAD_BYTES:
         return _submission_error(f"File exceeds the {MAX_UPLOAD_MB} MB limit.", status_code=413)
 
-    job_id = _new_job_id()
-    jdir = _job_dir(job_id)
-    jdir.mkdir(parents=True, exist_ok=True)
+    return _queue_pdf_audit(request, background_tasks, content, filename)
 
-    safe_name = sanitize_upload_filename(filename, default_ext=".pdf")
-    upload_path = _job_pdf_path(jdir)
-    upload_path.write_bytes(content)
 
-    try:
-        validate_upload_path(upload_path, MAX_UPLOAD_BYTES)
-    except UploadValidationError as exc:
-        shutil.rmtree(jdir, ignore_errors=True)
-        return _submission_error(str(exc))
+@app.post("/sample-audits", response_model=None)
+async def submit_sample_audit(
+    request: Request, background_tasks: BackgroundTasks,
+) -> RedirectResponse:
+    """Audit one approved local sample using the ordinary PDF upload pipeline."""
+    if getattr(request.app.state, "offline_mode", False):
+        return _submission_error("Sample audits are unavailable in offline mode.")
 
-    job = JobState(
-        job_id=job_id,
-        state="pending",
-        created_at=datetime.now(timezone.utc).isoformat(),
-        file_name=safe_name,
-    )
-    _set_job(job)
-    prepare_audit = getattr(request.app.state, "prepare_audit", None)
-    if prepare_audit is not None:
-        prepare_audit(job_id)
-    background_tasks.add_task(getattr(request.app.state, "audit_executor", _run_audit_task), job_id)
+    form = await request.form(max_files=0, max_fields=1, max_part_size=1024)
+    fields = form.multi_items()
+    if (len(fields) != 1 or fields[0][0] != "sample_id"
+            or not isinstance(fields[0][1], str)):
+        return _submission_error("Select an approved sample document.")
+    sample_id = fields[0][1]
+    if sample_id == "synthetic_example":
+        from njit_auditor.synthetic_sample import sample_pdf
 
-    return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
+        content = sample_pdf()
+        filename = "synthetic-example.pdf"
+    else:
+        from njit_auditor.web_samples import read_public_sample
+
+        try:
+            info, content = read_public_sample(sample_id, MAX_UPLOAD_BYTES)
+        except (FileNotFoundError, ValueError, OSError):
+            return _submission_error("Selected sample is unavailable.")
+        filename = f"historical-sample-{info.sample_id[-1]}.pdf"
+
+    if len(content) > MAX_UPLOAD_BYTES:
+        return _submission_error(f"File exceeds the {MAX_UPLOAD_MB} MB limit.", status_code=413)
+    return _queue_pdf_audit(request, background_tasks, content, filename)
 
 
 @app.post("/audits/url", response_model=None)

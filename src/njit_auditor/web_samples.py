@@ -93,6 +93,22 @@ def get_public_sample(sample_id: str) -> SampleInfo:
     return info
 
 
+def read_public_sample(sample_id: str, max_bytes: int) -> tuple[SampleInfo, bytes]:
+    """Return only the exact approved PDF bytes, bounded by the upload limit.
+
+    Recheck the bytes after reading: the source could change between the registry
+    check and the copy into an audit job.
+    """
+    info = get_public_sample(sample_id)
+    with info.abs_path.open("rb") as pdf:
+        content = pdf.read(max_bytes + 1)
+    if len(content) > max_bytes:
+        raise ValueError("Sample exceeds the upload size limit.")
+    if hashlib.sha256(content).hexdigest() != _PUBLIC_SAMPLE_SHA256[sample_id]:
+        raise ValueError("Public sample does not match the approved version.")
+    return info, content
+
+
 def copy_builtin_sample_to_job(sample_id: str, destination_path: Path) -> None:
     """Validate and copy the sample PDF to destination_path."""
     info = get_builtin_sample(sample_id)
