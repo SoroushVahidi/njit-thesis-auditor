@@ -603,7 +603,7 @@
   </div>
 
   <div id="individual-findings-panel">
-    {% if feedback_notice %}<div class="alert-info" role="status">Feedback saved.{% if reviewer_mode %} Your classification and comment appear with the finding below and in My Feedback.{% endif %}</div>{% endif %}
+    {% if feedback_notice %}<div class="alert-info" role="status">Feedback saved.</div>{% endif %}
     {% if reviewer_beta_enabled and not reviewer_mode and not admin_mode %}<p><a href="/reviewer/login?next=/audits/{{ job_id }}">Reviewer Access</a> lets invited reviewers comment on individual findings.</p>{% endif %}
     <div class="individual-findings-list">
       {% for f in findings %}
@@ -674,19 +674,6 @@
           {% for entry in saved %}<p><strong>{{ admin_feedback_classifications[entry.classification] }}</strong> · {{ entry.status }} · {{ entry.created_at }} · {{ entry.submitted_by_username or 'Legacy (unattributed)' }}{% if entry.comment %}<br>{{ entry.comment }}{% endif %}</p>{% endfor %}
         </details>
         {% endif %}
-        {% endif %}
-        {% if reviewer_mode %}
-        {% set own_saved = reviewer_feedback_by_finding.get(f.finding_id, []) if reviewer_feedback_by_finding else [] %}
-        {% for entry in own_saved %}
-        <div class="admin-feedback-history" id="feedback-{{ entry.id }}">
-          <p><strong>Your saved feedback:</strong> {{ admin_feedback_classifications[entry.classification] }} · {{ entry.created_at }}{% if entry.updated_at != entry.created_at %} · Updated {{ entry.updated_at }}{% endif %}{% if entry.id == saved_feedback_id %} · Saved successfully{% endif %}</p>
-          <p><strong>Comment:</strong> {{ entry.comment or 'No comment.' }}</p>
-          <details><summary>Edit this feedback</summary>
-            {% set feedback_entry = entry %}
-            {% include 'reviewer_feedback_form.html' %}
-          </details>
-        </div>
-        {% endfor %}
         {% endif %}
         <form class="admin-feedback" action="/audits/{{ job_id }}/feedback/{{ f.finding_id }}" method="post">
           <input type="hidden" name="csrf_token" value="{{ admin_csrf_token if admin_mode else reviewer_csrf_token }}">

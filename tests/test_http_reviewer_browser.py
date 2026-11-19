@@ -6,6 +6,7 @@ import os
 import re
 import secrets
 import socket
+import sqlite3
 import subprocess
 import sys
 import time
@@ -83,7 +84,7 @@ def reviewer_site(directory: Path, password: str | None = None):
             process.wait(timeout=15)
 
 
-def test_reviewer_browser_save_edit_delete_and_history(tmp_path: Path) -> None:
+def test_reviewer_browser_submits_without_history(tmp_path: Path) -> None:
     api = pytest.importorskip("playwright.sync_api")
     with reviewer_site(tmp_path) as (origin, password), api.sync_playwright() as runner:
         browser = runner.chromium.launch()
@@ -105,30 +106,24 @@ def test_reviewer_browser_save_edit_delete_and_history(tmp_path: Path) -> None:
             create.locator('input[value="unclear"]').check()
             create.get_by_label("Additional comments (optional)").fill("First synthetic review")
             create.get_by_role("button", name="Save Feedback").click()
-            assert page.get_by_text("Saved successfully").is_visible()
-            assert page.get_by_text("First synthetic review").first.is_visible()
+            assert page.get_by_text("Feedback saved.").is_visible()
+            assert page.get_by_text("First synthetic review").count() == 0
             page.reload()
-            assert page.get_by_text("First synthetic review").first.is_visible()
-            page.get_by_text("Edit this feedback").click()
-            edit = page.locator('form[action^="/reviewer/feedback/"]:has(button[value="save"])')
-            edit.locator('input[value="false_positive"]').check()
-            edit.locator('textarea[name="comment"]').fill("Updated synthetic review")
-            edit.get_by_role("button", name="Save changes").click()
-            page.get_by_role("link", name="My Feedback").click()
-            assert page.get_by_text("Updated synthetic review").first.is_visible()
-            page.get_by_text("Edit this feedback").click()
-            delete = page.locator('form[action^="/reviewer/feedback/"]:has(button[value="delete"])')
-            delete.get_by_role("button", name="Delete feedback").click()
-            assert page.get_by_text("Updated synthetic review").first.is_visible()
-            delete.locator('input[name="confirm_delete"]').check()
-            delete.get_by_role("button", name="Delete feedback").click()
-            assert page.get_by_text("No feedback saved yet.").is_visible()
+            assert page.get_by_text("First synthetic review").count() == 0
+            assert page.get_by_text("Edit this feedback").count() == 0
+            assert page.get_by_role("link", name="My Feedback").count() == 0
+            assert context.request.get(origin + "/reviewer/feedback").status == 404
+            assert context.request.post(origin + "/reviewer/feedback/unknown").status == 404
             assert attempts == []
         finally:
             browser.close()
+    with sqlite3.connect(tmp_path / "private" / "feedback.sqlite3") as db:
+        assert db.execute("SELECT classification,comment FROM feedback").fetchone() == (
+            "unclear", "First synthetic review",
+        )
 
 
-def test_reviewer_history_survives_server_restart(tmp_path: Path) -> None:
+def test_reviewer_submission_survives_server_restart_without_history(tmp_path: Path) -> None:
     password = secrets.token_urlsafe(24)
     for run in range(2):
         with reviewer_site(tmp_path, password) as (origin, _):
@@ -153,6 +148,11 @@ def test_reviewer_history_survives_server_restart(tmp_path: Path) -> None:
                     }, headers={"Origin": origin})
                     assert saved.status_code == 303
                 else:
-                    history = client.get(origin + "/reviewer/feedback")
-                    assert history.status_code == 200
-                    assert "Persisted synthetic review" in history.text
+                    assert client.get(origin + "/reviewer/feedback").status_code == 404
+                    assert "Persisted synthetic review" not in client.get(
+                        origin + f"/audits/{JOB_ID}"
+                    ).text
+    with sqlite3.connect(tmp_path / "private" / "feedback.sqlite3") as db:
+        assert db.execute("SELECT comment FROM feedback").fetchone() == (
+            "Persisted synthetic review",
+        )
