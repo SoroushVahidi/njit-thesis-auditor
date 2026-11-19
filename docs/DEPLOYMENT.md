@@ -54,6 +54,9 @@ git status --short          # must be empty
 git branch --show-current   # must print nothing: the live worktree stays detached
 git switch --detach <merged-origin-main-sha>   # the exact squash-merge SHA, never a branch
 git rev-parse HEAD          # this is the SHA that must show up in /version after restart
+# Hydrate the four approved historical website samples from Git LFS before validation.
+git lfs pull --include='data/raw/ester/250218 Cibaku Elson First Review.pdf,data/raw/ester/Yin_Haotian_Second_R_with_EF_Feedback.pdf,data/raw/ester/260415 Yin H _2nd_review with EF Comments.pdf,data/raw/ester/Yin_H_4th_Review_with_EF_comments_compressed.pdf' --exclude=''
+PYTHONPATH=src python -c 'from njit_auditor.web_samples import get_public_sample; [get_public_sample(f"ester_sample_{letter}") for letter in "abcd"]'
 # If runtime dependencies changed, sync the service venv as shown below before gates.
 ruff check .
 mypy src

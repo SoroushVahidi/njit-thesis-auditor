@@ -619,43 +619,12 @@ def list_feedback(*, page: int = 1, **filters: str) -> list[dict[str, Any]]:
         ]
 
 
-def list_feedback_for_audit(audit_ref: str, *, owner_id: str | None = None) -> list[dict[str, Any]]:
-    clause = " AND f.submitted_by_admin_id=?" if owner_id is not None else ""
-    params = (audit_ref, owner_id) if owner_id is not None else (audit_ref,)
+def list_feedback_for_audit(audit_ref: str) -> list[dict[str, Any]]:
     with _connection() as db:
         return [dict(row) for row in db.execute(
             _FEEDBACK_SELECT +
-            " WHERE f.audit_ref=?" + clause + " ORDER BY f.created_at DESC, f.id DESC",
-            params)]
-
-
-@router.get("/reviewer/feedback", response_class=HTMLResponse)
-async def my_feedback(request: Request) -> Response:
-    from njit_auditor import web_app
-
-    auth = reviewer_session(request)
-    if auth is None:
-        return _reviewer_deny(request)
-    try:
-        page = int(request.query_params.get("page", "1"))
-    except ValueError:
-        return _reviewer_deny(request, 400)
-    if not 1 <= page <= 100000:
-        return _reviewer_deny(request, 400)
-    with _connection() as db:
-        records = [dict(row) for row in db.execute(
-            _FEEDBACK_SELECT + " WHERE f.submitted_by_admin_id=? "
-            "ORDER BY f.created_at DESC, f.id DESC LIMIT 101 OFFSET ?",
-            (auth["admin_id"], (page - 1) * 100),
-        )]
-    response = web_app._render(request, "reviewer_feedback.html", {
-        "feedback": records[:100], "feedback_classifications": CLASSIFICATIONS,
-        "page": page, "has_next": len(records) > 100,
-        "notice": request.query_params.get("notice", "") if
-        request.query_params.get("notice", "") in {"saved", "updated", "deleted"} else "",
-    })
-    response.headers["Cache-Control"] = "no-store"
-    return response
+            " WHERE f.audit_ref=? ORDER BY f.created_at DESC, f.id DESC",
+            (audit_ref,))]
 
 
 @router.get("/admin/feedback", response_class=HTMLResponse)
@@ -741,72 +710,16 @@ async def save_finding_feedback(request: Request, job_id: str, finding_id: str) 
         db.execute("BEGIN IMMEDIATE")
         if not _authorization_current(db, request, auth["admin_id"], reviewer=is_reviewer):
             return _deny(request)
-        feedback_id = secrets.token_urlsafe(16)
         db.execute("""INSERT INTO feedback(id,audit_ref,finding_ref,rule_id,issue_type,
             pdf_page,original_confidence,classification,comment,status,context,created_at,updated_at,
             submitted_by_admin_id,last_modified_by_admin_id)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
-            feedback_id, job_id, finding_id, rule_id, issue_type, page,
+            secrets.token_urlsafe(16), job_id, finding_id, rule_id, issue_type, page,
             confidence, classification, comment, "Open", f"Rule {rule_id}; issue {issue_type}",
             now, now, auth["admin_id"], auth["admin_id"],
         ))
     anchor = quote(str(finding.get("problem_anchor", "")))
-    return RedirectResponse(
-        f"/audits/{quote(job_id)}?feedback=saved&feedback_id={quote(feedback_id)}#{anchor}",
-        status_code=303,
-    )
-
-
-@router.post("/reviewer/feedback/{feedback_id}")
-async def update_reviewer_feedback(request: Request, feedback_id: str) -> Response:
-    auth = reviewer_session(request)
-    if auth is None:
-        return _reviewer_deny(request)
-    try:
-        form = await _form(request)
-    except (ValueError, TypeError):
-        return _reviewer_deny(request, 400)
-    if not _csrf_ok(request, str(form.get("csrf_token", "")), auth, reviewer=True):
-        return _reviewer_deny(request)
-    action = str(form.get("action", ""))
-    if action not in {"save", "delete"}:
-        return _reviewer_deny(request, 400)
-    if action == "delete" and form.get("confirm_delete") != "yes":
-        return _reviewer_deny(request, 400, "Confirm deletion of this feedback record.")
-    classification = str(form.get("classification", ""))
-    comment = str(form.get("comment", ""))
-    if action == "save" and (classification not in CLASSIFICATIONS or len(comment) > 4000):
-        return _reviewer_deny(
-            request, 400, "Choose a classification and keep comments under 4000 characters."
-        )
-    with _connection() as db:
-        db.execute("BEGIN IMMEDIATE")
-        if not _authorization_current(db, request, auth["admin_id"], reviewer=True):
-            return _reviewer_deny(request)
-        row = db.execute(
-            "SELECT audit_ref,finding_ref FROM feedback WHERE id=? AND submitted_by_admin_id=?",
-            (feedback_id, auth["admin_id"]),
-        ).fetchone()
-        if row is None:
-            return _reviewer_deny(request, 404, "Feedback was deleted or is unavailable.")
-        if action == "delete":
-            db.execute("""INSERT INTO feedback_deletions
-                (feedback_id,audit_ref,finding_ref,deleted_by_admin_id,deleted_at)
-                VALUES (?,?,?,?,?)""", (
-                feedback_id, row["audit_ref"], row["finding_ref"], auth["admin_id"], _now(),
-            ))
-            db.execute("DELETE FROM feedback WHERE id=? AND submitted_by_admin_id=?",
-                       (feedback_id, auth["admin_id"]))
-        else:
-            db.execute("""UPDATE feedback SET classification=?, comment=?, updated_at=?,
-                last_modified_by_admin_id=? WHERE id=? AND submitted_by_admin_id=?""", (
-                classification, comment, _now(), auth["admin_id"], feedback_id,
-                auth["admin_id"],
-            ))
-    return RedirectResponse(
-        "/reviewer/feedback?notice=" + ("deleted" if action == "delete" else "updated"),
-        status_code=303,
-    )
+    return RedirectResponse(f"/audits/{quote(job_id)}?feedback=saved#{anchor}", status_code=303)
 
 
 @router.post("/admin/feedback/{feedback_id}")
