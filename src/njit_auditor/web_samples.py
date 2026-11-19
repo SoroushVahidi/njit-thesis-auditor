@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,6 +46,16 @@ _CURATED: list[SampleInfo] = [
 
 _BY_ID: dict[str, SampleInfo] = {s.sample_id: s for s in _CURATED}
 
+# These four exact files were the public website's historical sample choices.
+# Pin their bytes so the download route cannot expose a different fixture under
+# a familiar sample ID if the source files change later.
+_PUBLIC_SAMPLE_SHA256 = {
+    "ester_sample_a": "234f6c951a2a6a07308a771af434628658ddc84f9684c54e51f6c9423ac6d6ad",
+    "ester_sample_b": "dccea83030fe01c90d996ff3a1b901e2d56eaac6fe06ba51eea7c884bfc6d56b",
+    "ester_sample_c": "dbfdc9b820c46cf10570d802911c92b1b5ed31583a72f59cfadf2b5286e31eee",
+    "ester_sample_d": "cbf4497727dc106cd8c26e5f0c6786a45b6c5df42405254796e164200690e209",
+}
+
 
 def list_builtin_samples() -> list[SampleInfo]:
     """Return curated samples that currently exist as local PDF files."""
@@ -56,6 +67,30 @@ def get_builtin_sample(sample_id: str) -> SampleInfo:
     if sample_id not in _BY_ID:
         raise ValueError(f"Unknown sample ID: {sample_id!r}")
     return _BY_ID[sample_id]
+
+
+def get_public_sample(sample_id: str) -> SampleInfo:
+    """Return only an unchanged, historically public website sample PDF."""
+    if sample_id not in _PUBLIC_SAMPLE_SHA256:
+        raise ValueError("Unknown public sample ID.")
+    info = get_builtin_sample(sample_id)
+    src = info.abs_path
+    try:
+        src.relative_to(_REPO_ROOT.resolve())
+    except ValueError:
+        raise ValueError("Sample path escapes repository root.") from None
+    if not src.is_file():
+        raise FileNotFoundError("Public sample is unavailable.")
+    digest = hashlib.sha256()
+    with src.open("rb") as pdf:
+        if pdf.read(4) != b"%PDF":
+            raise ValueError("Public sample is not a PDF.")
+        pdf.seek(0)
+        for chunk in iter(lambda: pdf.read(1024 * 1024), b""):
+            digest.update(chunk)
+    if digest.hexdigest() != _PUBLIC_SAMPLE_SHA256[sample_id]:
+        raise ValueError("Public sample does not match the approved version.")
+    return info
 
 
 def copy_builtin_sample_to_job(sample_id: str, destination_path: Path) -> None:
