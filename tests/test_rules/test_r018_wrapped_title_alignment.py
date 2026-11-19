@@ -105,18 +105,10 @@ def test_small_coordinate_jitter_is_not_flagged(tmp_path: Path) -> None:
         assert _findings(pdf) == [], jitter
 
 
-def test_continuation_indented_past_title_text_is_flagged(tmp_path: Path) -> None:
-    """Alignment is symmetric: a hanging indent deeper than the title text is
-    not "aligned with the text of the first line" either (NJIT's model TOC
-    hangs wrapped lines exactly under the title text)."""
-
+def test_continuation_indented_past_title_text_is_accepted(tmp_path: Path) -> None:
+    """The later reviewer clarification accepts continuation-line indentation."""
     pdf = _render(tmp_path, "TABLE OF CONTENTS", _wrapped_toc_rows(TITLE_X + 12.0))
-    findings = _findings(pdf)
-    assert len(findings) == 1
-    details = findings[0].details
-    assert details["continuation_alignment"] == "right_of_title_text"
-    assert float(details["signed_delta_pt"]) > 11.0
-    assert details["confidence"] == "medium"
+    assert _findings(pdf) == []
 
 
 def test_multiple_continuation_lines_are_each_checked(tmp_path: Path) -> None:
@@ -143,6 +135,32 @@ def test_multiple_continuation_lines_are_each_checked(tmp_path: Path) -> None:
     findings = _findings(_render(bad_dir, "TABLE OF CONTENTS", peers + second_misaligned))
     assert len(findings) == 1
     assert findings[0].details["affected_entry_count"] == "1"
+
+
+def test_second_and_third_line_indents_are_accepted_but_left_shift_is_not(
+    tmp_path: Path,
+) -> None:
+    peers = [
+        (108.0, 140.0, f"1 INTRODUCTION {LEADER} 1"),
+        (NUMBER_X, 252.0, f"1.3.4 Summary {LEADER} 7"),
+    ]
+    first = (NUMBER_X, 168.0, f"{LABEL}Sampling design for the long survey of")
+    second = (TITLE_X + 8.0, 182.0, "coastal and estuarine sites across")
+    valid_dir = tmp_path / "valid"
+    valid_dir.mkdir()
+    valid = _render(
+        valid_dir, "TABLE OF CONTENTS",
+        [*peers, first, second, (TITLE_X + 15.0, 196.0, f"three seasons {LEADER} 5")],
+    )
+    assert _findings(valid) == []
+
+    invalid_dir = tmp_path / "invalid"
+    invalid_dir.mkdir()
+    invalid = _render(
+        invalid_dir, "TABLE OF CONTENTS",
+        [*peers, first, second, (NUMBER_X, 196.0, f"three seasons {LEADER} 5")],
+    )
+    assert len(_findings(invalid)) == 1
 
 
 def test_non_wrapped_entries_are_unaffected(tmp_path: Path) -> None:

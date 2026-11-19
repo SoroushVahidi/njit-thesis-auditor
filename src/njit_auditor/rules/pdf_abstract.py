@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
 from njit_auditor.rules.latex_abstract import PHD_WORD_LIMIT, count_abstract_words
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 
@@ -73,14 +73,9 @@ def _infer_degree_from_pdf(pdf_document: PdfDocument) -> str:
     return "unknown"
 
 
-def _extract_abstract_body_text(page: PdfPage) -> str:
-    """
-    Extract text from the abstract page, skipping the ABSTRACT heading line itself.
-
-    Conservative: only reads the single abstract page. Multi-page abstracts
-    will be undercounted.
-    """
-    lines: list[str] = []
+def _abstract_body_lines(page: PdfPage) -> list[PdfTextLine]:
+    """Return only lines after ABSTRACT and before the next named section."""
+    lines: list[PdfTextLine] = []
     heading_seen = False
     for block in page.text_blocks:
         for line in block.lines:
@@ -90,13 +85,21 @@ def _extract_abstract_body_text(page: PdfPage) -> str:
                 continue
             if not heading_seen:
                 continue
-            # Stop if we hit another major named heading on the same page
             if norm in _NEXT_SECTION_HEADINGS:
-                break
-            text = line.text.strip()
-            if text:
-                lines.append(text)
-    return " ".join(lines)
+                return lines
+            if line.text.strip():
+                lines.append(line)
+    return lines
+
+
+def _extract_abstract_body_text(page: PdfPage) -> str:
+    """
+    Extract text from the abstract page, skipping the ABSTRACT heading line itself.
+
+    Conservative: only reads the single abstract page. Multi-page abstracts
+    will be undercounted.
+    """
+    return " ".join(line.text.strip() for line in _abstract_body_lines(page))
 
 
 # Mirrors FORBIDDEN_WORD_RE and FIRST_PERSON_RE from latex_abstract.py (Q004/Q005 TeX checks).
@@ -122,15 +125,33 @@ def check_pdf_abstract_keywords(pdf_document: PdfDocument) -> list[AuditFinding]
     if abstract_page is None:
         return []
 
-    body_text = _extract_abstract_body_text(abstract_page)
-    if not body_text:
+    body_lines = _abstract_body_lines(abstract_page)
+    if not body_lines:
         return []
 
     findings: list[AuditFinding] = []
 
-    for term in sorted(
-        {m.group(1).lower() for m in _PDF_FORBIDDEN_WORD_RE.finditer(body_text)}
-    ):
+    def match_details(line: PdfTextLine) -> dict[str, str]:
+        # A line box identifies the source line without claiming word-level
+        # precision that the ordinary PDF layout model does not contain.
+        if line.bbox.width > 0 and line.bbox.height > 0:
+            return {"bbox": format_bbox_detail(line.bbox), "highlight_scope": "line"}
+        return {"highlight_unavailable": "source_line_has_no_geometry"}
+
+    term_lines: dict[str, PdfTextLine] = {}
+    pronoun_lines: dict[str, PdfTextLine] = {}
+    for line in body_lines:
+        for match in _PDF_FORBIDDEN_WORD_RE.finditer(line.text):
+            term_lines.setdefault(match.group(1).lower(), line)
+        for match in _PDF_FIRST_PERSON_I_RE.finditer(line.text):
+            pronoun_lines.setdefault(match.group(0).lower(), line)
+        for match in _PDF_FIRST_PERSON_OTHER_RE.finditer(line.text):
+            # US is the ordinary country abbreviation, not the pronoun us.
+            if match.group(1) == "US":
+                continue
+            pronoun_lines.setdefault(match.group(1).lower(), line)
+
+    for term in sorted(term_lines):
         findings.append(
             AuditFinding(
                 rule_id="P078",
@@ -146,17 +167,12 @@ def check_pdf_abstract_keywords(pdf_document: PdfDocument) -> list[AuditFinding]
                     "source_q_rule_ids": "Q004",
                     "triage_tier": "check",
                     "confidence": "medium",
+                    **match_details(term_lines[term]),
                 },
             )
         )
 
-    first_person_pronouns = {
-        m.group(0).lower() for m in _PDF_FIRST_PERSON_I_RE.finditer(body_text)
-    }
-    first_person_pronouns.update(
-        m.group(1).lower() for m in _PDF_FIRST_PERSON_OTHER_RE.finditer(body_text)
-    )
-    for pronoun in sorted(first_person_pronouns):
+    for pronoun in sorted(pronoun_lines):
         findings.append(
             AuditFinding(
                 rule_id="P078",
@@ -172,6 +188,7 @@ def check_pdf_abstract_keywords(pdf_document: PdfDocument) -> list[AuditFinding]
                     "source_q_rule_ids": "Q005",
                     "triage_tier": "check",
                     "confidence": "medium",
+                    **match_details(pronoun_lines[pronoun]),
                 },
             )
         )
