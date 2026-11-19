@@ -22,6 +22,7 @@
     "tests/test_desktop_reference.py",
     "tests/test_desktop_sessions.py",
     "tests/test_desktop_upload_budget.py",
+    "tests/test_direct_sample_audits.py",
     "tests/test_duplicate_candidate_analysis.py",
     "tests/test_duplicate_warning_distinctness.py",
     "tests/test_ester_20261005_r024_r045_reconciliation.py",
@@ -220,6 +221,7 @@
     "tests/test_windows_startup.py"
   ],
   "local_only": {
+    "tests/test_direct_sample_browser.py": "Mobile WebKit and historical sample PDFs are available only in the local validation environment.",
     "tests/test_ester_audit_private_cases.py": "Requires an external private source manifest and confidential dissertation PDFs for approved findings/controls.",
     "tests/test_ester_private_replay_blockers.py": "Private replay PDFs; mixed module retained locally in full.",
     "tests/test_ester_rule_consistency_audit.py": "Requires reviewer spreadsheets stored in private LFS paths.",
