@@ -2397,14 +2397,7 @@ async def job_page(request: Request, job_id: str, sort: str = SORT_MODE_DEFAULT)
         context["admin_feedback_classifications"] = CLASSIFICATIONS
         context["feedback_notice"] = request.query_params.get("feedback") == "saved"
     elif reviewer_auth is not None and job.state == "complete":
-        by_finding = {}
-        for record in list_feedback_for_audit(job_id, owner_id=reviewer_auth["admin_id"]):
-            by_finding.setdefault(record["finding_ref"], []).append(record)
-        context["reviewer_feedback_by_finding"] = by_finding
-        context["admin_feedback_classifications"] = CLASSIFICATIONS
-        context["feedback_classifications"] = CLASSIFICATIONS
         context["feedback_notice"] = request.query_params.get("feedback") == "saved"
-        context["saved_feedback_id"] = request.query_params.get("feedback_id", "")
     return _render(request, "job.html", context)
 
 
