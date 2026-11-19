@@ -10,10 +10,10 @@ assertions remain unchanged.
 `CI` runs on pushes and pull requests. Its Python 3.10–3.12 matrix runs Ruff,
 mypy, boundary regression tests, and the explicit synthetic/nonconfidential
 selection in [tests.json](../.github/ci/tests.json). The separate Python 3.12
-browser job runs four explicit targets with generated PDFs and loopback services;
+browser job runs six explicit targets with generated PDFs and loopback services;
 zero tests or any browser skip fails that job.
 
-The inventory classifies 208 hosted modules and 17 local-only modules.
+The inventory classifies 218 hosted modules and 17 local-only modules.
 The latter include private replay/correctness/geometry tests, mixed modules with
 private cases, reviewer spreadsheets, a public guideline PDF, and four modules
 using authorized synthetic web-demo binaries stored in LFS. Those binaries are

@@ -101,7 +101,9 @@ def test_index_page_sample_download_and_upload_ui_present(
 
     assert 'href="/sample.pdf"' in body
     assert "Download sample PDF" in body
-    assert "then upload the saved PDF above to start an audit" in body
+    assert "Sample Documents" in body
+    assert "Download a PDF, then use" in body
+    assert "New_Submitted_Thesis.pdf" in body
     sample = c.get("/sample.pdf")
     assert sample.status_code == 200
     assert sample.headers["content-type"].startswith("application/pdf")
