@@ -80,6 +80,16 @@ def _extract_toc_entry_text(entry: TocEntryLine) -> str | None:
     return text if len(text) >= MIN_ENTRY_TEXT_LEN else None
 
 
+def _single_spaced_dot_is_ambiguous(entry_text: str) -> bool:
+    """Avoid treating an isolated, space-separated leader as title punctuation.
+
+    A lone dot can be the last cell of a leader grid. Without a repeated dot
+    pattern or a page-wide aligned grid, extracted whitespace alone cannot
+    establish whether the dot belongs to the title.
+    """
+    return re.search(r"\s+\.$", entry_text) is not None
+
+
 def _check_toc_terminal_period_page(
     context: TocPageContext,
     entries: list[TocEntryLine],
@@ -95,6 +105,8 @@ def _check_toc_terminal_period_page(
         if not _TERMINAL_PERIOD_RE.search(entry_text):
             continue
         if is_isolated_terminal_grid_leader_dot(entry, entries):
+            continue
+        if _single_spaced_dot_is_ambiguous(entry_text):
             continue
         details = {
             "issue_type": "toc_entry_has_terminal_period",

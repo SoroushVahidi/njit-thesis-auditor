@@ -716,6 +716,18 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "A Table of Contents entry on this page ends with a final period. "
         "Remove the final period from each Table of Contents entry."
     ),
+    ("P075", "toc_mixed_leader_styles"): (
+        "The Table of Contents uses both dot and hyphen leaders between titles "
+        "and page numbers. The identified entry on page {page} is one example "
+        "of the differing style; inspect the other TOC entries as well. NJIT "
+        "requires one consistent leader style throughout the TOC."
+    ),
+    ("P075", "toc_missing_leader_style"): (
+        "Some Table of Contents entries have no leader between the title and "
+        "page number, while other entries use one. The identified entry on "
+        "page {page} is one example without a leader. Inspect the other TOC "
+        "entries and add the same leader style where it is absent."
+    ),
     # --- P055 misplaced list entries ---
     ("P055", "lot_entry_is_figure"): (
         "A table entry appears in the List of Tables but describes a figure. "
@@ -755,9 +767,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Remove this Abstract entry from the TOC."
     ),
     ("P087", "toc_generic_title_repeated"): (
-        "The Table of Contents repeats the same generic heading on multiple "
-        "entries. Qualify each repeated heading with the chapter topic or another "
-        "distinctive title so readers can tell the sections apart."
+        "The Table of Contents repeats the same generic section title in "
+        "distinct entries. This is a review prompt: check whether chapter or "
+        "section context already distinguishes the entries. If readers cannot "
+        "tell them apart, add the chapter topic or another distinctive label."
     ),
     ("P057", "lot_page_numbers_not_nondecreasing"): (
         "List of Tables page numbers on this page do not appear to be in "

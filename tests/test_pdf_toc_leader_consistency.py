@@ -16,7 +16,10 @@ H. Issue-type label and explanation exist for both P075 issue types
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
+
+import fitz
 
 from njit_auditor.pdf_models import (
     BBox,
@@ -26,7 +29,14 @@ from njit_auditor.pdf_models import (
     PdfTextLine,
     PdfTextSpan,
 )
-from njit_auditor.rules.pdf_toc_leader_consistency import check_pdf_toc_leader_consistency
+from njit_auditor.report_outputs import audit_findings_to_json_dict
+from njit_auditor.report_view import build_report_view
+from njit_auditor.rules.pdf_toc_alignment import TocEntryLine
+from njit_auditor.rules.pdf_toc_leader_consistency import (
+    _anchor_details,
+    check_pdf_toc_leader_consistency,
+)
+from njit_auditor.student_pdf_report import build_combined_student_pdf_report
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -250,6 +260,124 @@ def test_missing_leader_warning_anchors_page_with_actual_missing_entry() -> None
     assert len(p075) == 1
     assert p075[0].page == 4
     assert p075[0].details["page_number"] == "4"
+
+
+def test_p075_mixed_styles_highlight_is_an_observed_example() -> None:
+    entries = [
+        _entry_dot("CHAPTER 1 SYNTHETIC TITLE", 80),
+        _entry_hyphen("CHAPTER 2 SYNTHETIC TITLE", 100),
+        _entry_dot("CHAPTER 3 SYNTHETIC TITLE", 120),
+    ]
+    findings = check_pdf_toc_leader_consistency(
+        _doc(_page(_block(_toc_heading()), *[_block(entry) for entry in entries]))
+    )
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.details["entry_index"] == "1"
+    assert finding.details["highlight_scope"] == "example_entry_only"
+    assert finding.details["bbox"] == "108.0,100.0,504.0,112.0"
+    assert finding.details["confidence"] == "medium"
+    assert "one hyphen-leader example" in finding.message
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    card = view.findings[0]
+    assert card.has_highlight
+    assert card.action_kind == "highlight"
+    assert "entry 2" in card.location_label
+    assert "one example" in card.polished_comment
+    assert "identified entry" in card.detailed_explanation
+    assert payload["findings"][0]["details"]["bbox"] == finding.details["bbox"]
+
+
+def test_p075_missing_leader_highlight_targets_missing_row() -> None:
+    entries = [
+        _entry_dot("CHAPTER 1 SYNTHETIC TITLE", 80),
+        _entry_none("CHAPTER 2 SYNTHETIC TITLE", 100),
+        _entry_dot("CHAPTER 3 SYNTHETIC TITLE", 120),
+    ]
+    finding = check_pdf_toc_leader_consistency(
+        _doc(_page(_block(_toc_heading()), *[_block(entry) for entry in entries]))
+    )[0]
+    assert finding.details["issue_type"] == "toc_missing_leader_style"
+    assert finding.details["entry_index"] == "1"
+    assert finding.details["bbox"] == "108.0,100.0,504.0,112.0"
+    assert "one entry without a leader" in finding.message
+
+
+def test_p075_invalid_geometry_is_disclosed_without_bbox(tmp_path: Path) -> None:
+    bad = TocEntryLine(
+        line=_line("CHAPTER 2 SYNTHETIC TITLE   10", x0=108, x1=108),
+        cleaned_text="CHAPTER 2 SYNTHETIC TITLE 10",
+        page_number_token="10",
+        page_number_right_x=504,
+        indent_x=108,
+        has_leader_dots=False,
+    )
+    details = _anchor_details(bad, _page(page_number=3), 1)
+    assert "bbox" not in details
+    assert "No reliable entry coordinates" in details["highlight_unavailable_reason"]
+    finding = {
+        "rule_id": "P075",
+        "severity": "WARNING",
+        "page": 3,
+        "message": "A TOC entry has no leader.",
+        "details": {"issue_type": "toc_missing_leader_style", **details},
+    }
+    card = build_report_view({"findings": [finding], "metadata": {}}).findings[0]
+    assert not card.has_highlight
+    assert card.action_kind == "original_page"
+    assert "No exact highlight is available" in card.no_highlight_reason
+    assert "entry 2" in card.location_label
+    source = tmp_path / "synthetic.pdf"
+    output = tmp_path / "report.pdf"
+    with fitz.open() as doc:
+        for _ in range(3):
+            doc.new_page(width=612, height=792)
+        doc.save(source)
+    result = build_combined_student_pdf_report(
+        source,
+        output,
+        [asdict(card)],
+        boxes_by_problem={},
+        file_name="synthetic.pdf",
+    )
+    assert result.highlighted_findings == 0
+    with fitz.open(output) as doc:
+        report_text = " ".join(page.get_text() for page in list(doc)[3:])
+        assert "No exact highlight is available" in report_text
+
+
+def test_p075_combined_pdf_uses_same_example_and_guidance(tmp_path: Path) -> None:
+    entries = [
+        _entry_dot("CHAPTER 1 SYNTHETIC TITLE", 80),
+        _entry_hyphen("CHAPTER 2 SYNTHETIC TITLE", 100),
+        _entry_dot("CHAPTER 3 SYNTHETIC TITLE", 120),
+    ]
+    findings = check_pdf_toc_leader_consistency(
+        _doc(_page(_block(_toc_heading()), *[_block(entry) for entry in entries]))
+    )
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    card = build_report_view(payload).findings[0]
+    assert card.bbox is not None
+    source = tmp_path / "synthetic.pdf"
+    output = tmp_path / "report.pdf"
+    with fitz.open() as doc:
+        for _ in range(3):
+            page = doc.new_page(width=612, height=792)
+        page.insert_text((108, 110), "CHAPTER 2 SYNTHETIC TITLE ----- 100")
+        doc.save(source)
+    result = build_combined_student_pdf_report(
+        source,
+        output,
+        [asdict(card)],
+        boxes_by_problem={card.problem_number: [card.bbox]},
+        file_name="synthetic.pdf",
+    )
+    assert result.highlighted_findings == 1
+    with fitz.open(output) as doc:
+        report_text = " ".join(page.get_text() for page in list(doc)[3:])
+        assert "one example" in report_text
+        assert "Table of Contents" in report_text
 
 
 def test_missing_leaders_with_hyphen_dominant() -> None:
