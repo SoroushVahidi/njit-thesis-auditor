@@ -2347,6 +2347,21 @@ async def download_synthetic_sample() -> Response:
     )
 
 
+@app.get("/samples/{sample_id}.pdf", response_model=None)
+async def download_historical_sample(sample_id: str) -> FileResponse | JSONResponse:
+    """Download one approved historical sample for manual PDF upload."""
+    from njit_auditor.web_samples import get_public_sample
+
+    try:
+        sample = get_public_sample(sample_id)
+    except (FileNotFoundError, ValueError):
+        return JSONResponse({"detail": "Sample unavailable."}, status_code=404)
+    return FileResponse(
+        path=str(sample.abs_path), media_type="application/pdf",
+        filename=sample.abs_path.name,
+    )
+
+
 @app.get("/audits/url", response_model=None)
 async def get_audits_url_guard() -> RedirectResponse:
     """Redirect accidental GET /audits/url to the upload page.
