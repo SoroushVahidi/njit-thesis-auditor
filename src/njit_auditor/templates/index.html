@@ -189,6 +189,23 @@
 </div>
 
 <div class="input-methods section">
+  {% if not offline_mode %}
+  <div class="card">
+    <h2 style="margin-top:0;">Audit a Sample Document</h2>
+    <p>Try an approved PDF directly. The audit opens in the same results view as your own upload.</p>
+    <form action="/sample-audits" method="post">
+      <label for="sample-id">Sample document</label>
+      <select id="sample-id" name="sample_id" required>
+        <option value="synthetic_example">Synthetic Example</option>
+        <option value="ester_sample_a">Historical Sample A</option>
+        <option value="ester_sample_b">Historical Sample B</option>
+        <option value="ester_sample_c">Historical Sample C</option>
+        <option value="ester_sample_d">Historical Sample D</option>
+      </select>
+      <button type="submit">Audit Selected Sample</button>
+    </form>
+  </div>
+  {% endif %}
   <div class="card">
     <h2 style="margin-top:0;">Upload a file</h2>
     <form action="/audits" method="post" enctype="multipart/form-data">
@@ -238,7 +255,7 @@
 
   <div class="card">
     <h2 style="margin-top:0;">Sample Documents</h2>
-    <p>Download a PDF, then use <strong>Upload a file</strong> above to audit the saved copy. If a PDF opens in your browser, use its download button to save it first.</p>
+    <p>Downloads are available if you want a copy of a sample PDF. You can audit the approved samples directly above.</p>
     <ul class="bullet-list">
       <li><strong>Synthetic example:</strong> A small generated PDF with no student material. <a href="/sample.pdf" download>Download sample PDF</a>.</li>
       {% if not offline_mode %}
