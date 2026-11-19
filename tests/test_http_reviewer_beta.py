@@ -57,7 +57,8 @@ def test_http_reviewer_complete_synthetic_audit_workflow(
     password = secrets.token_urlsafe(24)
     account_id = admin_accounts.create_account("ester", password, role="reviewer")
     admin_accounts.create_account("soroush", secrets.token_urlsafe(24), role="reviewer")
-    admin_accounts.create_account("operator", secrets.token_urlsafe(24))
+    operator_password = secrets.token_urlsafe(24)
+    admin_accounts.create_account("operator", operator_password)
 
     doc = pymupdf.open()
     page = doc.new_page(width=612, height=792)
@@ -85,7 +86,7 @@ def test_http_reviewer_complete_synthetic_audit_workflow(
     wrong = _login(client, "ester", secrets.token_urlsafe(24), next_url=job_url)
     assert wrong.status_code == 401
     assert password not in wrong.text
-    assert _login(client, "operator", password).status_code == 401
+    assert _login(client, "operator", operator_password).status_code == 401
     login = _login(client, "ester", password, next_url=job_url)
     assert login.status_code == 303 and login.headers["location"] == job_url
     assert "httponly" in login.headers["set-cookie"].lower()
@@ -188,7 +189,16 @@ def test_existing_v4_admin_database_gains_role_without_losing_accounts(
     _, db_path = reviewer_site
     password = secrets.token_urlsafe(24)
     account_id = admin_accounts.create_account("operator", password)
+    feedback_id = secrets.token_urlsafe(16)
     with sqlite3.connect(db_path) as db:
+        db.execute("""INSERT INTO feedback (
+            id,audit_ref,finding_ref,rule_id,issue_type,original_confidence,
+            classification,comment,context,created_at,updated_at,submitted_by_admin_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", (
+                feedback_id, "synthetic-job", "f7", "P011", "margin_violation", "medium",
+                "unclear", "Preserved synthetic feedback", "Rule P011",
+                "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00", account_id,
+            ))
         db.execute("ALTER TABLE admins DROP COLUMN role")
         db.execute("PRAGMA user_version=4")
     with admin_feedback._connection() as db:
@@ -198,3 +208,7 @@ def test_existing_v4_admin_database_gains_role_without_losing_accounts(
         assert account["role"] == "admin"
         assert admin_accounts._HASHER.verify(account["password_hash"], password)
         assert db.execute("PRAGMA user_version").fetchone()[0] == 5
+        feedback = db.execute("SELECT finding_ref,comment,submitted_by_admin_id "
+                              "FROM feedback WHERE id=?", (feedback_id,)).fetchone()
+        assert tuple(feedback) == ("f7", "Preserved synthetic feedback", account_id)
+        assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
