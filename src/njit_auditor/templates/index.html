@@ -237,9 +237,14 @@
   </div>
 
   <div class="card">
-    <h2 style="margin-top:0;">Try a sample PDF</h2>
-    <p>Download a synthetic sample with no student material, then upload the saved PDF above to start an audit.</p>
-    <a href="/sample.pdf" class="btn btn-secondary" download>Download sample PDF</a>
+    <h2 style="margin-top:0;">Sample Documents</h2>
+    <p>Download a PDF, then use <strong>Upload a file</strong> above to audit the saved copy. If a PDF opens in your browser, use its download button to save it first.</p>
+    <ul class="bullet-list">
+      <li><strong>Synthetic example:</strong> A small generated PDF with no student material. <a href="/sample.pdf" download>Download sample PDF</a>.</li>
+      {% if not offline_mode %}
+      <li><strong>Real thesis example:</strong> Christopher Anson’s 39-page thesis, released by its author into the public domain on Wikimedia Commons. Its format is not an NJIT template. <a href="https://commons.wikimedia.org/wiki/Special:Redirect/file/New_Submitted_Thesis.pdf" target="_blank" rel="noopener noreferrer">Download real thesis PDF</a> from Wikimedia Commons.</li>
+      {% endif %}
+    </ul>
   </div>
 </div>
 

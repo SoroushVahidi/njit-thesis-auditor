@@ -177,7 +177,12 @@ Browser-native preview behavior can still vary by device, browser, extension, or
 - Document-URL submissions are rejected without network access or worker creation, including
   legacy fields on `/audits` and requests containing both a file and a nonempty URL.
 - Rejections use a 303 redirect to a stable GET error page with upload instructions.
-- Samples are generated synthetic downloads; private evaluation samples are not listed.
+- The Sample Documents section offers the generated synthetic PDF and links directly to
+  Christopher Anson's public-domain thesis on Wikimedia Commons. Visitors save either PDF
+  and upload it manually. The real example is hosted by Commons; no copy is bundled.
+  Historical Ester-annotated evaluation PDFs remain private. Listing or hosting them
+  would require explicit publication approval from the relevant rights holders and
+  confirmation that annotations and student content may be released.
 
 Recommended cleanup before a live restart:
 

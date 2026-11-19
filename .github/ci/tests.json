@@ -60,6 +60,7 @@
     "tests/test_high_volume_warning_clarity.py",
     "tests/test_highlight_target_baseline.py",
     "tests/test_http_reviewer_beta.py",
+    "tests/test_http_reviewer_browser.py",
     "tests/test_indent_after_unfinished_sentence.py",
     "tests/test_issue_type_explanations.py",
     "tests/test_latex_demo_examples.py",
@@ -240,6 +241,7 @@
   "browser": [
     "tests/test_about_browser.py",
     "tests/test_admin_feedback_browser.py",
+    "tests/test_http_reviewer_browser.py",
     "tests/test_ui_help_mobile_overflow.py",
     "tests/test_windows_download.py::test_browser_layout_and_keyboard",
     "tests/test_browser_audit_workflow.py"
