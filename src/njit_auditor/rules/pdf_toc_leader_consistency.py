@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage
+from njit_auditor.pdf_models import PdfDocument, PdfPage, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     detect_toc_like_pages,
@@ -76,29 +76,52 @@ def _classify_entry(
     return None
 
 
+def _anchor_details(entry: TocEntryLine, page: PdfPage, index: int) -> dict[str, str]:
+    """Describe one observed row without inventing a location for the whole TOC."""
+    details = {
+        "page_type": "table_of_contents",
+        "section_type": "table_of_contents",
+        "entry_index": str(index),
+        "highlight_scope": "example_entry_only",
+    }
+    box = entry.line.bbox
+    if (
+        0 <= box.x0 < box.x1 <= page.width
+        and 0 <= box.y0 < box.y1 <= page.height
+    ):
+        details["bbox"] = format_bbox_detail(box)
+    else:
+        details["highlight_unavailable_reason"] = "No reliable entry coordinates were extracted."
+    return details
+
+
 def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P075 warnings when TOC leader styles are inconsistent (Q052)."""
-    paged: list[tuple[str, int]] = []  # (leader_style, page_number)
+    paged: list[tuple[str, PdfPage, int, TocEntryLine]] = []
 
     for context in detect_toc_like_pages(pdf_document):
         if context.page_type != "table_of_contents":
             continue
         entries = extract_toc_entry_lines(context)
-        for entry in entries:
+        for index, entry in enumerate(entries):
             style = _classify_entry(entry, context.page, entries)
             if style is not None:
-                paged.append((style, context.page.page_number))
+                paged.append((style, context.page, index, entry))
 
     if len(paged) < MIN_ENTRIES_FOR_LEADER_CHECK:
         return []
 
-    dot_count = sum(1 for s, _ in paged if s == "dot")
-    hyphen_count = sum(1 for s, _ in paged if s == "hyphen")
-    none_count = sum(1 for s, _ in paged if s == "none")
+    dot_count = sum(1 for s, _, _, _ in paged if s == "dot")
+    hyphen_count = sum(1 for s, _, _, _ in paged if s == "hyphen")
+    none_count = sum(1 for s, _, _, _ in paged if s == "none")
     total = len(paged)
-    first_page = paged[0][1]
 
     if dot_count > 0 and hyphen_count > 0:
+        example_style = "hyphen" if dot_count >= hyphen_count else "dot"
+        _, example_page, example_index, example_entry = next(
+            row for row in paged if row[0] == example_style
+        )
+        first_page = example_page.page_number
         style_summary = "; ".join(
             [
                 _count_phrase("dot leaders", dot_count),
@@ -113,7 +136,8 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
                 message=(
                     f"Table of Contents entries are not connected to page numbers by one "
                     f"consistent leader style: {style_summary} "
-                    f"(out of {total} paged entries). "
+                    f"(out of {total} paged entries). On page {first_page}, "
+                    f"TOC entry {example_index + 1} is one {example_style}-leader example. "
                     "NJIT guidelines require one consistent leader style throughout the TOC."
                 ),
                 details={
@@ -129,6 +153,7 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
                         "(dots or hyphens)."
                     ),
                     "source_q_rule_id": "Q052",
+                    **_anchor_details(example_entry, example_page, example_index),
                 },
             )
         ]
@@ -136,7 +161,10 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
     if (dot_count > 0 or hyphen_count > 0) and none_count > 0:
         dominant = "dot" if dot_count >= hyphen_count else "hyphen"
         dominant_count = dot_count if dominant == "dot" else hyphen_count
-        first_missing_page = next(page for style, page in paged if style == "none")
+        _, missing_page, missing_index, missing_entry = next(
+            row for row in paged if row[0] == "none"
+        )
+        first_missing_page = missing_page.page_number
         style_summary = "; ".join(
             [
                 _count_phrase(f"{dominant} leaders", dominant_count),
@@ -151,7 +179,8 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
                 message=(
                     f"Table of Contents entries are not all connected to page numbers by a "
                     f"consistent leader style: {style_summary} "
-                    f"(out of {total} paged entries). "
+                    f"(out of {total} paged entries). On page {first_missing_page}, "
+                    f"TOC entry {missing_index + 1} is one entry without a leader. "
                     "NJIT guidelines require every TOC entry to connect to its page "
                     "number with a consistent leader style."
                 ),
@@ -169,6 +198,7 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
                         "(dots or hyphens)."
                     ),
                     "source_q_rule_id": "Q052",
+                    **_anchor_details(missing_entry, missing_page, missing_index),
                 },
             )
         ]

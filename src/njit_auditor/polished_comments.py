@@ -368,14 +368,15 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "remove first-person pronouns."
     ),
     ("P075", "toc_mixed_leader_styles"): (
-        "Problem: Table of Contents entries on page {page} use more than one "
-        "leader style before page numbers. Use one leader style, such as dots "
-        "or hyphens, consistently throughout the Table of Contents."
+        "Problem: The Table of Contents mixes dot and hyphen leaders before "
+        "page numbers. The entry identified on page {page} is one example; "
+        "check the other TOC entries too. Use one leader style throughout the TOC."
     ),
     ("P075", "toc_missing_leader_style"): (
-        "Problem: Some Table of Contents entries on page {page} are missing a "
-        "leader before the page number while other entries use one. Add the "
-        "same leader style before every Table of Contents page number."
+        "Problem: The Table of Contents has entries without a leader before "
+        "the page number while other entries use one. The entry identified "
+        "on page {page} is one example. Add the same leader style to each "
+        "affected TOC entry."
     ),
     ("P084", "biosketch_birth_information_present"): (
         "Problem: The Biographical Sketch on page {page} appears to include "
@@ -633,9 +634,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Remove Abstract from the TOC; keep only the front-matter Abstract."
     ),
     ("P087", "toc_generic_title_repeated"): (
-        "Likely problem: The Table of Contents repeats a generic heading across "
-        "chapters on or near page {page}. Qualify each repeated heading so readers "
-        "can tell the sections apart."
+        "Review: The Table of Contents repeats the same generic section title "
+        "in distinct entries, beginning on page {page}. Check whether the "
+        "chapter or section context distinguishes them; if not, qualify the headings."
     ),
     ("P060", "toc_entry_numbers_not_nondecreasing"): (
         "Problem: Table of Contents section numbers on page {page} do not "
