@@ -211,7 +211,10 @@ def _content_parts(page: PdfPage, region: _Region) -> tuple[TablePart, ...] | No
             for line in sorted(block.lines, key=lambda item: item.bbox.y0):
                 if line.bbox.y0 < lead.bbox.y0:
                     continue
-                if (CAPTION_START_RE.match(line.text.strip()) or _HEADING.match(line.text.strip())
+                line_sizes = [span.size for span in line.spans if span.size]
+                if (not line_sizes or abs(median(line_sizes) - median(sizes)) > 0.5
+                        or CAPTION_START_RE.match(line.text.strip())
+                        or _HEADING.match(line.text.strip())
                         or (previous is not None
                             and line.bbox.y0 - previous.bbox.y0 > 1.8 * median(sizes))):
                     break

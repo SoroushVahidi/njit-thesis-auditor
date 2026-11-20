@@ -387,3 +387,20 @@ def test_wrapped_structure_and_numeric_cells_are_not_prose(tmp_path: Path, chang
     else:
         assert any(p.role == "cell" and p.text.startswith("6 synthetic")
                    for p in table.fragments[0].parts)
+
+
+def test_source_block_font_change_stops_before_ordinary_prose(tmp_path: Path) -> None:
+    path = make_table_pdf(tmp_path, marked=True)
+    changed = tmp_path / "source-and-prose.pdf"
+    with fitz.open(path) as pdf:
+        page = pdf[1]
+        page.add_redact_annot(fitz.Rect(100, 185, 545, 730))
+        page.apply_redactions()
+        page.insert_text((113, 199), "Source: A fictional archive.",
+                         fontsize=8, fontname="tiro")
+        page.insert_text((113, 211), "Ordinary body prose resumes with a different font size.",
+                         fontsize=12, fontname="tiro")
+        pdf.save(changed)
+    (table,) = recognize_table_continuations(load_pdf_layout(str(changed)))
+    assert any(part.role == "source" for part in table.fragments[1].parts)
+    assert not any("Ordinary body" in part.text for part in table.fragments[1].parts)
