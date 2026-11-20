@@ -190,12 +190,11 @@ def _starts_caption_note(text: str) -> bool:
 def _reads_as_prose_sentence(caption_body: str) -> bool:
     """True when the body already contains a full sentence followed by another.
 
-    A real figure/table caption is a single descriptive title, not a
-    multi-sentence narrative. A body paragraph that merely opens by
-    referencing a figure or table number (e.g. "Figure 4.1 displays the
-    relationship... The points cluster...") matches the same caption-start
-    pattern but reads as flowing prose once a sentence boundary appears
-    before the end of the line.
+    This legacy page-local guard cannot distinguish a multi-sentence caption
+    from a paragraph opening with a figure reference without further layout
+    evidence. The opt-in logical-caption path may recover a cross-page panel
+    description only with a corroborating graphic and continuation structure.
+    Other prose-reference exclusions remain unchanged.
     """
 
     return bool(EMBEDDED_SENTENCE_RE.search(caption_body))
@@ -385,7 +384,9 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
 
     findings: list[AuditFinding] = []
 
-    for caption in detect_caption_lines(pdf_document):
+    from njit_auditor.rules.pdf_caption_continuations import detect_logical_caption_lines
+
+    for caption in detect_logical_caption_lines(pdf_document):
         if caption.context in {"toc", "references"}:
             continue
 
@@ -482,10 +483,38 @@ def _caption_finding(
         )
     if caption.bbox is not None:
         details["bbox"] = format_bbox_detail(caption.bbox)
+    from njit_auditor.rules.pdf_caption_continuations import LogicalCaption
+
+    finding_page = caption.page_number
+    if isinstance(caption, LogicalCaption):
+        first, last = caption.fragments
+        details.update({
+            "caption_start_page": str(first.page_number),
+            "caption_end_page": str(last.page_number),
+            "caption_start_document_page_label": first.document_page_label,
+            "caption_end_document_page_label": last.document_page_label,
+            "caption_start_bbox": format_bbox_detail(first.bbox),
+            "caption_end_bbox": format_bbox_detail(last.bbox),
+        })
+        if issue_type == "missing_terminal_punctuation":
+            finding_page = last.page_number
+            details["page_number"] = str(finding_page)
+            details["bbox"] = format_bbox_detail(last.lines[-1].bbox)
+            details["line_preview"] = _line_preview(last.lines[-1].text.strip())
+            details["caption_end_preview"] = _caption_end_preview(
+                " ".join(line.text.strip() for line in last.lines)
+            )
+            details["suggested_fix"] = (
+                "Add terminal punctuation at the end of the complete figure description "
+                f"on physical PDF page {finding_page}."
+            )
+            if last.document_page_label:
+                details["document_page_label"] = last.document_page_label
+                details["document_page_label_confidence"] = "medium"
     return AuditFinding(
         rule_id="P017",
         severity=Severity.WARNING,
-        page=caption.page_number,
+        page=finding_page,
         message=message,
         details=details,
     )

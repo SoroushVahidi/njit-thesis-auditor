@@ -6,6 +6,7 @@ semantics, thresholds, rule IDs, or stored finding data.
 
 from __future__ import annotations
 
+from njit_auditor.caption_continuation_preview import caption_continuation_explanation
 from njit_auditor.p018_guidance import (
     P018_WRAPPED_TITLE_EXPECTED,
     P018_WRAPPED_TITLE_FIX,
@@ -1986,6 +1987,10 @@ def _build_explanation_text(
     page: int | None,
 ) -> str:
     effective_issue_type = _resolve_issue_type(rule_id, issue_type, details)
+    if rule_id == "P017" and effective_issue_type == "missing_terminal_punctuation":
+        continuation = caption_continuation_explanation(details)
+        if continuation:
+            return continuation
     if rule_id == "P011" and effective_issue_type == "margin_boundary_violation":
         return _p011_margin_explanation(details, page=page)
     if rule_id == "P012" and effective_issue_type == "pdf_annotation_detected":

@@ -6,6 +6,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+from njit_auditor.caption_continuation_preview import caption_continuation_explanation
 from njit_auditor.ester_warning_wording import student_warning_remediation
 from njit_auditor.float_layout_advice import float_layout_suggested_fix
 from njit_auditor.issue_type_explanations import humanize_issue_type
@@ -2055,6 +2056,11 @@ def build_polished_comment(
     if rule_id == "P013" and issue == "page_number_candidate":
         body = _p013_candidate_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P017" and issue == "missing_terminal_punctuation":
+        continuation = caption_continuation_explanation(safe_details)
+        if continuation:
+            return _finish_comment(continuation, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P017" and issue == "unexpected_terminal_period":
         subject = (
