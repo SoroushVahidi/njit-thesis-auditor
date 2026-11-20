@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 
 import fitz
+import pytest
 
 from njit_auditor.finding_explanations import build_detailed_explanation
 from njit_auditor.issue_type_explanations import (
@@ -33,6 +35,7 @@ from njit_auditor.rules.pdf_toc_entry_number_ordering import (
 )
 from njit_auditor.rules.pdf_toc_list_formatting import check_pdf_toc_list_formatting
 from njit_auditor.rules.pdf_toc_title_structure import check_pdf_toc_title_structure
+from njit_auditor.student_pdf_report import build_combined_student_pdf_report
 
 
 def _pdf(tmp_path, pages):
@@ -420,6 +423,38 @@ def test_f08_chapter_reset_is_not_out_of_order(tmp_path):
     assert check_pdf_figure_number_structure(doc) == []
 
 
+def test_f08_succession_uses_visual_order_not_pdf_block_order(tmp_path):
+    doc = _pdf(tmp_path, [(None, "10", [
+        (108, 300, "Figure 2.2 Synthetic diagram of round markers."),
+        (108, 140, "Figure 2.1 Synthetic diagram of square markers."),
+    ])])
+    assert check_pdf_figure_number_structure(doc) == []
+
+
+@pytest.mark.parametrize("token", ["I.1", "A.1", "1", "2.3a"])
+def test_f08_unsupported_numbering_is_not_forced_into_chapter_sequence(tmp_path, token):
+    doc = _pdf(tmp_path, [(None, "10", [
+        (108, 140, f"Figure {token} Synthetic diagram of square markers."),
+    ])])
+    assert check_pdf_figure_number_structure(doc) == []
+
+
+def test_f08_missing_geometry_does_not_establish_a_decrease(monkeypatch):
+    from njit_auditor.pdf_models import BBox, PdfDocument
+    from njit_auditor.rules import pdf_figure_number_structure as rule
+    from njit_auditor.rules.pdf_captions import CaptionLine
+
+    captions = [
+        CaptionLine(1, "Figure 2.2 Synthetic diagram of square markers.",
+                    "figure", "Synthetic diagram of square markers.", "body",
+                    BBox(x0=108, y0=140, x1=500, y1=152)),
+        CaptionLine(1, "Figure 2.1 Synthetic diagram of round markers.",
+                    "figure", "Synthetic diagram of round markers.", "body", None),
+    ]
+    monkeypatch.setattr(rule, "detect_caption_lines", lambda document: captions)
+    assert rule.check_pdf_figure_number_structure(PdfDocument(path="synthetic", pages=[])) == []
+
+
 def test_f08_hyphen_separated_three_segment_number_flagged(tmp_path):
     doc = _pdf(
         tmp_path,
@@ -521,3 +556,25 @@ def test_student_facing_explanations_and_exports(tmp_path):
     md = md_path.read_text(encoding="utf-8").lower()
     assert "4.204.1" in text or "malformed" in text
     assert "r088" in text and "r088" in md
+
+
+@pytest.mark.parametrize("tokens", [("2.3.1",), ("2.1", "2.1"), ("2.2", "2.1")])
+def test_f08_combined_pdf_preserves_web_locations_and_highlights(tmp_path, tokens):
+    doc = _pdf(tmp_path, [(None, "10", [
+        (108, 140 + i * 120, f"Figure {token} Synthetic diagram of square markers.")
+        for i, token in enumerate(tokens)
+    ])])
+    findings = check_pdf_figure_number_structure(doc)
+    assert len(findings) == 1
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    card = build_report_view(payload, pdf_page_sizes=[(612, 792)]).findings[0]
+    assert card.has_highlight and card.bbox is not None
+    output = tmp_path / "combined.pdf"
+    result = build_combined_student_pdf_report(
+        tmp_path / "synthetic.pdf", output, [asdict(card)],
+        boxes_by_problem={card.problem_number: [card.bbox]}, file_name="synthetic.pdf",
+    )
+    assert result.highlighted_findings == 1
+    with fitz.open(output) as combined:
+        text = " ".join(page.get_text() for page in list(combined)[1:])
+        assert "R088" in text and "figure" in text.lower()

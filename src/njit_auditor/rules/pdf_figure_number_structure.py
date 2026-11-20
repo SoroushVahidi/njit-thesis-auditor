@@ -201,13 +201,31 @@ def _succession_findings(parsed_list: list[_ParsedFigureNumber]) -> list[AuditFi
     for chapter in sorted(by_chapter):
         seen: dict[int, _ParsedFigureNumber] = {}
         last: _ParsedFigureNumber | None = None
-        for parsed in by_chapter[chapter]:
+        # PDF blocks retain extraction order, which can differ from the
+        # visible caption order used by the shared caption parser.
+        ordered = sorted(
+            by_chapter[chapter],
+            key=lambda item: (
+                item.caption.page_number,
+                item.caption.bbox.y0 if item.caption.bbox else float("inf"),
+                item.caption.bbox.x0 if item.caption.bbox else float("inf"),
+            ),
+        )
+        for parsed in ordered:
             seq = parsed.arabic_parts[1]  # type: ignore[index]
             prior_same = seen.get(seq)
             if prior_same is not None:
                 findings.append(_duplicate_finding(parsed, prior_same))
                 continue
             seen[seq] = parsed
+            if caption_box := parsed.caption.bbox:
+                reliable_geometry = caption_box.width > 0 and caption_box.height > 0
+            else:
+                reliable_geometry = False
+            if not reliable_geometry:
+                # Duplicates do not require ordering evidence; a decrease does.
+                last = None
+                continue
             if (
                 last is not None
                 and parsed.arabic_parts is not None
