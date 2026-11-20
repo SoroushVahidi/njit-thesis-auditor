@@ -22,6 +22,8 @@ def make_table_pdf(
             page = pdf.new_page(width=612, height=792)
             top = 120 if page_index == 0 else (100 if marked else 72)
             bottom = 720 if page_index == 0 else top + (82 if notes_only else 130)
+            if page_index and change == "wrapped_notes":
+                bottom += 18
             if page_index == 0:
                 page.insert_text((108, 90), "Table 2.1 Invented Measurements.",
                                  fontsize=12, fontname="tiro")
@@ -66,8 +68,12 @@ def make_table_pdf(
             for x, text in zip(edges, headings):
                 page.insert_text((x + 5, top + 20), text,
                                  fontname="tiro" if change == "chart" else "tibo", fontsize=10)
+                if change == "wrapped_headers":
+                    page.insert_text((x + 5, top + 32), "Synthetic units",
+                                     fontname="tibo", fontsize=10)
             if page_index == 0 or not notes_only:
-                for x, text in zip(edges, ["Trial alpha", "17", "23"]):
+                for x, text in zip(edges, ["6 synthetic trials" if change == "numeric_cell"
+                                          else "Trial alpha", "17", "23"]):
                     page.insert_text((x + 5, top + 65), text, fontsize=10, fontname="tiro")
             first_y = 695 if page_index == 0 else top + (55 if notes_only else 95)
             letters = ["a", "b"] if page_index == 0 else ["c", "d"]
@@ -79,7 +85,10 @@ def make_table_pdf(
                 text = f"{letter}. Invented calibration note belonging to these synthetic readings."
                 if page_index and change == "prose_in_grid":
                     text = "Ordinary prose with punctuation is not a table continuation."
-                page.insert_text((edges[0] + 5, first_y + k * 12), text,
+                if page_index and change == "wrapped_notes" and k == 0:
+                    text += "\nA wrapped invented sentence belongs to the same note."
+                extra_y = 12 if page_index and change == "wrapped_notes" and k else 0
+                page.insert_text((edges[0] + 5, first_y + k * 12 + extra_y), text,
                                  fontsize=9, fontname="tiro")
             if page_index and source:
                 page.insert_text((edges[0] + 5, bottom - 4), "Source: Invented archive.",
@@ -365,3 +374,16 @@ def test_real_three_page_chain_is_outside_scope(tmp_path: Path) -> None:
         page.insert_text((108, 90), "Table 2.1 (Continued)", fontsize=12, fontname="tiro")
         pdf.save(changed)
     assert recognize_table_continuations(load_pdf_layout(str(changed))) == ()
+
+
+@pytest.mark.parametrize("change", ["wrapped_headers", "wrapped_notes", "numeric_cell"])
+def test_wrapped_structure_and_numeric_cells_are_not_prose(tmp_path: Path, change: str) -> None:
+    path = make_table_pdf(tmp_path, change=change)
+    (table,) = recognize_table_continuations(load_pdf_layout(str(path)))
+    if change == "wrapped_headers":
+        assert all(sum(p.role == "header" for p in f.parts) == 6 for f in table.fragments)
+    elif change == "wrapped_notes":
+        assert sum(p.role == "note" for p in table.fragments[1].parts) == 3
+    else:
+        assert any(p.role == "cell" and p.text.startswith("6 synthetic")
+                   for p in table.fragments[0].parts)
