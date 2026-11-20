@@ -308,8 +308,9 @@ def test_general_feedback_is_separate_private_and_attachment_is_bounded(
     assert download.headers["content-type"] == "application/octet-stream"
     assert download.headers["x-content-type-options"] == "nosniff"
     assert "A general suggestion." in client.get(url).text
-    logout = client.post("/reviewer/logout", data={"csrf_token": csrf}, headers=headers)
-    assert logout.status_code == 200
+    logout = client.post("/reviewer/logout", data={"csrf_token": csrf},
+                         headers=headers, follow_redirects=False)
+    assert logout.status_code == 303
     assert client.get(attachment_url).status_code == 403
     assert _login(client, "soroush", other_password).status_code == 303
     assert "A general suggestion." not in client.get(url).text

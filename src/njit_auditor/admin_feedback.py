@@ -771,7 +771,7 @@ async def save_general_feedback(request: Request) -> Response:
     attachment: UploadFile | None = None
     try:
         form = await MultiPartParser(request.headers, limited_stream(),
-                                     max_files=1, max_fields=2,
+                                     max_files=1, max_fields=3,
                                      max_part_size=12000).parse()
         fields = form.multi_items()
         if len(fields) != len({name for name, _ in fields}):
