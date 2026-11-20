@@ -9,6 +9,7 @@ from pathlib import Path
 from njit_auditor.ester_warning_wording import student_warning_remediation
 from njit_auditor.float_layout_advice import float_layout_suggested_fix
 from njit_auditor.issue_type_explanations import humanize_issue_type
+from njit_auditor.p018_guidance import P018_WRAPPED_TITLE_FIX
 from njit_auditor.report_outputs import derive_source_issue_type
 from njit_auditor.resource_paths import resource_path
 
@@ -477,10 +478,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "so chapter, section, and subsection entries visually reflect their level."
     ),
     ("P018", "wrapped_title_continuation_misaligned"): (
-        "Likely problem: A Table of Contents title on page {page} runs onto a "
-        "second line that does not start under the first line's title text. "
-        "When a title runs longer than one line, align the second line exactly "
-        "with the text of the first line, not with the section number."
+        "Likely problem: A continuation line of a wrapped Table of Contents "
+        "title on page {page} starts left of the first word of the title text. "
+        + P018_WRAPPED_TITLE_FIX
     ),
     ("P018", "title_to_leader_gap_too_wide"): (
         "Likely problem: On page {page}, the leader dots in a Table of Contents, "
@@ -900,11 +900,7 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "Align this entry's left indent with the other TOC entries at the "
         "same level."
     ),
-    ("P018", "wrapped_title_continuation_misaligned"): (
-        "Start the second line of this wrapped title directly under the first "
-        "word of the title, not under the section number and not indented past "
-        "the title text."
-    ),
+    ("P018", "wrapped_title_continuation_misaligned"): P018_WRAPPED_TITLE_FIX,
     ("P018", "title_to_leader_gap_too_wide"): (
         "Start the leader dots right after the last letter of the title, "
         "leaving no more than one space."

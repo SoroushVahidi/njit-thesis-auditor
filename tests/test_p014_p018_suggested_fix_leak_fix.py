@@ -204,3 +204,34 @@ def test_p018_web_report_view_suggested_fix_has_no_raw_notation() -> None:
             continue
         assert card.suggested_fix
         assert not _RAW_ID_PATTERN.findall(card.suggested_fix)
+
+
+def test_wrapped_p018_guidance_matches_the_directional_detector() -> None:
+    """Exercise short cards, fallback templates, help and detailed explanations."""
+    from njit_auditor.finding_explanations import (
+        _EXPLANATION_TEMPLATES,
+        build_detailed_explanation,
+    )
+    from njit_auditor.issue_type_explanations import explain_issue_type
+    from njit_auditor.polished_comments import build_polished_comment
+    from njit_auditor.report_view import _P018_ENTRY_TEMPLATES, _P018_SUGGESTED_FIXES
+    from njit_auditor.toc_list_student_preview import p018_short_suggested_fix
+
+    issue = "wrapped_title_continuation_misaligned"
+    _, fix = finalize_student_facing_comment_and_fix("P018", issue, "", "")
+    # Assert the policy independently of the shared wording constant.
+    for guidance in (
+        fix,
+        p018_short_suggested_fix(issue, ""),
+        _P018_SUGGESTED_FIXES[issue],
+        _P018_ENTRY_TEMPLATES[issue],
+        _EXPLANATION_TEMPLATES[("P018", issue)],
+        explain_issue_type("P018", issue),
+        build_polished_comment(rule_id="P018", issue_type=issue, page=11, details={}),
+        build_detailed_explanation(rule_id="P018", issue_type=issue, details={}, page=11),
+    ):
+        assert "at or to the right of the first word of the title text" in guidance
+        assert "rightward indentation of second and third lines is accepted" in guidance
+        assert "not indented past" not in guidance
+        assert "neither left" not in guidance
+    assert fix == p018_short_suggested_fix(issue, "") == _P018_SUGGESTED_FIXES[issue]

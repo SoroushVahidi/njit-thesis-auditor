@@ -7,6 +7,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from njit_auditor.ester_warning_wording import student_warning_label
+from njit_auditor.p018_guidance import P018_WRAPPED_TITLE_FIX
 
 # ---------------------------------------------------------------------------
 # Explicit humanized labels for known issue types
@@ -134,7 +135,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "misaligned_page_number_column": "Misaligned page-number column",
     "inconsistent_leader_dots": "Inconsistent leader dots",
     "inconsistent_hierarchy_indent": "Inconsistent hierarchy indent",
-    "wrapped_title_continuation_misaligned": "Wrapped TOC title not aligned with title text",
+    "wrapped_title_continuation_misaligned": "Wrapped TOC continuation starts left of title text",
     "title_to_leader_gap_too_wide": "Gap between title and leader dots",
     "leader_dots_before_final_title_line": "Leader dots on an earlier title line",
     "acknowledgements_first_paragraph_indented": "Acknowledgements first paragraph indented",
@@ -642,10 +643,8 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "level for this TOC or list page."
     ),
     ("P018", "wrapped_title_continuation_misaligned"): (
-        "This means a Table of Contents title that runs onto a second line does "
-        "not line up correctly. The second line should start directly under the "
-        "first word of the title, not under the section number and not indented "
-        "past the title text."
+        "This means a continuation line of a wrapped Table of Contents title "
+        "starts left of the first word of the title text. " + P018_WRAPPED_TITLE_FIX
     ),
     ("P018", "title_to_leader_gap_too_wide"): (
         "This means the leader dots in a Table of Contents, List of Tables, or "

@@ -6,6 +6,10 @@ semantics, thresholds, rule IDs, or stored finding data.
 
 from __future__ import annotations
 
+from njit_auditor.p018_guidance import (
+    P018_WRAPPED_TITLE_EXPECTED,
+    P018_WRAPPED_TITLE_FIX,
+)
 from njit_auditor.title_case_student_preview import (
     affected_title_phrase,
     sanitize_title_case_line_preview,
@@ -613,9 +617,8 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "hierarchy level. Adjust indentation so entries visually reflect their level."
     ),
     ("P018", "wrapped_title_continuation_misaligned"): (
-        "A Table of Contents title on this page wraps onto a second line that does "
-        "not start under the first line's title text. Align the second line with "
-        "the text of the first line, not the section number."
+        "A continuation line of a wrapped Table of Contents title on this page "
+        "starts left of the first word of the title text. " + P018_WRAPPED_TITLE_FIX
     ),
     ("P018", "title_to_leader_gap_too_wide"): (
         "Leader dots in a list entry on this page start after a visible gap "
@@ -1413,10 +1416,7 @@ _P036_SECTION_LABELS: dict[str, str] = {
 
 _P018_EXPECTED_BY_ISSUE_TYPE: dict[str, str] = {
     "wrapped_title_continuation_misaligned": (
-        "when a title runs longer than one line, the second line aligns with the "
-        "text of the first line, not the section number. What to check or fix: "
-        "move the wrapped line so it starts directly under the first word of the "
-        "title, neither left of it nor indented past it."
+        P018_WRAPPED_TITLE_EXPECTED + " What to check or fix: " + P018_WRAPPED_TITLE_FIX
     ),
     "title_to_leader_gap_too_wide": (
         "leader dots begin right after the last letter of the title, with at most "
