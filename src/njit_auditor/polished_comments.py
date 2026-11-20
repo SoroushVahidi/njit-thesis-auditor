@@ -638,6 +638,18 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "in distinct entries, beginning on page {page}. Check whether the "
         "chapter or section context distinguishes them; if not, qualify the headings."
     ),
+    ("P088", "figure_number_malformed"): (
+        "Likely problem: A figure caption on page {page} uses a malformed number "
+        "with extra concatenated segments. Use a chapter.sequence label such as 4.20."
+    ),
+    ("P088", "figure_number_duplicate"): (
+        "Likely problem: A figure number on page {page} is repeated within the same "
+        "chapter. Give each figure a unique sequence number."
+    ),
+    ("P088", "figure_number_out_of_order"): (
+        "Likely problem: A figure number on page {page} appears out of increasing "
+        "order within its chapter. Keep body figure numbers rising in reading order."
+    ),
     ("P060", "toc_entry_numbers_not_nondecreasing"): (
         "Problem: Table of Contents section numbers on page {page} do not "
         "appear in non-decreasing order. Reorder entries so section numbers "
