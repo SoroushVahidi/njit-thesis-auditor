@@ -13,7 +13,7 @@ import secrets
 import sqlite3
 import time
 import zipfile
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncGenerator, Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -760,7 +760,7 @@ async def save_general_feedback(request: Request) -> Response:
     if declared > _GENERAL_REQUEST_BYTES:
         return _general_deny(request, 413, "Attachment is too large.", reviewer=is_reviewer)
 
-    async def limited_stream() -> AsyncIterator[bytes]:
+    async def limited_stream() -> AsyncGenerator[bytes, None]:
         total = 0
         async for chunk in request.stream():
             total += len(chunk)
