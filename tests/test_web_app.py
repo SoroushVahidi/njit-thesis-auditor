@@ -4931,3 +4931,94 @@ def test_validation_error_redirects_to_refreshable_get(client: tuple[TestClient,
         assert page.status_code == 400
         assert 'Could not start audit' in page.text
     assert not wa._jobs
+
+
+@pytest.mark.parametrize("continuation_x", [126.0, 144.0, 160.0])
+def test_p018_leftward_guidance_across_web_and_exports(
+    client: tuple[TestClient, Any], tmp_path: Path, continuation_x: float,
+) -> None:
+    """Real synthetic TOC findings retain metadata and highlight their source."""
+    import re
+    from html import unescape
+
+    import fitz
+    from test_rules.test_r018_wrapped_title_alignment import _render, _wrapped_toc_rows
+
+    from njit_auditor.pdf_layout import load_pdf_layout
+    from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
+
+    c, wa = client
+    source = _render(tmp_path, "TABLE OF CONTENTS", _wrapped_toc_rows(continuation_x))
+    findings = [
+        f for f in check_pdf_toc_alignment(load_pdf_layout(str(source)))
+        if f.details.get("issue_type") == "wrapped_title_continuation_misaligned"
+    ]
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.severity.value == "WARNING"
+    assert finding.details["confidence"] == "medium"
+    assert float(finding.details["signed_delta_pt"]) < 0
+    assert finding.details["highlight_bboxes"]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="synthetic-toc.pdf",
+        audit_type="pdf", page_count=1,
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    upload = jdir / "upload.pdf"
+    upload.write_bytes(source.read_bytes())
+    original_bytes = upload.read_bytes()
+    base = f"/audits/{job_id}"
+
+    def check_guidance(text: str) -> None:
+        normalized = " ".join(unescape(re.sub(r"<[^>]+>", " ", text)).split())
+        assert "at or to the right of the first word of the title text" in normalized
+        assert "rightward indentation of second and third lines is accepted" in normalized
+        assert "not indented past" not in normalized
+        assert "neither left of" not in normalized
+
+    for route in ("", "/problems/page/1", "/problems/rule/P018"):
+        response = c.get(base + route)
+        assert response.status_code == 200
+        check_guidance(response.text)
+    for export in ("json", "markdown", "text"):
+        response = c.get(base + "/download/" + export)
+        assert response.status_code == 200
+        check_guidance(response.text)
+        if export == "json":
+            exported = response.json()["findings"][0]
+            assert exported["page"] == exported["pdf_page"] == 1
+            assert exported["severity"] == "WARNING"
+            assert exported["details"] == finding.details
+    # Both the stored standalone text and the web text download use the correction.
+    check_guidance((jdir / "report.txt").read_text())
+
+    original = c.get(base + "/pdf")
+    assert original.status_code == 200 and original.content == original_bytes
+    highlighted = c.get(base + "/pdf/highlighted", params={
+        "page": 1, "rule_id": "P018", "issue_type": finding.details["issue_type"],
+    })
+    assert highlighted.status_code == 200
+    with fitz.open(stream=highlighted.content, filetype="pdf") as document:
+        assert document.page_count == 1
+        assert "TABLE OF CONTENTS" in document[0].get_text()
+        assert len(list(document[0].annots() or [])) == 1
+    combined = c.get(base + "/download/student-report.pdf")
+    assert combined.status_code == 200
+    with fitz.open(stream=combined.content, filetype="pdf") as document:
+        assert document.page_count > 1
+        assert len(list(document[0].annots() or [])) == 1
+        check_guidance(" ".join(page.get_text() for page in list(document)[1:]))
+    assert upload.read_bytes() == original_bytes
+    job = wa._get_job(job_id)
+    assert job is not None and len(job.findings) == 1
+    card = job.findings[0]
+    assert card["page"] == 1 and card["confidence"] == "medium"
+    assert wa._public_rule_reference_id("P018", issue_type=card["issue_type"]) == "P018R"
+    rules = c.get("/rules")
+    assert rules.status_code == 200
+    catalog_card = next(
+        rule for rule in wa._build_rule_catalog()["student_rules"] if rule["id"] == "P018R"
+    )
+    assert "at or to the right" in catalog_card["title"]
+    check_guidance(catalog_card["how_to_correct"])
+    check_guidance(rules.text)

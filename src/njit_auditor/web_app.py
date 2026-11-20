@@ -50,6 +50,7 @@ from njit_auditor.issue_type_explanations import (
     issue_type_title,
 )
 from njit_auditor.models import AuditFinding
+from njit_auditor.p018_guidance import P018_WRAPPED_TITLE_FIX
 from njit_auditor.pdf_highlight import (
     HighlightBox,
     build_highlighted_pdf,
@@ -1056,21 +1057,18 @@ _P018_PUBLIC_CARD_SPECS: tuple[dict[str, Any], ...] = (
             "Align all List of Figures page numbers into one vertical right column."
         ),
     },
-    # Ester's 2026-09-23 clarifications (no Q-sheet row; the reviewer answered
-    # these directly). Worded from her own statements.
+    # Ester's 2026-09-23 clarifications (no Q-sheet row), with the November 18
+    # allowance for rightward second- and third-line continuation indentation.
     {
         "id": "P018R",
         "parent_rule_id": "P018",
         "source_q_rule_ids": (),
         "issue_types": ("wrapped_title_continuation_misaligned",),
         "title": (
-            "When a Table of Contents title runs for more than one line, does the "
-            "second line align with the text of the first line, not the number?"
+            "Do continuation lines of a wrapped Table of Contents title start at "
+            "or to the right of the first word of the title text?"
         ),
-        "how_to_correct": (
-            "Start each wrapped line of a Table of Contents title directly under the "
-            "first word of the title text."
-        ),
+        "how_to_correct": P018_WRAPPED_TITLE_FIX,
     },
     {
         "id": "P018S",

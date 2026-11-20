@@ -68,6 +68,15 @@ one span).
 
 ## R018 — wrapped-title continuation alignment
 
+> **Superseded alignment policy (November 18, 2026).** The symmetric
+> predicate, its rationale and corpus counts below record the September
+> implementation. The later reviewer clarification accepts valid rightward
+> indentation of second and third continuation lines. Current detection flags
+> only leftward continuation starts beyond the existing tolerance; it retains
+> Praneeth's genuine leftward findings. The November 20 presentation correction
+> applies this directional guidance across reports and the R018R catalog card.
+> See [the current guidance note](p018_guidance_consistency_20261120.md).
+
 **Previous implementation.** P018 checked leader-dot presence, hierarchy
 indent against same-level peers, and the page-number column. It never
 compared a wrapped line to its first line's title text; wrapped rows were

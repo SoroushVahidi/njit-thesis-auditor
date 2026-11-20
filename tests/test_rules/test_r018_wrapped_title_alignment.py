@@ -1,8 +1,9 @@
-"""R018/P018: wrapped TOC titles must hang under the first line's title text.
+"""R018/P018: wrapped TOC titles must not continue left of the title text.
 
 Ester's 2026-09-23 clarification: "When a title runs for more than one line,
 the second line should align with the text of the first line, not the
-number." These tests render small synthetic TOC pages (invented titles, no
+number." The November 18 clarification accepts valid rightward indentation
+of second and third lines. These tests render synthetic TOC pages (invented titles, no
 dissertation text) so the real ``load_pdf_layout`` glyph-geometry path is
 exercised end to end.
 """
