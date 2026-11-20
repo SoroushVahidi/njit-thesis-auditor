@@ -9,7 +9,11 @@ import fitz
 import pytest
 
 from njit_auditor.audit_runner import collect_pdf_layout_findings
+from njit_auditor.pdf_highlight import build_highlighted_pdf
 from njit_auditor.pdf_layout import load_pdf_layout
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextBlock, PdfTextLine
+from njit_auditor.report_outputs import audit_findings_to_json_dict
+from njit_auditor.report_view import build_report_view
 from njit_auditor.rules.pdf_abstract import check_pdf_abstract_keywords
 
 _FT = "abstract_pdf_forbidden_term"
@@ -88,6 +92,56 @@ def test_p078_first_person_pronoun_we(tmp_path: Path) -> None:
     _make_abstract_pdf(tmp_path / "pronoun_we.pdf", "We present a framework for analysis.")
     model = load_pdf_layout(str(tmp_path / "pronoun_we.pdf"))
     assert "we" in _pronouns(check_pdf_abstract_keywords(model))
+
+
+def test_p078_country_abbreviation_us_is_not_a_pronoun(tmp_path: Path) -> None:
+    _make_abstract_pdf(tmp_path / "country.pdf", "The US cohort was measured.")
+    model = load_pdf_layout(str(tmp_path / "country.pdf"))
+    assert _pronouns(check_pdf_abstract_keywords(model)) == []
+
+
+def test_p078_genuine_us_and_we_still_match(tmp_path: Path) -> None:
+    _make_abstract_pdf(tmp_path / "pronouns.pdf", "We compared samples; the result helps us.")
+    model = load_pdf_layout(str(tmp_path / "pronouns.pdf"))
+    assert set(_pronouns(check_pdf_abstract_keywords(model))) == {"us", "we"}
+
+
+def test_p078_source_line_has_highlight_geometry(tmp_path: Path) -> None:
+    _make_abstract_pdf(tmp_path / "located.pdf", "We evaluated the synthetic result.")
+    model = load_pdf_layout(str(tmp_path / "located.pdf"))
+    finding = next(
+        f for f in check_pdf_abstract_keywords(model) if f.details.get("pronoun") == "we"
+    )
+    assert finding.details["highlight_scope"] == "line"
+    x0, y0, x1, y1 = map(float, finding.details["bbox"].split(","))
+    assert x0 < x1 and 100 < y0 < y1 < 150
+
+    report = audit_findings_to_json_dict([finding], {"audit_type": "pdf"})
+    assert report["findings"][0]["details"]["bbox"] == finding.details["bbox"]
+    view = build_report_view(report, pdf_page_sizes=[(612, 792)])
+    assert view.findings[0].has_highlight
+    highlighted = tmp_path / "highlighted.pdf"
+    result = build_highlighted_pdf(
+        tmp_path / "located.pdf", highlighted, {1: [(x0, y0, x1, y1)]}
+    )
+    assert result.has_highlight and highlighted.exists()
+
+
+def test_p078_next_section_stops_scan_across_blocks() -> None:
+    def line(text: str, y: float) -> PdfTextLine:
+        return PdfTextLine(text=text, bbox=BBox(x0=108, y0=y, x1=500, y1=y + 12))
+
+    blocks = [
+        PdfTextBlock(lines=[line("ABSTRACT", 80), line("A neutral result.", 120),
+                            line("TABLE OF CONTENTS", 180)],
+                     bbox=BBox(x0=108, y0=80, x1=500, y1=192), text=""),
+        PdfTextBlock(lines=[line("We describe a later section.", 210)],
+                     bbox=BBox(x0=108, y0=210, x1=500, y1=222), text=""),
+    ]
+    model = PdfDocument(path="synthetic.pdf", pages=[
+        PdfPage(page_number=1, width=612, height=792, text_blocks=blocks)
+    ])
+    assert _pronouns(check_pdf_abstract_keywords(model)) == []
 
 
 @pytest.mark.parametrize("pronoun", ["me", "my", "mine", "we", "us", "our", "ours"])

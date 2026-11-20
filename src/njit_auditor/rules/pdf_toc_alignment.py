@@ -91,11 +91,9 @@ HIERARCHY_INDENT_TOLERANCE_PT = 10.0
 HIERARCHY_INDENT_MEDIUM_CONFIDENCE_PT = 18.0
 # Ester (2026-09-23, R018): when a TOC title runs longer than one line, the
 # continuation line aligns with the first line's title text, not with the
-# section number. Alignment is checked symmetrically: NJIT's own model TOC
-# (data/raw/guidelines/Front Matter Pages Lorem Ipsum.pdf) hangs wrapped
-# lines exactly under the title text (0.0 pt) at every level, so a line
-# indented past the title text is equally misaligned. Rightward deviations
-# are only asserted from exact glyph geometry.
+# section number. Ester's November 18 follow-up explicitly accepts indentation
+# of second and third title lines, so only a line starting left of the title
+# text is a supported alignment violation.
 #
 # The existing TOC x-tolerances (10-12 pt) cluster indent levels across
 # entries and are too coarse here: a single-digit label plus its space is only
@@ -1416,14 +1414,12 @@ def _add_wrapped_title_alignment_finding(
     rows: list[PdfTextLine],
     page_issue_findings: dict[str, AuditFinding],
 ) -> None:
-    """R018: wrapped numbered TOC titles must hang exactly under the title text.
+    """R018: wrapped numbered TOC titles must not start left of title text.
 
-    The check is symmetric: a continuation starting left of the title text
-    (under the section number, Ester's example) or indented past it both fail
-    to "align with the text of the first line". Rightward deviations are only
-    reported from exact glyph geometry, because the fallback title-start
-    estimate is a lower bound and cannot prove a continuation sits too far
-    right.
+    A continuation under the section number is a violation; additional
+    second- or third-line indentation is accepted per the later reviewer
+    clarification. The fallback title-start estimate is a lower bound, so a
+    detected leftward deviation remains supported without exact glyph boxes.
     """
 
     violations: list[_WrappedMisalignment] = []
@@ -1447,7 +1443,7 @@ def _add_wrapped_title_alignment_finding(
             if continuation_x is None:
                 continue
             delta = continuation_x - title_x
-            if delta < -tolerance or (exact and delta > tolerance):
+            if delta < -tolerance:
                 violations.append(
                     _WrappedMisalignment(
                         row, continuation, number_x, title_x, continuation_x, tolerance, exact

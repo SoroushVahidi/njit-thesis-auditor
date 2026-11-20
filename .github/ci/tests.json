@@ -100,6 +100,7 @@
     "tests/test_p018_toc_list_ester_split.py",
     "tests/test_p018_toc_visual_row_reconstruction.py",
     "tests/test_p019_location_evidence.py",
+    "tests/test_p019_mixed_block_folio.py",
     "tests/test_p019_pdf_link_crawl.py",
     "tests/test_p026_font_policy_ester_consistency.py",
     "tests/test_p026_font_volume_rollup.py",
