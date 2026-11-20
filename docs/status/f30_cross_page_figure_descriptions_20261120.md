@@ -88,7 +88,7 @@ nonadjacent/empty/last pages, panel recovery and true versus continued P088 labe
 Real web/JSON/Markdown/standalone and web text/original/highlighted/combined-PDF
 paths verify accurate page references and source-page-only annotation geometry.
 
-Targeted validation passed: 35 F30 tests; 1,389 caption/layout/registry and
+Initial candidate validation passed: 35 F30 tests; 1,389 caption/layout/registry and
 cross-rule tests (including the F30 tests); 485 report/rendering tests; and
 157 adjacent-rule tests. These selections overlap and are not an additive suite
 total. Ruff passed, and mypy found no issues in 166 source files.
@@ -104,3 +104,27 @@ this task adds no new caption exemptions in those rules. Existing same-page
 prose guards are preserved. Policy-dependent split advisories are deferred.
 The November 20 audit's 213-item classifications remain historical, not a new
 audit or a claim that all email-feedback work is closed.
+
+## Independent review correction
+
+The original candidate `bced0e0be94d38c8c48722edb26b72a990b80820` completed
+the full 223-module nonconfidential selection with 12,312 passed, 20 skipped,
+4 warnings and exit code 0. Independent review then reproduced an uncovered
+false association: bare prose such as “Figure 1.1 continued to…” could be read
+as an explicit continuation marker and repair a genuine missing period. Empty
+continued labels and labels introducing source notes also needed abstention.
+
+Explicit continuation recognition now requires a closed parenthesized
+`(continued)` marker followed by actual description content. Bare/malformed
+markers, empty labels, source notes and numbered headings retain page-local
+behavior. Eight synthetic negative cases reproduce the original defect and
+protect genuine punctuation findings on the original page. The original
+full-suite result remains evidence for its own SHA; the corrected candidate
+requires its own final validation gate.
+
+Review also reproduced an unrelated raster touching only a one-point edge of
+the caption line qualifying as its graphic owner. Ownership now requires the
+existing 35%-of-caption-width condition to hold for the actual horizontal overlap,
+not merely the image's total width. A negative edge-overlap control preserves
+the punctuation warning. A positive continued label on a separate line with
+actual description text remains associated and retains one P088 identity.

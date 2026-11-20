@@ -173,7 +173,7 @@ def test_source_note_does_not_supply_missing_terminal_punctuation(tmp_path: Path
 
 @pytest.mark.parametrize("ambiguity", [
     "no_graphic", "nonadjacent", "original_gap", "rotation", "content_rotation", "vertical",
-    "font", "indent", "column",
+    "font", "indent", "column", "edge_graphic",
 ])
 def test_ambiguous_continuations_abstain(tmp_path: Path, ambiguity: str) -> None:
     _, doc = render_caption(tmp_path, graphic=ambiguity != "no_graphic")
@@ -194,6 +194,11 @@ def test_ambiguous_continuations_abstain(tmp_path: Path, ambiguity: str) -> None
             span.font = "Courier"
     elif ambiguity == "indent":
         first.bbox.x0 += 36
+    elif ambiguity == "edge_graphic":
+        anchor = next(line for block in doc.pages[0].text_blocks for line in block.lines
+                      if line.text.startswith("Figure"))
+        graphic = doc.pages[0].graphic_blocks[0]
+        graphic.bbox.x0, graphic.bbox.x1 = 0, anchor.bbox.x0 + 1
     elif ambiguity == "column":
         other = first.model_copy(deep=True)
         other.bbox.x0, other.bbox.x1 = 400, 540
@@ -211,11 +216,16 @@ def test_no_jump_over_blank_page(tmp_path: Path) -> None:
     assert logical(doc) == [] and missing(doc)[0].page == 1
 
 
-def test_continued_label_is_one_p088_identity_but_real_duplicates_survive(tmp_path: Path) -> None:
+@pytest.mark.parametrize("separate_label", [False, True])
+def test_continued_label_is_one_p088_identity_but_real_duplicates_survive(
+    tmp_path: Path, separate_label: bool,
+) -> None:
+    tail = (["Figure 1.1 (Continued)", "Further synthetic measurements."]
+            if separate_label else ["Figure 1.1 (Continued) Further synthetic measurements."])
     _, doc = render_caption(tmp_path, source=[
         "Figure 1.1 Synthetic reference measurement.",
-    ], tail=["Figure 1.1 (Continued) Further synthetic measurements."])
-    assert len(detect_caption_lines(doc)) == 2
+    ], tail=tail)
+    assert len(detect_caption_lines(doc)) == (1 if separate_label else 2)
     assert len(detect_logical_caption_lines(doc)) == 1
     assert check_pdf_figure_number_structure(doc) == []
     continuation = next(line for b in doc.pages[1].text_blocks for line in b.lines
@@ -328,5 +338,25 @@ def test_same_margin_double_spaced_prose_is_not_a_caption_tail(tmp_path: Path) -
                   if line.text.startswith("The paragraph"))
     second.bbox.y0 += 14
     second.bbox.y1 += 14
+    assert logical(doc) == []
+    assert any(f.page == 1 for f in missing(doc))
+
+
+@pytest.mark.parametrize("tail", [
+    ["Figure 1.1 continued to show a stable synthetic response."],
+    ["Figure 1.1 continuedgrowth is discussed in ordinary prose."],
+    ["Figure 1.1 (continued to show a stable synthetic response."],
+    ["Figure 1.1 continued) Further synthetic observations."],
+    ["Figure 1.1 (Continued)"],
+    ["Figure 1.1 (Continued) Source: A synthetic archive."],
+    ["Figure 1.1 (Continued)", "Source: A synthetic archive."],
+    ["Figure 1.1 (Continued) 2.1 Results"],
+])
+def test_continued_prose_or_label_without_description_cannot_repair_caption(
+    tmp_path: Path, tail: list[str],
+) -> None:
+    _, doc = render_caption(tmp_path, source=[
+        "Figure 1.1 Synthetic measurements from the complete experiment",
+    ], tail=tail)
     assert logical(doc) == []
     assert any(f.page == 1 for f in missing(doc))

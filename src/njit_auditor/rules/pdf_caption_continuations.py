@@ -41,7 +41,7 @@ _CONNECTOR = re.compile(r"\b(?:using|with|of|and|or|to|for|in|by|from|across|bet
 _HEADING = re.compile(r"^(?:\d+(?:\.\d+)*\s+[A-Za-z]|chapter\b|appendix\b|references\b)", re.I)
 _CONTINUED = re.compile(
     r"^(?:figure|fig\.)\s+(?P<number>\d+(?:\.\d+)*)\s*"
-    r"\(?continued\)?[.:]?\s*(?P<body>.*)$", re.I,
+    r"\(continued\)[.:]?(?:\s+(?P<body>.*))?$", re.I,
 )
 
 
@@ -72,7 +72,7 @@ class LogicalCaption(CaptionLine):
         # A repeated continued label is provenance, not another figure identity.
         continued = _CONTINUED.match(continuation)
         if continued:
-            continuation = continued.group("body")
+            continuation = continued.group("body") or ""
         super().__init__(
             page_number=start.page_number,
             raw_text=normalize_caption_text(start.raw_text + " " + continuation),
@@ -154,7 +154,8 @@ def _owns_graphic(page: PdfPage, first: PdfTextLine) -> bool:
     return any(
         graphic.bbox.height >= 24 and graphic.bbox.width >= first.bbox.width * 0.35
         and 0 <= first.bbox.y0 - graphic.bbox.y1 <= 5 * style[1]
-        and min(graphic.bbox.x1, first.bbox.x1) > max(graphic.bbox.x0, first.bbox.x0)
+        and min(graphic.bbox.x1, first.bbox.x1) - max(graphic.bbox.x0, first.bbox.x0)
+        >= first.bbox.width * 0.35
         for graphic in page.graphic_blocks
     )
 
@@ -215,6 +216,14 @@ def _associate(
         return None
     if not tail or not _uncontested(page, run) or not _uncontested(next_page, tail):
         return None
+    if explicit:
+        # The marker must introduce actual description text, not a source
+        # note, heading or an otherwise empty repeated figure label.
+        marked_tail = _CONTINUED.match(" ".join(line.text.strip() for line in tail))
+        body = (marked_tail.group("body") or "").strip() if marked_tail else ""
+        if (not body or _starts_caption_note(body) or _starts_new_caption(body)
+                or _HEADING.match(body)):
+            return None
     # A second boundary is outside this bounded association. Never pretend
     # that the middle of a three-page caption is its logical end.
     if tail[-1].bbox.y1 >= next_page.height * _BOTTOM_TEXT_RATIO:
