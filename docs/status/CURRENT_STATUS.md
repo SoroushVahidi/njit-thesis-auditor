@@ -923,3 +923,12 @@ review. Production deployment of the merged changes remains pending.
   usable for forensic checks, but no private workbook is needed in a clean
   clone. Run `python scripts/ester_rule_consistency_audit.py` to generate an
   ignored local report under `results/`.
+
+## Batch B (F08) — 2026-11-14
+
+P088 detects malformed concatenated body figure numbers (for example `Figure 4.204.1`) and per-chapter duplicate or out-of-order well-formed `chapter.sequence` labels. F29/F30 cross-page float splitting remains out of scope for this batch.
+
+As of the F08 integration candidate on 2026-11-18 (draft PR #668; not yet
+merged), the project-added rule inventory covers **P001–P088**, with **P089**
+as the next unused internal rule ID. Earlier dated inventory snapshots above
+remain historical and are intentionally not rewritten.

@@ -125,6 +125,9 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "toc_subsection_number_ambiguous": "Possible missing dot in TOC subsection number",
     "toc_abstract_entry_present": "Abstract entry listed in the Table of Contents",
     "toc_generic_title_repeated": "Repeated generic TOC section title",
+    "figure_number_malformed": "Malformed figure number in body caption",
+    "figure_number_duplicate": "Duplicate figure number within a chapter",
+    "figure_number_out_of_order": "Out-of-order figure number within a chapter",
     "toc_level_capitalization": "TOC entry capitalization issue",
     "list_of_tables_title_case": "List of Tables title case issue",
     "list_of_figures_title_case": "List of Figures description sentence case issue",
@@ -778,6 +781,17 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "This means the same generic section title appears more than once in the "
         "Table of Contents. Qualify each repeated heading so readers can tell the "
         "sections apart."
+    ),
+    ("P088", "figure_number_malformed"): (
+        "This means a body figure caption number has extra concatenated segments "
+        "beyond the usual chapter.sequence form."
+    ),
+    ("P088", "figure_number_duplicate"): (
+        "This means the same figure number appears more than once in one chapter."
+    ),
+    ("P088", "figure_number_out_of_order"): (
+        "This means body figure numbers in a chapter do not increase in reading "
+        "order."
     ),
     ("P057", "lot_page_numbers_not_nondecreasing"): (
         "This means List of Tables page numbers do not appear in "

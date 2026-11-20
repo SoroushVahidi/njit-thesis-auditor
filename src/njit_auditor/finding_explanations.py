@@ -772,6 +772,20 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "section context already distinguishes the entries. If readers cannot "
         "tell them apart, add the chapter topic or another distinctive label."
     ),
+    ("P088", "figure_number_malformed"): (
+        "A figure caption on page {page} uses a malformed number with extra "
+        "concatenated segments. NJIT figure numbers follow a chapter.sequence "
+        "form such as 4.20. Correct the label and match the List of Figures."
+    ),
+    ("P088", "figure_number_duplicate"): (
+        "A figure number on page {page} is repeated within the same chapter. "
+        "Assign a unique sequence number to each figure in the chapter."
+    ),
+    ("P088", "figure_number_out_of_order"): (
+        "A figure number on page {page} appears out of increasing order within "
+        "its chapter. Renumber or reorder body figures so sequence numbers rise "
+        "in reading order."
+    ),
     ("P057", "lot_page_numbers_not_nondecreasing"): (
         "List of Tables page numbers on this page do not appear to be in "
         "non-decreasing order down the list. Reorder entries, or correct the "
@@ -989,6 +1003,10 @@ _RULE_FALLBACKS: dict[str, str] = {
         "A Table of Contents title-structure issue was detected. Remove Abstract "
         "entries from the TOC, and qualify repeated generic headings so readers "
         "can tell chapter sections apart."
+    ),
+    "P088": (
+        "A body figure-numbering issue was detected. Use a simple chapter.sequence "
+        "label, keep numbers unique within each chapter, and keep them in order."
     ),
 }
 

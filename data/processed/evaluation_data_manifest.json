@@ -3,23 +3,23 @@
   "generated_for_commit": "722dac0",
   "canonical_aggregate_doc": "docs/evaluation/current_auditor_after_p070_evaluation.md",
   "canonical_aggregate_findings": 1543,
-  "project_added_rule_inventory_count": 87,
-  "project_added_rule_inventory_range": "P001-P087",
+  "project_added_rule_inventory_count": 88,
+  "project_added_rule_inventory_range": "P001-P088",
   "non_inventory_project_task_ids": [],
   "non_inventory_project_task_notes": {},
-  "next_project_added_rule_id": "P088",
+  "next_project_added_rule_id": "P089",
   "auditor_rule_state": {
-    "p_rules_implemented": "P001-P087",
+    "p_rules_implemented": "P001-P088",
     "pytest_count_used_for_status_snapshot": 5002,
     "pytest_skips_used_for_status_snapshot": 7,
     "main_commit_used_for_status_snapshot": "5576e3b",
     "canonical_aggregate_doc": "docs/evaluation/current_auditor_after_p070_evaluation.md",
     "canonical_aggregate_findings": 1543,
-    "project_added_rule_inventory_count": 87,
-    "project_added_rule_inventory_range": "P001-P087",
+    "project_added_rule_inventory_count": 88,
+    "project_added_rule_inventory_range": "P001-P088",
     "non_inventory_project_task_ids": [],
     "non_inventory_project_task_notes": {},
-    "next_project_added_rule_id": "P088",
+    "next_project_added_rule_id": "P089",
     "p075_status_note": "P075 implemented as TOC leader-style consistency for Q052: full project-added inventory detector in njit_auditor.rules.pdf_toc_leader_consistency with issue types toc_mixed_leader_styles and toc_missing_leader_style. P075 is no longer a non-inventory project task.",
     "p076_status_note": "P076 fully implemented and merged (PR #278, 2026-06-09) as a reporting-only P036 triage rollup: grouped_summary.p036_toc_list_spacing_triage plus a Markdown 'P036 TOC/List Spacing Triage' section in src/njit_auditor/report_outputs.py. It adds no standalone issue types, does not change P036 detection behavior, and leaves the canonical five-PDF aggregate unchanged at 1,543.",
     "p076_current_dataset_note": "P036 triage rollup: 55 findings on Yin H 4th compressed only (0 on four other files). Triage: toc_inter_entry_spacing_too_tight 42, lof 9, lot 4; section_type: table_of_contents 42, list_of_figures 9, list_of_tables 4; spacing_gap_bucket: slightly_tight 48, very_tight 7; triage_tier: high 55; affected_pages_compact 11-14, 17; gap_ratio min 0.06, max 0.85. Five-PDF evaluation completed 2026-06-09 (commit 722dac0). See docs/evaluation/p076_p036_toc_list_spacing_triage_current_dataset_evaluation.md",
@@ -197,10 +197,10 @@
       {
         "path": "data/processed/rules/project_added_rules.json",
         "rule_prefix": "P",
-        "rule_count": 87,
-        "rule_id_range": "P001-P087",
+        "rule_count": 88,
+        "rule_id_range": "P001-P088",
         "tracked_status": "tracked",
-        "description": "Project-added rule inventory with 87 implemented entries spanning P001-P087; there are no remaining non-inventory project task IDs."
+        "description": "Project-added rule inventory with 88 implemented entries spanning P001-P088; there are no remaining non-inventory project task IDs."
       }
     ],
     "ef_commented_dissertations": [
@@ -419,7 +419,7 @@
     "original_archive_only_materials": 12,
     "generated_and_private_gitignored_paths": 2
   },
-  "p_rules_implemented": "P001-P087",
+  "p_rules_implemented": "P001-P088",
   "pytest_count_used_for_status_snapshot": 5002,
   "pytest_skips_used_for_status_snapshot": 7,
   "main_commit_used_for_status_snapshot": "5576e3b",
