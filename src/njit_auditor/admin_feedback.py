@@ -6,12 +6,14 @@ import base64
 import binascii
 import hashlib
 import hmac
+import io
 import os
 import re
 import secrets
 import sqlite3
 import time
-from collections.abc import Iterator
+import zipfile
+from collections.abc import AsyncIterator, Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -24,6 +26,8 @@ from argon2.exceptions import InvalidHashError, VerificationError
 from argon2.low_level import Type
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from starlette.datastructures import UploadFile
+from starlette.formparsers import MultiPartException, MultiPartParser
 
 router = APIRouter(include_in_schema=False)
 _HASHER = PasswordHasher(type=Type.ID)
@@ -218,6 +222,17 @@ def _connect() -> sqlite3.Connection:
             db.execute("PRAGMA user_version=5")
         elif version != 5:
             raise RuntimeError("Unsupported administrator database schema")
+        db.execute("""CREATE TABLE IF NOT EXISTS general_feedback (
+            id TEXT PRIMARY KEY,
+            submitted_by_admin_id TEXT NOT NULL REFERENCES admins(id),
+            comment TEXT NOT NULL,
+            attachment_name TEXT,
+            attachment_data BLOB,
+            created_at TEXT NOT NULL,
+            CHECK(comment <> '' OR attachment_data IS NOT NULL)
+        )""")
+        db.execute("CREATE INDEX IF NOT EXISTS general_feedback_created_idx "
+                   "ON general_feedback(created_at)")
         db.commit()
     except Exception:
         db.rollback()
@@ -658,6 +673,176 @@ async def dashboard(request: Request) -> Response:
         "classifications": CLASSIFICATIONS, "statuses": sorted(STATUSES),
         "notice": request.query_params.get("notice", "")[:100],
     })
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+
+_GENERAL_ATTACHMENT_BYTES = 4 * 1024 * 1024
+_GENERAL_REQUEST_BYTES = _GENERAL_ATTACHMENT_BYTES + 16 * 1024
+_GENERAL_EXTENSIONS = {".png", ".jpg", ".jpeg", ".pdf", ".docx"}
+
+
+def _general_auth(request: Request) -> tuple[dict[str, Any] | None, bool]:
+    admin = session(request)
+    if admin is not None:
+        return admin, False
+    return reviewer_session(request), True
+
+
+def _general_deny(request: Request, status: int = 403, message: str = "Access unavailable.",
+                  *, reviewer: bool = True) -> HTMLResponse:
+    if reviewer:
+        return _reviewer_deny(request, status, message)
+    return _deny(request, status, message)
+
+
+@router.get("/reviewer/general-feedback", response_class=HTMLResponse)
+async def general_feedback_page(request: Request) -> Response:
+    from njit_auditor import web_app
+
+    auth, is_reviewer = _general_auth(request)
+    if auth is None:
+        return _general_deny(request)
+    with _connection() as db:
+        query = """SELECT g.id, g.comment, g.attachment_name, g.created_at,
+            a.username AS submitted_by FROM general_feedback g
+            JOIN admins a ON a.id=g.submitted_by_admin_id"""
+        if is_reviewer:
+            rows = db.execute(query + " WHERE g.submitted_by_admin_id=?"
+                              " ORDER BY g.created_at DESC LIMIT 100",
+                              (auth["admin_id"],)).fetchall()
+        else:
+            rows = db.execute(query + " ORDER BY g.created_at DESC LIMIT 100").fetchall()
+    response = web_app._render(request, "general_feedback.html", {
+        "items": [dict(row) for row in rows],
+        "notice": request.query_params.get("notice") == "saved",
+        "max_attachment_mb": _GENERAL_ATTACHMENT_BYTES // (1024 * 1024),
+    })
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+def _valid_general_attachment(filename: str, content: bytes) -> bool:
+    extension = Path(filename).suffix.lower()
+    if not content or extension not in _GENERAL_EXTENSIONS:
+        return False
+    if extension == ".pdf":
+        return content.startswith(b"%PDF-")
+    if extension == ".png":
+        return content.startswith(b"\x89PNG\r\n\x1a\n")
+    if extension in {".jpg", ".jpeg"}:
+        return content.startswith(b"\xff\xd8\xff")
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            entries = set(archive.namelist())
+            return ("[Content_Types].xml" in entries
+                    and "word/document.xml" in entries
+                    and not any(name.lower().endswith(("vbaproject.bin", ".exe", ".js"))
+                                for name in entries))
+    except (OSError, ValueError, zipfile.BadZipFile):
+        return False
+
+
+@router.post("/reviewer/general-feedback")
+async def save_general_feedback(request: Request) -> Response:
+    auth, is_reviewer = _general_auth(request)
+    if auth is None:
+        return _general_deny(request)
+    if not _origin_ok(request, reviewer=is_reviewer):
+        return _general_deny(request)
+    if request.headers.get("content-type", "").split(";", 1)[0] != "multipart/form-data":
+        return _general_deny(request, 400, "Use the feedback form.", reviewer=is_reviewer)
+    try:
+        declared = int(request.headers.get("content-length", "0") or "0")
+    except ValueError:
+        return _general_deny(request, 400, "Invalid request.", reviewer=is_reviewer)
+    if declared > _GENERAL_REQUEST_BYTES:
+        return _general_deny(request, 413, "Attachment is too large.", reviewer=is_reviewer)
+
+    async def limited_stream() -> AsyncIterator[bytes]:
+        total = 0
+        async for chunk in request.stream():
+            total += len(chunk)
+            if total > _GENERAL_REQUEST_BYTES:
+                raise ValueError("Request too large")
+            yield chunk
+
+    attachment: UploadFile | None = None
+    try:
+        form = await MultiPartParser(request.headers, limited_stream(),
+                                     max_files=1, max_fields=2,
+                                     max_part_size=12000).parse()
+        fields = form.multi_items()
+        if len(fields) != len({name for name, _ in fields}):
+            raise ValueError("Duplicate form field")
+        if set(form.keys()) - {"csrf_token", "comment", "attachment"}:
+            raise ValueError("Unexpected form field")
+        csrf = form.get("csrf_token")
+        comment = form.get("comment", "")
+        candidate = form.get("attachment")
+        if not isinstance(csrf, str) or not isinstance(comment, str):
+            raise ValueError("Invalid form field")
+        if candidate is not None and not isinstance(candidate, UploadFile):
+            raise ValueError("Invalid attachment")
+        attachment = candidate
+        if not _csrf_ok(request, csrf, auth, reviewer=is_reviewer):
+            return _general_deny(request)
+        comment = comment.strip()
+        if len(comment) > 4000:
+            raise ValueError("Comment too long")
+        filename: str | None = None
+        content: bytes | None = None
+        if attachment is not None and attachment.filename:
+            filename = attachment.filename
+            if (len(filename) > 120 or "\x00" in filename
+                    or filename != Path(filename).name
+                    or "\\" in filename):
+                raise ValueError("Invalid attachment name")
+            content = await attachment.read(_GENERAL_ATTACHMENT_BYTES + 1)
+            if len(content) > _GENERAL_ATTACHMENT_BYTES:
+                return _general_deny(request, 413, "Attachment is too large.",
+                                     reviewer=is_reviewer)
+            if not _valid_general_attachment(filename, content):
+                raise ValueError("Unsupported attachment")
+        if not comment and content is None:
+            raise ValueError("Write a comment or attach a file")
+        with _connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if not _authorization_current(db, request, auth["admin_id"],
+                                          reviewer=is_reviewer):
+                return _general_deny(request)
+            db.execute("""INSERT INTO general_feedback
+                (id,submitted_by_admin_id,comment,attachment_name,attachment_data,created_at)
+                VALUES (?,?,?,?,?,?)""",
+                (secrets.token_urlsafe(16), auth["admin_id"], comment,
+                 filename, content, _now()))
+    except (ValueError, MultiPartException, UnicodeDecodeError):
+        return _general_deny(request, 400, "Invalid feedback or attachment.",
+                             reviewer=is_reviewer)
+    finally:
+        if attachment is not None:
+            await attachment.close()
+    return RedirectResponse("/reviewer/general-feedback?notice=saved", status_code=303)
+
+
+@router.get("/reviewer/general-feedback/{feedback_id}/attachment")
+async def download_general_attachment(request: Request, feedback_id: str) -> Response:
+    auth, is_reviewer = _general_auth(request)
+    if auth is None:
+        return _general_deny(request)
+    with _connection() as db:
+        row = db.execute("""SELECT submitted_by_admin_id,attachment_name,attachment_data
+            FROM general_feedback WHERE id=?""", (feedback_id,)).fetchone()
+    if row is None or row["attachment_data"] is None or (
+            is_reviewer and row["submitted_by_admin_id"] != auth["admin_id"]):
+        return _general_deny(request, 404, "Attachment unavailable.",
+                             reviewer=is_reviewer)
+    response = Response(bytes(row["attachment_data"]),
+                        media_type="application/octet-stream",
+                        headers={"Content-Disposition": "attachment; filename*=UTF-8''" +
+                                 quote(row["attachment_name"] or "attachment")})
+    response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Cache-Control"] = "no-store"
     return response
 

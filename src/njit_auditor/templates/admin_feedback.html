@@ -3,6 +3,7 @@
 {% block content %}
 <main>
   <h1>Administrator feedback</h1>
+  <p><a href="/reviewer/general-feedback">View general feedback and attachments</a></p>
   {% if notice == 'saved' %}<div class="alert-info" role="status">Feedback saved.</div>{% endif %}
   <form method="get" action="/admin/feedback" class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.6rem">
     <div><label for="filter-rule">Rule</label><input id="filter-rule" name="rule_id" value="{{ filters.rule_id }}" maxlength="50"></div>

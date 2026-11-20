@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import io
 import secrets
 import sqlite3
+import zipfile
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -258,3 +260,91 @@ def test_existing_v4_admin_database_gains_role_without_losing_accounts(
                               "FROM feedback WHERE id=?", (feedback_id,)).fetchone()
         assert tuple(feedback) == ("f7", "Preserved synthetic feedback", account_id)
         assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+
+
+def test_general_feedback_is_separate_private_and_attachment_is_bounded(
+    reviewer_site: tuple[TestClient, Path],
+) -> None:
+    client, db_path = reviewer_site
+    ester_password = secrets.token_urlsafe(24)
+    other_password = secrets.token_urlsafe(24)
+    ester_id = admin_accounts.create_account("ester", ester_password, role="reviewer")
+    admin_accounts.create_account("soroush", other_password, role="reviewer")
+    url = "/reviewer/general-feedback"
+    assert client.get(url).status_code == 403
+    assert client.post(url, data={"comment": "test"},
+                       headers={"Origin": "http://testserver"}).status_code == 403
+    assert _login(client, "ester", ester_password, next_url=url).status_code == 303
+    assert "General feedback" in client.get(url).text
+    csrf = admin_feedback._session_csrf(client.cookies.get(admin_feedback._REVIEWER_COOKIE))
+    headers = {"Origin": "http://testserver"}
+    pdf = b"%PDF-1.4\n%%EOF\n"
+    assert client.post(url, data={"csrf_token": csrf, "comment": "A general suggestion."},
+                       files={"attachment": ("example.pdf", pdf, "application/pdf")},
+                       headers={"Origin": "http://other.invalid"}).status_code == 403
+    assert client.post(url, data={"csrf_token": "wrong", "comment": "bad"},
+                       files={"attachment": ("example.pdf", pdf, "application/pdf")},
+                       headers=headers).status_code == 403
+    assert client.post(url, data={"csrf_token": csrf, "comment": "bad"},
+                       files={"attachment": ("example.html", b"<script>bad</script>", "text/html")},
+                       headers=headers).status_code == 400
+    assert client.post(url, data={"csrf_token": csrf, "comment": "bad"},
+                       files={"attachment": ("oversized.pdf", b"%PDF-" + b"x" * (4 * 1024 * 1024),
+                                               "application/pdf")},
+                       headers=headers).status_code == 413
+    saved = client.post(url, data={"csrf_token": csrf, "comment": "A general suggestion."},
+                        files={"attachment": ("example.pdf", pdf, "application/pdf")},
+                        headers=headers, follow_redirects=False)
+    assert saved.status_code == 303
+    assert saved.headers["location"] == url + "?notice=saved"
+    with sqlite3.connect(db_path) as db:
+        row = db.execute("SELECT id,submitted_by_admin_id,comment,attachment_data "
+                         "FROM general_feedback").fetchone()
+        assert row is not None and row[1:] == (ester_id, "A general suggestion.", pdf)
+        assert db.execute("SELECT count(*) FROM feedback").fetchone()[0] == 0
+    attachment_url = url + "/" + row[0] + "/attachment"
+    download = client.get(attachment_url)
+    assert download.status_code == 200 and download.content == pdf
+    assert download.headers["content-type"] == "application/octet-stream"
+    assert download.headers["x-content-type-options"] == "nosniff"
+    assert "A general suggestion." in client.get(url).text
+    logout = client.post("/reviewer/logout", data={"csrf_token": csrf}, headers=headers)
+    assert logout.status_code == 200
+    assert client.get(attachment_url).status_code == 403
+    assert _login(client, "soroush", other_password).status_code == 303
+    assert "A general suggestion." not in client.get(url).text
+    assert client.get(attachment_url).status_code == 404
+
+
+def test_general_feedback_accepts_text_only_and_rejects_empty(
+    reviewer_site: tuple[TestClient, Path],
+) -> None:
+    client, db_path = reviewer_site
+    password = secrets.token_urlsafe(24)
+    admin_accounts.create_account("ester", password, role="reviewer")
+    assert _login(client, "ester", password).status_code == 303
+    csrf = admin_feedback._session_csrf(client.cookies.get(admin_feedback._REVIEWER_COOKIE))
+    headers = {"Origin": "http://testserver"}
+    url = "/reviewer/general-feedback"
+    assert client.post(url, data={"csrf_token": csrf, "comment": "   "},
+                       headers=headers, files={"attachment": ("", b"", "application/octet-stream")}
+                       ).status_code == 400
+    result = client.post(url, data={"csrf_token": csrf, "comment": "General observation"},
+                         files={"attachment": ("", b"", "application/octet-stream")},
+                         headers=headers, follow_redirects=False)
+    assert result.status_code == 303
+    with sqlite3.connect(db_path) as db:
+        assert db.execute("SELECT comment,attachment_data FROM general_feedback").fetchone() == (
+            "General observation", None)
+
+
+def test_general_attachment_sniffing_rejects_disguised_files() -> None:
+    assert admin_feedback._valid_general_attachment("chart.png", b"\x89PNG\r\n\x1a\n" + b"x")
+    assert not admin_feedback._valid_general_attachment("chart.png", b"<script>bad</script>")
+    assert not admin_feedback._valid_general_attachment("fake.pdf", b"not a PDF")
+    document = io.BytesIO()
+    with zipfile.ZipFile(document, "w") as archive:
+        archive.writestr("[Content_Types].xml", "<Types/>")
+        archive.writestr("word/document.xml", "<document/>")
+    assert admin_feedback._valid_general_attachment("note.docx", document.getvalue())
+    assert not admin_feedback._valid_general_attachment("fake.docx", b"not a zip")
