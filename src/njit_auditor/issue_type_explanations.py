@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from njit_auditor.caption_continuation_preview import caption_continuation_explanation
 from njit_auditor.ester_warning_wording import student_warning_label
 from njit_auditor.p018_guidance import P018_WRAPPED_TITLE_FIX
 
@@ -1425,6 +1426,10 @@ def explain_issue_type(
     counts) to make the explanation specific instead of generic.
     """
     safe_details = details or {}
+    if rule_id == "P017" and issue_type == "missing_terminal_punctuation":
+        continuation = caption_continuation_explanation(safe_details)
+        if continuation:
+            return continuation
     if rule_id == "P014":
         return _p014_issue_type_explanation(safe_details)
     if rule_id == "P016" and issue_type in {

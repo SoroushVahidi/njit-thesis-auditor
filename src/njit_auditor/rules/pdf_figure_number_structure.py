@@ -4,7 +4,8 @@ Detects genuinely malformed body figure labels such as concatenated
 ``Figure 4.204.1`` (three or more numeric segments) and per-chapter duplicate or
 out-of-order well-formed ``chapter.sequence`` labels.
 
-Scope: body figure captions only (via ``detect_caption_lines``). List of Figures
+Scope: body figure captions only (page-local detection plus bounded continuation
+association, retaining the original figure anchor). List of Figures
 entries, table captions, in-text cross-references, and panel letters are out of
 scope. Malformed tokens can occur within a single bold caption span; this rule
 flags their structure without inventing separator repairs.
@@ -239,7 +240,11 @@ def _succession_findings(parsed_list: list[_ParsedFigureNumber]) -> list[AuditFi
 
 def check_pdf_figure_number_structure(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P088 findings for malformed or non-sequential body figure numbers."""
-    captions = detect_caption_lines(pdf_document)
+    from njit_auditor.rules.pdf_caption_continuations import detect_logical_caption_lines
+
+    captions = detect_logical_caption_lines(
+        pdf_document, page_captions=detect_caption_lines(pdf_document),
+    )
     parsed = [
         item
         for item in (_parse_figure_number(caption) for caption in captions)
