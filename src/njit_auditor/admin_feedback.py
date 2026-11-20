@@ -783,9 +783,9 @@ async def save_general_feedback(request: Request) -> Response:
         candidate = form.get("attachment")
         if not isinstance(csrf, str) or not isinstance(comment, str):
             raise ValueError("Invalid form field")
-        if candidate is not None and not isinstance(candidate, UploadFile):
+        if candidate is not None and candidate != "" and not isinstance(candidate, UploadFile):
             raise ValueError("Invalid attachment")
-        attachment = candidate
+        attachment = candidate if isinstance(candidate, UploadFile) else None
         if not _csrf_ok(request, csrf, auth, reviewer=is_reviewer):
             return _general_deny(request)
         comment = comment.strip()
