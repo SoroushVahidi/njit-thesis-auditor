@@ -265,14 +265,10 @@ def _session_csrf(token: str) -> str:
 
 
 def _reviewer_enabled(request: Request) -> bool:
-    enable_flag = {
-        "http": "NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED",
-        "https": "NJIT_AUDITOR_REVIEWER_HTTPS_ENABLED",
-    }.get(request.url.scheme)
     return (
         not getattr(request.app.state, "offline_mode", False)
-        and enable_flag is not None
-        and os.getenv(enable_flag) == "1"
+        and os.getenv("NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED") == "1"
+        and request.url.scheme == "http"
         and _secret_key() is not None
         and bool(os.getenv("NJIT_AUDITOR_ADMIN_DB_PATH", "").strip())
     )
@@ -310,8 +306,7 @@ def reviewer_session(request: Request) -> dict[str, Any] | None:
 
 
 def _origin_ok(request: Request, *, reviewer: bool = False) -> bool:
-    scheme = request.url.scheme if reviewer else "https"
-    expected = f"{scheme}://{request.url.netloc}"
+    expected = f"{'http' if reviewer else 'https'}://{request.url.netloc}"
     return request.headers.get("origin") == expected
 
 
@@ -530,8 +525,8 @@ async def reviewer_login_page(request: Request) -> Response:
     response = web_app._render(request, "reviewer_login.html", {
         "login_csrf": csrf, "next_url": next_url,
     })
-    response.set_cookie(_REVIEWER_LOGIN_CSRF, csrf, secure=request.url.scheme == "https",
-                        httponly=True, samesite="strict", path="/")
+    response.set_cookie(_REVIEWER_LOGIN_CSRF, csrf, secure=False, httponly=True,
+                        samesite="strict", path="/")
     response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -590,10 +585,9 @@ async def reviewer_login(request: Request) -> Response:
                    else "Invalid username or password.")
         return _reviewer_deny(request, denial_status, message, csrf, next_url)
     response = RedirectResponse(next_url, status_code=303)
-    secure = request.url.scheme == "https"
-    response.set_cookie(_REVIEWER_COOKIE, token, secure=secure, httponly=True,
+    response.set_cookie(_REVIEWER_COOKIE, token, secure=False, httponly=True,
                         samesite="strict", path="/", max_age=_SESSION_SECONDS)
-    response.delete_cookie(_REVIEWER_LOGIN_CSRF, path="/", secure=secure,
+    response.delete_cookie(_REVIEWER_LOGIN_CSRF, path="/", secure=False,
                            httponly=True, samesite="strict")
     response.headers["Cache-Control"] = "no-store"
     return response
@@ -614,7 +608,7 @@ async def reviewer_logout(request: Request) -> Response:
         db.execute("DELETE FROM sessions WHERE token_hash=?", (
             _token_hash(request.cookies.get(_REVIEWER_COOKIE, "")),))
     response = RedirectResponse("/", status_code=303)
-    response.delete_cookie(_REVIEWER_COOKIE, path="/", secure=request.url.scheme == "https",
+    response.delete_cookie(_REVIEWER_COOKIE, path="/", secure=False,
                            httponly=True, samesite="strict")
     return response
 

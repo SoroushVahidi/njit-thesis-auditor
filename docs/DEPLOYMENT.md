@@ -93,29 +93,88 @@ sleep 3
 curl -s http://127.0.0.1:8000/version   # confirm commit + a fresh process_start_time
 ```
 
-## Reviewer and administrator HTTPS
+## General Feedback on the HTTP website
 
-Use a dedicated HTTPS hostname with a browser-trusted certificate. If reviewers already have
-tailnet access and the web host can use a tag-based identity, an approved
-[Tailscale HTTPS Service](https://tailscale.com/docs/features/tailscale-services) can terminate
-TLS on the web host and proxy to `http://127.0.0.1:8000`. Use the Service's own hostname so its
-cookies are scoped separately from other apps on the host.
+Keep `NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED=1` and the existing
+`NJIT_AUDITOR_ADMIN_DB_PATH` and `NJIT_AUDITOR_ADMIN_SESSION_KEY` in the service
+environment file. Reviewers sign in with their existing accounts. Keep web
+administrator access disabled. The host operator can read General Feedback and
+retrieve attachments using their existing filesystem access.
 
-- Preserve the browser-facing `Host` header and have the TLS proxy set `X-Forwarded-Proto` to
-  `https`. For the same-host proxy, run Uvicorn with
-  `--proxy-headers --forwarded-allow-ips=127.0.0.1`. Trust only the proxy's connection address.
-- In the service environment file, set `NJIT_AUDITOR_REVIEWER_HTTPS_ENABLED=1` and unset
-  `NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED`. The plaintext listener can still serve public pages.
-  Preserve `NJIT_AUDITOR_ADMIN_DB_PATH` and `NJIT_AUDITOR_ADMIN_SESSION_KEY`. Reviewer accounts and
-  stored sessions keep their existing format. Reviewers sign in again on the new hostname so
-  the browser receives a Secure session cookie there.
-- Once HTTPS is verified, set `NJIT_AUDITOR_ADMIN_ENABLED=1` and
-  `NJIT_AUDITOR_ADMIN_HTTPS_VERIFIED=1` for administrator access. Allow a general feedback
-  request of at least 4 MiB plus 16 KiB through the proxy. The application creates the feedback
-  table in the existing SQLite database and stores attachments there.
-- Before sharing the URL, use synthetic accounts and files to check reviewer sign-in, a feedback
-  submission, history after sign-in, and administrator attachment retrieval on the deployed
-  HTTPS endpoint.
+Before updating the deployment checkout, set `db` to the database path from
+the service environment file and make an owner-only SQLite backup:
+
+```bash
+db=/absolute/path/to/existing-feedback.sqlite3
+backup=$(mktemp "$db.backup.XXXXXX")
+python3 - "$db" "$backup" <<'PY'
+import sqlite3
+import sys
+from contextlib import closing
+from pathlib import Path
+
+source_uri = Path(sys.argv[1]).resolve().as_uri() + "?mode=ro"
+with closing(sqlite3.connect(source_uri, uri=True)) as source:
+    with closing(sqlite3.connect(sys.argv[2])) as target:
+        source.backup(target)
+        if target.execute("PRAGMA quick_check").fetchone() != ("ok",):
+            raise SystemExit("Backup integrity check failed")
+PY
+```
+
+Record the backup path and follow the clean-worktree, dependency sync, and
+restart steps above. Keep the current service environment and audit runtime.
+The first feedback database connection creates `general_feedback` and its
+index in the existing database. Attachments are stored in that table. The
+existing account and finding-feedback tables remain in place.
+
+From a private operator shell, list submissions with the following command.
+To retrieve one attachment, use its `id` and supply a new output path in an
+owner-only directory. The original attachment name is shown in the list.
+
+```bash
+feedback_id=''  # Set this and output to retrieve an attachment.
+output=''
+(
+umask 077
+python3 - "$db" "$feedback_id" "$output" <<'PY'
+import json
+import sqlite3
+import sys
+from contextlib import closing
+from pathlib import Path
+
+db_path, feedback_id, output = sys.argv[1:]
+uri = Path(db_path).resolve().as_uri() + "?mode=ro"
+with closing(sqlite3.connect(uri, uri=True)) as db:
+    db.row_factory = sqlite3.Row
+    if feedback_id:
+        row = db.execute(
+            "SELECT attachment_data FROM general_feedback WHERE id = ?",
+            (feedback_id,),
+        ).fetchone()
+        if row is None or row["attachment_data"] is None:
+            raise SystemExit("No attachment for that feedback ID")
+        with open(output, "xb") as attachment:
+            attachment.write(row["attachment_data"])
+    else:
+        rows = db.execute("""
+            SELECT g.id, g.created_at, a.username, g.comment, g.attachment_name
+            FROM general_feedback AS g JOIN admins AS a ON a.id = g.submitted_by_admin_id
+            ORDER BY g.created_at DESC, g.id DESC
+        """)
+        for row in rows:
+            print(json.dumps(dict(row)))
+PY
+)
+```
+
+After restart, check `/healthz`, `/version`, and `/reviewer/login` on the live
+HTTP site. Use the deployed code in a separate loopback instance with a
+scratch database, session key, and audit runtime to smoke-test login,
+General Feedback navigation, text and file submissions, saved confirmation,
+history after restart, and operator retrieval. Use only synthetic accounts
+and files in the scratch instance.
 
 ## Status / logs
 
