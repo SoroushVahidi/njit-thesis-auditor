@@ -6,13 +6,11 @@ import base64
 import binascii
 import hashlib
 import hmac
-import io
 import os
 import re
 import secrets
 import sqlite3
 import time
-import zipfile
 from collections.abc import AsyncGenerator, Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -26,8 +24,11 @@ from argon2.exceptions import InvalidHashError, VerificationError
 from argon2.low_level import Type
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from starlette.datastructures import UploadFile
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import FormData, UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
+
+from njit_auditor.general_feedback_attachments import MAX_ATTACHMENT_BYTES, valid_attachment
 
 router = APIRouter(include_in_schema=False)
 _HASHER = PasswordHasher(type=Type.ID)
@@ -337,7 +338,8 @@ def _csrf_ok(request: Request, submitted: str, authenticated: dict[str, Any] | N
         authenticated["csrf_token"] if authenticated else request.cookies.get(
             _REVIEWER_LOGIN_CSRF if reviewer else _LOGIN_CSRF, "")
     )
-    return bool(expected) and hmac.compare_digest(str(expected), submitted)
+    return (bool(expected) and str(expected).isascii() and isinstance(submitted, str)
+            and submitted.isascii() and hmac.compare_digest(str(expected), submitted))
 
 
 def _deny(request: Request, status: int = 403, message: str = "Administrator access unavailable.",
@@ -678,9 +680,9 @@ async def dashboard(request: Request) -> Response:
 
 
 
-_GENERAL_ATTACHMENT_BYTES = 4 * 1024 * 1024
+_GENERAL_ATTACHMENT_BYTES = MAX_ATTACHMENT_BYTES
 _GENERAL_REQUEST_BYTES = _GENERAL_ATTACHMENT_BYTES + 16 * 1024
-_GENERAL_EXTENSIONS = {".png", ".jpg", ".jpeg", ".pdf", ".docx"}
+_valid_general_attachment = valid_attachment
 
 
 def _general_auth(request: Request) -> tuple[dict[str, Any] | None, bool]:
@@ -704,44 +706,44 @@ async def general_feedback_page(request: Request) -> Response:
     auth, is_reviewer = _general_auth(request)
     if auth is None:
         return _general_deny(request)
+    try:
+        values = []
+        for key, default in (("page", "1"), ("page_size", "100")):
+            supplied = request.query_params.getlist(key)
+            value = supplied[0] if supplied else default
+            if len(supplied) > 1 or not re.fullmatch(r"[1-9][0-9]{0,17}", value):
+                raise ValueError("Invalid pagination")
+            values.append(int(value))
+        page, page_size = values
+        if page_size > 100:
+            raise ValueError("Invalid page size")
+    except ValueError:
+        return _general_deny(request, 400, "Invalid feedback page.", reviewer=is_reviewer)
     with _connection() as db:
         query = """SELECT g.id, g.comment, g.attachment_name, g.created_at,
             a.username AS submitted_by FROM general_feedback g
             JOIN admins a ON a.id=g.submitted_by_admin_id"""
-        if is_reviewer:
-            rows = db.execute(query + " WHERE g.submitted_by_admin_id=?"
-                              " ORDER BY g.created_at DESC LIMIT 100",
-                              (auth["admin_id"],)).fetchall()
-        else:
-            rows = db.execute(query + " ORDER BY g.created_at DESC LIMIT 100").fetchall()
+        where = " WHERE g.submitted_by_admin_id=?" if is_reviewer else ""
+        params = (auth["admin_id"],) if is_reviewer else ()
+        total = db.execute("SELECT count(*) FROM general_feedback g" + where, params).fetchone()[0]
+        total_pages = max(1, (total + page_size - 1) // page_size)
+        if page > total_pages:
+            return _general_deny(request, 400, "Invalid feedback page.", reviewer=is_reviewer)
+        rows = db.execute(query + where + " ORDER BY g.created_at DESC, g.id DESC LIMIT ? OFFSET ?",
+                          (*params, page_size, (page - 1) * page_size)).fetchall()
+    def page_url(number: int) -> str:
+        return "/reviewer/general-feedback?" + urlencode({"page": number, "page_size": page_size})
+
     response = web_app._render(request, "general_feedback.html", {
         "items": [dict(row) for row in rows],
         "notice": request.query_params.get("notice") == "saved",
         "max_attachment_mb": _GENERAL_ATTACHMENT_BYTES // (1024 * 1024),
+        "page": page, "total_pages": total_pages,
+        "previous_url": page_url(page - 1) if page > 1 else "",
+        "next_url": page_url(page + 1) if page < total_pages else "",
     })
     response.headers["Cache-Control"] = "no-store"
     return response
-
-
-def _valid_general_attachment(filename: str, content: bytes) -> bool:
-    extension = Path(filename).suffix.lower()
-    if not content or extension not in _GENERAL_EXTENSIONS:
-        return False
-    if extension == ".pdf":
-        return content.startswith(b"%PDF-")
-    if extension == ".png":
-        return content.startswith(b"\x89PNG\r\n\x1a\n")
-    if extension in {".jpg", ".jpeg"}:
-        return content.startswith(b"\xff\xd8\xff")
-    try:
-        with zipfile.ZipFile(io.BytesIO(content)) as archive:
-            entries = set(archive.namelist())
-            return ("[Content_Types].xml" in entries
-                    and "word/document.xml" in entries
-                    and not any(name.lower().endswith(("vbaproject.bin", ".exe", ".js"))
-                                for name in entries))
-    except (OSError, ValueError, zipfile.BadZipFile):
-        return False
 
 
 @router.post("/reviewer/general-feedback")
@@ -769,6 +771,7 @@ async def save_general_feedback(request: Request) -> Response:
             yield chunk
 
     attachment: UploadFile | None = None
+    form: FormData | None = None
     try:
         form = await MultiPartParser(request.headers, limited_stream(),
                                      max_files=1, max_fields=3,
@@ -803,7 +806,7 @@ async def save_general_feedback(request: Request) -> Response:
             if len(content) > _GENERAL_ATTACHMENT_BYTES:
                 return _general_deny(request, 413, "Attachment is too large.",
                                      reviewer=is_reviewer)
-            if not _valid_general_attachment(filename, content):
+            if not await run_in_threadpool(_valid_general_attachment, filename, content):
                 raise ValueError("Unsupported attachment")
         if not comment and content is None:
             raise ValueError("Write a comment or attach a file")
@@ -817,12 +820,15 @@ async def save_general_feedback(request: Request) -> Response:
                 VALUES (?,?,?,?,?,?)""",
                 (secrets.token_urlsafe(16), auth["admin_id"], comment,
                  filename, content, _now()))
+    except (sqlite3.Error, OSError):
+        return _general_deny(request, 503, "Your feedback was not saved. Please try again.",
+                             reviewer=is_reviewer)
     except (ValueError, MultiPartException, UnicodeDecodeError):
         return _general_deny(request, 400, "Invalid feedback or attachment.",
                              reviewer=is_reviewer)
     finally:
-        if attachment is not None:
-            await attachment.close()
+        if form is not None:
+            await form.close()
     return RedirectResponse("/reviewer/general-feedback?notice=saved", status_code=303)
 
 
