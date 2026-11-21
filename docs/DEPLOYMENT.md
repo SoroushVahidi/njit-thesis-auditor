@@ -93,6 +93,30 @@ sleep 3
 curl -s http://127.0.0.1:8000/version   # confirm commit + a fresh process_start_time
 ```
 
+## Reviewer and administrator HTTPS
+
+Use a dedicated HTTPS hostname with a browser-trusted certificate. If reviewers already have
+tailnet access and the web host can use a tag-based identity, an approved
+[Tailscale HTTPS Service](https://tailscale.com/docs/features/tailscale-services) can terminate
+TLS on the web host and proxy to `http://127.0.0.1:8000`. Use the Service's own hostname so its
+cookies are scoped separately from other apps on the host.
+
+- Preserve the browser-facing `Host` header and have the TLS proxy set `X-Forwarded-Proto` to
+  `https`. For the same-host proxy, run Uvicorn with
+  `--proxy-headers --forwarded-allow-ips=127.0.0.1`. Trust only the proxy's connection address.
+- In the service environment file, set `NJIT_AUDITOR_REVIEWER_HTTPS_ENABLED=1` and unset
+  `NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED`. The plaintext listener can still serve public pages.
+  Preserve `NJIT_AUDITOR_ADMIN_DB_PATH` and `NJIT_AUDITOR_ADMIN_SESSION_KEY`. Reviewer accounts and
+  stored sessions keep their existing format. Reviewers sign in again on the new hostname so
+  the browser receives a Secure session cookie there.
+- Once HTTPS is verified, set `NJIT_AUDITOR_ADMIN_ENABLED=1` and
+  `NJIT_AUDITOR_ADMIN_HTTPS_VERIFIED=1` for administrator access. Allow a general feedback
+  request of at least 4 MiB plus 16 KiB through the proxy. The application creates the feedback
+  table in the existing SQLite database and stores attachments there.
+- Before sharing the URL, use synthetic accounts and files to check reviewer sign-in, a feedback
+  submission, history after sign-in, and administrator attachment retrieval on the deployed
+  HTTPS endpoint.
+
 ## Status / logs
 
 ```bash

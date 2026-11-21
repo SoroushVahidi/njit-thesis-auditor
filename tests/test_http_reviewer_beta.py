@@ -1,4 +1,4 @@
-"""Synthetic public audit and opt-in HTTP reviewer workflow."""
+"""Synthetic public audit and opt-in reviewer workflows."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 from packaging.requirements import Requirement
 from packaging.specifiers import Specifier
 from PIL import Image
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from njit_auditor import admin_accounts, admin_feedback, web_app
 
@@ -71,6 +72,7 @@ def reviewer_site(
     monkeypatch.setenv("NJIT_AUDITOR_ADMIN_DB_PATH", str(db_path))
     monkeypatch.setenv("NJIT_AUDITOR_ADMIN_SESSION_KEY", secrets.token_urlsafe(32))
     monkeypatch.setenv("NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED", "1")
+    monkeypatch.delenv("NJIT_AUDITOR_REVIEWER_HTTPS_ENABLED", raising=False)
     monkeypatch.delenv("NJIT_AUDITOR_ADMIN_ENABLED", raising=False)
     monkeypatch.setattr(web_app, "RUNTIME_DIR", runtime)
     with web_app._jobs_lock:
@@ -92,13 +94,19 @@ def _login(client: TestClient, username: str, password: str, *, next_url: str = 
     csrf = client.cookies.get(admin_feedback._REVIEWER_LOGIN_CSRF)
     return client.post("/reviewer/login", data={
         "username": username, "password": password, "csrf_token": csrf, "next": next_url,
-    }, headers={"Origin": "http://testserver"}, follow_redirects=False)
+    }, headers={"Origin": str(client.base_url).rstrip("/")}, follow_redirects=False)
 
 
-def test_http_reviewer_complete_synthetic_audit_workflow(
-    reviewer_site: tuple[TestClient, Path],
+@pytest.mark.parametrize("scheme", ["http", "https"])
+def test_reviewer_complete_synthetic_audit_workflow(
+    reviewer_site: tuple[TestClient, Path], monkeypatch: pytest.MonkeyPatch, scheme: str,
 ) -> None:
     client, db_path = reviewer_site
+    if scheme == "https":
+        monkeypatch.setenv("NJIT_AUDITOR_REVIEWER_HTTPS_ENABLED", "1")
+        monkeypatch.delenv("NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED")
+    origin = f"{scheme}://testserver"
+    client.base_url = origin
     password = secrets.token_urlsafe(24)
     account_id = admin_accounts.create_account("ester", password, role="reviewer")
     admin_accounts.create_account("soroush", secrets.token_urlsafe(24), role="reviewer")
@@ -126,7 +134,7 @@ def test_http_reviewer_complete_synthetic_audit_workflow(
     assert f"Reviewer feedback for {finding_id}" not in page.text
     form_url = f"/audits/{job_id}/feedback/{finding_id}"
     assert client.post(form_url, data={"classification": "other"},
-                       headers={"Origin": "http://testserver"}).status_code == 403
+                       headers={"Origin": origin}).status_code == 403
 
     wrong = _login(client, "ester", secrets.token_urlsafe(24), next_url=job_url)
     assert wrong.status_code == 401
@@ -136,7 +144,7 @@ def test_http_reviewer_complete_synthetic_audit_workflow(
     assert login.status_code == 303 and login.headers["location"] == job_url
     assert "httponly" in login.headers["set-cookie"].lower()
     assert "samesite=strict" in login.headers["set-cookie"].lower()
-    assert "secure" not in login.headers["set-cookie"].lower()
+    assert ("secure" in login.headers["set-cookie"].lower()) == (scheme == "https")
     token = client.cookies.get(admin_feedback._REVIEWER_COOKIE)
     assert token
     results = client.get(job_url)
@@ -154,7 +162,7 @@ def test_http_reviewer_complete_synthetic_audit_workflow(
                        headers={"Origin": "http://elsewhere.invalid"}).status_code == 403
     saved = client.post(form_url, data={"csrf_token": csrf, "classification": "unclear",
                                         "comment": comment},
-                        headers={"Origin": "http://testserver"}, follow_redirects=False)
+                        headers={"Origin": origin}, follow_redirects=False)
     assert saved.status_code == 303
     with sqlite3.connect(db_path) as db:
         row = db.execute("""SELECT f.audit_ref,f.finding_ref,f.classification,f.comment,
@@ -179,12 +187,12 @@ def test_http_reviewer_complete_synthetic_audit_workflow(
         if extension == "student-report.pdf":
             with pymupdf.open(stream=export.content, filetype="pdf") as report:
                 assert comment not in " ".join(page.get_text() for page in report)
-    public = TestClient(web_app.app, base_url="http://testserver")
+    public = TestClient(web_app.app, base_url=origin)
     try:
         assert public.get(job_url).status_code == 200
         assert comment not in public.get(job_url).text
         assert public.post(form_url, data={"classification": "other"},
-                           headers={"Origin": "http://testserver"}).status_code == 403
+                           headers={"Origin": origin}).status_code == 403
     finally:
         public.close()
 
@@ -380,6 +388,129 @@ def test_general_feedback_accepts_text_only_and_rejects_empty(
     with sqlite3.connect(db_path) as db:
         assert db.execute("SELECT comment,attachment_data FROM general_feedback").fetchone() == (
             "General observation", None)
+
+
+def test_https_reviewer_general_feedback_and_admin_download(
+    reviewer_site: tuple[TestClient, Path], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reviewer, db_path = reviewer_site
+    origin = "https://reviewer.example.test"
+    reviewer.base_url = origin
+    assert reviewer.get("/reviewer/login").status_code == 503
+    monkeypatch.setenv("NJIT_AUDITOR_REVIEWER_HTTPS_ENABLED", "1")
+    monkeypatch.delenv("NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED")
+    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_ENABLED", "1")
+    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_HTTPS_VERIFIED", "1")
+    password = secrets.token_urlsafe(24)
+    other_password = secrets.token_urlsafe(24)
+    admin_password = secrets.token_urlsafe(24)
+    admin_accounts.create_account("ester", password, role="reviewer")
+    admin_accounts.create_account("soroush", other_password, role="reviewer")
+    admin_accounts.create_account("operator", admin_password)
+
+    login_page = reviewer.get("/reviewer/login")
+    assert login_page.status_code == 200
+    assert {"secure", "httponly", "samesite=strict"} <= set(
+        login_page.headers["set-cookie"].lower().split("; ")
+    )
+    assert reviewer.post("/reviewer/login", data={
+        "username": "ester", "password": password,
+        "csrf_token": reviewer.cookies[admin_feedback._REVIEWER_LOGIN_CSRF],
+    }, headers={"Origin": "http://reviewer.example.test"}).status_code == 403
+    login = _login(reviewer, "ester", password)
+    assert login.status_code == 303
+    session_cookie, = [
+        header for header in login.headers.get_list("set-cookie")
+        if header.startswith(admin_feedback._REVIEWER_COOKIE + "=")
+    ]
+    assert {"secure", "httponly", "samesite=strict"} <= set(session_cookie.lower().split("; "))
+    url = "/reviewer/general-feedback"
+    assert f'href="{url}"' in reviewer.get("/").text
+    csrf = admin_feedback._session_csrf(reviewer.cookies[admin_feedback._REVIEWER_COOKIE])
+    assert reviewer.post(url, data={"csrf_token": csrf, "comment": "Wrong origin"},
+                         headers={"Origin": "https://other.example.test"}).status_code == 403
+
+    files = {"image.png": _attachment("png"), "document.pdf": _attachment("pdf")}
+    for filename, content in [("", b""), *files.items()]:
+        result = reviewer.post(url, data={
+            "csrf_token": csrf, "comment": f"Synthetic observation for {filename or 'text only'}",
+        }, files={"attachment": (filename, content, "application/octet-stream")},
+            headers={"Origin": origin})
+        assert result.status_code == 200 and "General feedback saved." in result.text
+    logout = reviewer.post("/reviewer/logout", data={"csrf_token": csrf},
+                           headers={"Origin": origin}, follow_redirects=False)
+    assert logout.status_code == 303 and "secure" in logout.headers["set-cookie"].lower()
+    assert reviewer.get(url).status_code == 403
+    assert _login(reviewer, "ester", password).status_code == 303
+    history = reviewer.get(url)
+    assert "Synthetic observation for text only" in history.text
+    assert all(f"Download attachment: {name}" in history.text for name in files)
+    with sqlite3.connect(db_path) as db:
+        attachments = db.execute(
+            "SELECT id, attachment_name FROM general_feedback WHERE attachment_name IS NOT NULL"
+        ).fetchall()
+    assert len(attachments) == len(files)
+
+    with TestClient(web_app.app, base_url=origin) as other, TestClient(
+        web_app.app, base_url=origin
+    ) as admin:
+        assert _login(other, "soroush", other_password).status_code == 303
+        assert "Synthetic observation" not in other.get(url).text
+        for identifier, _ in attachments:
+            assert other.get(f"{url}/{identifier}/attachment").status_code == 404
+
+        assert admin.get("/admin/login").status_code == 200
+        assert admin.post("/admin/login", data={
+            "username": "operator", "password": admin_password,
+            "csrf_token": admin.cookies[admin_feedback._LOGIN_CSRF],
+        }, headers={"Origin": origin}, follow_redirects=False).status_code == 303
+        assert f'href="{url}"' in admin.get("/admin/feedback").text
+        history = admin.get(url)
+        assert "Synthetic observation for text only" in history.text
+        for identifier, filename in attachments:
+            assert f"Synthetic observation for {filename}" in history.text
+            response = admin.get(f"{url}/{identifier}/attachment")
+            assert response.status_code == 200 and response.content == files[filename]
+
+
+def test_reviewer_https_forwarding_requires_trusted_peer(
+    reviewer_site: tuple[TestClient, Path], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("NJIT_AUDITOR_REVIEWER_HTTPS_ENABLED", "1")
+    monkeypatch.delenv("NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED")
+    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_ENABLED", "1")
+    monkeypatch.setenv("NJIT_AUDITOR_ADMIN_HTTPS_VERIFIED", "1")
+    password = secrets.token_urlsafe(24)
+    admin_accounts.create_account("ester", password, role="reviewer")
+    app = ProxyHeadersMiddleware(web_app.app, trusted_hosts="127.0.0.1")
+    headers = {
+        "X-Forwarded-Proto": "https", "X-Forwarded-For": "192.0.2.10",
+        "X-Forwarded-Host": "other.example.test",
+    }
+    upstream = "http://reviewer.example.test"
+    url = "/reviewer/login"
+    with TestClient(app, base_url=upstream, client=("192.0.2.10", 50000)) as direct:
+        assert direct.get(url, headers=headers).status_code == 503
+        assert direct.get("/admin/login", headers=headers).status_code == 503
+    with TestClient(app, base_url=upstream, client=("127.0.0.1", 50000)) as proxy:
+        assert proxy.get(url).status_code == 503
+        page = proxy.get(url, headers=headers)
+        assert page.status_code == 200 and "secure" in page.headers["set-cookie"].lower()
+        token = proxy.cookies[admin_feedback._REVIEWER_LOGIN_CSRF]
+        # Relay the Secure cookie that the HTTPS browser would send to the proxy.
+        forwarded = {**headers, "Cookie": f"{admin_feedback._REVIEWER_LOGIN_CSRF}={token}"}
+        form = {"username": "ester", "password": password, "csrf_token": token}
+        assert proxy.post(url, data=form, headers={
+            **forwarded, "Origin": "https://other.example.test",
+        }).status_code == 403
+        response = proxy.post(url, data=form, headers={
+            **forwarded, "Origin": "https://reviewer.example.test",
+        }, follow_redirects=False)
+        assert response.status_code == 303 and "secure" in response.headers["set-cookie"].lower()
+        session = proxy.cookies[admin_feedback._REVIEWER_COOKIE]
+        assert proxy.get("/reviewer/general-feedback", headers={
+            **headers, "Cookie": f"{admin_feedback._REVIEWER_COOKIE}={session}",
+        }).status_code == 200
 
 
 def test_general_attachment_sniffing_rejects_disguised_files() -> None:
