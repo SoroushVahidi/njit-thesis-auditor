@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}General feedback — NJIT Thesis Auditor{% endblock %}
+{% block content %}
+<main>
+  <h1>General feedback</h1>
+  <p>Share feedback about the auditor that is not tied to a specific finding.</p>
+  {% if notice %}<div class="alert-info" role="status">General feedback saved.</div>{% endif %}
+  <form class="card" action="/reviewer/general-feedback" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ reviewer_csrf_token if reviewer_mode else admin_csrf_token }}">
+    <label for="general-comment">Your feedback (optional if you attach a file)</label>
+    <textarea id="general-comment" name="comment" maxlength="4000" style="width:100%;min-height:8rem"></textarea>
+    <label for="general-attachment">Image or document (optional, up to {{ max_attachment_mb }} MB)</label>
+    <input id="general-attachment" type="file" name="attachment" accept=".png,.jpg,.jpeg,.pdf,.docx,image/png,image/jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+    <p>Accepted formats: PNG, JPEG, PDF, DOCX. Upload only material you are authorized to share; do not attach confidential or embargoed dissertations.</p>
+    <p>Files must be complete and unencrypted. Images may contain up to 16 million pixels; PDFs up to 500 pages. DOCX packages may expand to at most 32 MiB, with additional entry and XML limits.</p>
+    <button type="submit">Send general feedback</button>
+  </form>
+  <h2>{{ 'Your previous general feedback' if reviewer_mode else 'General feedback received' }}</h2>
+  {% if not items %}<p>No general feedback has been submitted yet.</p>{% endif %}
+  {% for item in items %}
+  <article class="card" style="overflow-wrap:anywhere">
+    <p><strong>{{ item.submitted_by }}</strong> · {{ item.created_at }}</p>
+    {% if item.comment %}<p style="white-space:pre-wrap">{{ item.comment }}</p>{% endif %}
+    {% if item.attachment_name %}<p><a href="/reviewer/general-feedback/{{ item.id }}/attachment">Download attachment: {{ item.attachment_name }}</a></p>{% endif %}
+  </article>
+  {% endfor %}
+  <nav aria-label="General feedback pages">
+    {% if previous_url %}<a href="{{ previous_url }}">Previous</a>{% endif %}
+    <span>Page {{ page }} of {{ total_pages }}</span>
+    {% if next_url %}<a href="{{ next_url }}">Next</a>{% endif %}
+  </nav>
+</main>
+{% endblock %}
