@@ -58,6 +58,19 @@ class _PdfStream(io.BytesIO):
 
 
 def _valid_image(content: bytes, expected: str) -> bool:
+    # Pillow stops at the IEND type without checking its length or CRC.
+    # Walk bounded chunk lengths so an appended IEND cannot hide an earlier,
+    # incomplete end chunk. Pillow verifies the preceding chunks below.
+    if expected == "PNG":
+        offset = 8
+        while offset + 12 <= len(content):
+            if content[offset + 4:offset + 8] == b"IEND":
+                if content[offset:] != b"\x00\x00\x00\x00IEND\xaeB\x60\x82":
+                    return False
+                break
+            offset += 12 + int.from_bytes(content[offset:offset + 4], "big")
+        else:
+            return False
     with warnings.catch_warnings():
         warnings.simplefilter("error", Image.DecompressionBombWarning)
         with Image.open(io.BytesIO(content), formats=[expected]) as image:

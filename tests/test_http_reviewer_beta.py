@@ -490,6 +490,29 @@ def test_general_signature_only_files_are_rejected(filename: str, content: bytes
     assert not admin_feedback._valid_general_attachment(filename, content)
 
 
+@pytest.mark.parametrize("damage", ["truncate-1", "truncate-2", "truncate-4", "truncate-8",
+                                   "truncate-12", "crc", "length", "trailing", "trailing-iend"])
+def test_general_png_requires_complete_end_chunk(
+    general_reviewer: tuple[TestClient, Path, str, str], damage: str,
+) -> None:
+    client, path, _, csrf = general_reviewer
+    content = _attachment("png")
+    if damage.startswith("truncate-"):
+        content = content[:-int(damage.split("-")[1])]
+    elif damage == "crc":
+        content = content[:-1] + bytes([content[-1] ^ 255])
+    elif damage == "length":
+        content = content[:-12] + b"\x00\x00\x00\x01" + content[-8:]
+    elif damage == "trailing-iend":
+        content = content[:-1] + content[-12:]
+    else:
+        content += b"invented trailing bytes"
+    assert _general_post(client, csrf, content, "invented.png").status_code == 400
+    with sqlite3.connect(path) as db:
+        assert db.execute("SELECT count(*) FROM general_feedback").fetchone()[0] == 0
+    assert _general_post(client, csrf, _attachment("png"), "invented.png").status_code == 303
+
+
 @pytest.mark.parametrize("change", ["invalid_xml", "wrong_root", "dtd", "crc", "bomb",
                                   "duplicate", "traversal", "macro", "missing"])
 def test_general_docx_rejects_unsafe_packages(change: str) -> None:
