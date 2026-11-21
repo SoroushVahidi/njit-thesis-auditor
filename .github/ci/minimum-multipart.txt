@@ -1,0 +1,4 @@
+# Exercise the declared FastAPI/Starlette floors independently of latest-version CI.
+# FastAPI 0.115.7 permits Starlette >=0.40.0,<0.46.0; max_part_size requires >=0.44.0.
+fastapi==0.115.7
+starlette==0.44.0

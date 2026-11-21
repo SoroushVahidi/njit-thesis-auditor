@@ -3,20 +3,44 @@
 from __future__ import annotations
 
 import io
+import os
 import secrets
 import sqlite3
 import zipfile
 from collections.abc import Iterator
 from contextlib import contextmanager
+from importlib.metadata import requires, version
+from inspect import signature
 from pathlib import Path
 
 import pymupdf
 import pytest
 from docx import Document
 from fastapi.testclient import TestClient
+from packaging.requirements import Requirement
+from packaging.specifiers import Specifier
 from PIL import Image
 
 from njit_auditor import admin_accounts, admin_feedback, web_app
+
+
+def test_multipart_dependency_contract() -> None:
+    """Keep parser API use, installation metadata and minimum-version CI aligned."""
+    constraints = Path(__file__).resolve().parents[1] / ".github/ci/minimum-multipart.txt"
+    declared = {item.name: item for text in requires("njit-thesis-auditor") or []
+                if (item := Requirement(text)).marker is None}
+    pins = {item.name: item for text in constraints.read_text().splitlines()
+            if text and not text.startswith("#") and (item := Requirement(text))}
+    assert set(pins) == {"fastapi", "starlette"}
+    for name, pinned in pins.items():
+        pin, = pinned.specifier
+        assert pin.operator == "=="
+        floor = pin.version
+        assert Specifier(f">={floor}") in set(declared[name].specifier)
+        assert floor in declared[name].specifier
+        if os.environ.get("NJIT_TEST_MINIMUM_MULTIPART") == "1":
+            assert version(name) in pinned.specifier
+    assert "max_part_size" in signature(admin_feedback.MultiPartParser).parameters
 
 
 def _attachment(extension: str) -> bytes:
