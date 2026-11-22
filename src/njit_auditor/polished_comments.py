@@ -213,6 +213,11 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "by another appendix. NJIT requires each appendix to have a unique "
         "letter. Correct the labeling so each letter is used once."
     ),
+    ("P063", "appendix_subsection_missing_letter_prefix"): (
+        "The appendix subsection identifier '{actual_identifier}' in the {appendix_location} "
+        "on page {page} is missing its appendix letter. Add '{expected_letter}' at the start "
+        "so it reads '{expected_identifier}'."
+    ),
     # --- P027 heading-level style: one template per level, never combined ---
     ("P027", "level1_not_all_caps"): (
         "A Level 1 heading (CHAPTER/APPENDIX title) on page {page} may not be in "
@@ -953,6 +958,9 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P055", "body_figure_reference_abbreviated"): (
         "Use the full word 'Figure' before the number in this body reference."
     ),
+    ("P063", "appendix_subsection_missing_letter_prefix"): (
+        "Add the owning appendix's letter before the leading dot in the subsection number."
+    ),
     ("P068", "approval_page_advisor_role_label_missing"): "",
     ("P068", "approval_page_signature_blocks_sparse"): "",
 }
@@ -1113,6 +1121,10 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         candidate_text=details.get("candidate_text", "") or "unknown",
         page_type=page_type.replace("_", " "),
         letter_found=details.get("letter_found", "") or "A",
+        appendix_location=details.get("appendix_location", "") or "appendix section",
+        actual_identifier=details.get("actual_identifier", "") or "subsection number",
+        expected_letter=details.get("expected_letter", "") or "the appendix letter",
+        expected_identifier=details.get("expected_identifier", "") or "the corrected number",
         expected_heading=details.get("expected_heading", "") or "the required heading",
         toc_page=details.get("toc_page", "") or "unknown",
         substantial_line_count=details.get("substantial_line_count", "") or "0",

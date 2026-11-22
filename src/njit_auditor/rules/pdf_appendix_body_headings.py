@@ -53,6 +53,7 @@ import re
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine, format_bbox_detail
+from njit_auditor.rules.pdf_appendix_subsections import check_appendix_subsections
 from njit_auditor.rules.pdf_frontmatter_heading_gate import resolve_gate_heading_from_line
 from njit_auditor.rules.pdf_heading_levels import _is_tight_wrap_gap, _union_bbox
 from njit_auditor.rules.pdf_headings import (
@@ -223,7 +224,7 @@ def _extract_letter(heading: str) -> str | None:
 
 
 def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]:
-    """Emit P063 warnings for body-page appendix headings with incorrect label format.
+    """Emit P063 warnings for appendix labels and missing subsection prefixes.
 
     Conservative gates:
     - No findings if no body region is detected (image-only / front-matter-only PDFs).
@@ -358,4 +359,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
                         )
                         break  # Report only the first gap.
 
+    findings.extend(check_appendix_subsections(
+        pdf_doc, [(page, _extract_letter(text), bbox) for page, text, bbox in headings],
+    ))
     return findings

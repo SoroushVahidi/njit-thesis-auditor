@@ -1,14 +1,15 @@
 """Opt-in, recognition-only metadata for a table spanning one page boundary.
 
-No detector consumes this sidecar. Neither the input layout nor page-local
-captions/findings are modified. Text in the returned metadata is private source
-material: callers must not export it as a diagnostic or a public fixture.
+No detector consumes logical table continuations. Page-local ruled regions can
+also be measured without changing the input layout. Text in continuation metadata
+is private source material and must stay out of diagnostics and public fixtures.
 """
 
 from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import median
@@ -164,6 +165,110 @@ def _regions(page: PdfPage, raw_page: fitz.Page) -> list[_Region]:
             continue
         result.append(_Region(rules, tuple(edges), header, content, *signature))
     return result
+
+
+def _grid_segments(page: fitz.Page) -> Iterator[fitz.Rect]:
+    """Yield visible strokes and thin filled bars, including items in a single path."""
+    for drawing in page.get_drawings():
+        stroke = _drawing_is_visible({
+            "color": drawing.get("color"), "stroke_opacity": drawing.get("stroke_opacity"),
+        })
+        fill = _drawing_is_visible({
+            "fill": drawing.get("fill"), "fill_opacity": drawing.get("fill_opacity"),
+        })
+        for kind, item, *rest in drawing["items"]:
+            if kind == "l" and stroke:
+                yield fitz.Rect(item, rest[0]).normalize()
+            elif kind == "re":
+                rect = item
+                if min(rect.width, rect.height) <= _EDGE_PT:
+                    if fill or stroke:
+                        yield rect
+                elif stroke:
+                    yield fitz.Rect(rect.x0, rect.y0, rect.x1, rect.y0)
+                    yield fitz.Rect(rect.x0, rect.y1, rect.x1, rect.y1)
+                    yield fitz.Rect(rect.x0, rect.y0, rect.x0, rect.y1)
+                    yield fitz.Rect(rect.x1, rect.y0, rect.x1, rect.y1)
+
+
+def _vertical_rule_runs(segments: list[fitz.Rect]) -> list[tuple[float, float, float]]:
+    """Join touching vertical cell edges without bridging gaps between tables."""
+    columns: list[list[fitz.Rect]] = []
+    for line in sorted(segments, key=lambda rect: rect.x0):
+        if line.width > _EDGE_PT or line.height <= _EDGE_PT:
+            continue
+        if columns and line.x0 - columns[-1][0].x0 <= _EDGE_PT:
+            columns[-1].append(line)
+        else:
+            columns.append([line])
+
+    runs: list[tuple[float, float, float]] = []
+    for column in columns:
+        start, *remaining = sorted(column, key=lambda rect: rect.y0)
+        x, top, bottom = start.x0, start.y0, start.y1
+        for edge in remaining:
+            if edge.y0 > bottom + _EDGE_PT:
+                runs.append((x, top, bottom))
+                top, bottom = edge.y0, edge.y1
+            else:
+                bottom = max(bottom, edge.y1)
+        runs.append((x, top, bottom))
+    return runs
+
+
+def _closed_grid_boxes(page: fitz.Page) -> tuple[BBox, ...]:
+    """Locate closed grids with an interior row and column divider."""
+    segments = list(_grid_segments(page))
+    verticals = _vertical_rule_runs(segments)
+    horizontal = _horizontal_rule_bboxes(page, drawing_rects=segments)
+    boxes: list[BBox] = []
+    for top in horizontal:
+        for left_x, start, end in verticals:
+            if abs(left_x - top.x0) > _EDGE_PT or abs(start - top.y0) > _EDGE_PT:
+                continue
+            aligned = [
+                rule for rule in horizontal
+                if abs(rule.x0 - top.x0) <= _EDGE_PT and abs(rule.x1 - top.x1) <= _EDGE_PT
+                and top.y0 <= rule.y0 <= end + _EDGE_PT
+            ]
+            if len(aligned) < 3 or abs(aligned[-1].y1 - end) > _EDGE_PT:
+                continue
+            # Require both the opposite outer edge and an inner cell edge.
+            # The interval comes from the measured sides, not a page-wide
+            # x-alignment that could include text between separate tables.
+            edges = [
+                (x, y0) for x, y0, y1 in verticals
+                if y0 <= top.y0 + _EDGE_PT and y1 >= end - _EDGE_PT
+            ]
+            if (
+                any(abs(x - top.x1) <= _EDGE_PT and abs(y0 - top.y0) <= _EDGE_PT
+                    for x, y0 in edges)
+                and any(top.x0 + _EDGE_PT < x < top.x1 - _EDGE_PT for x, _ in edges)
+            ):
+                boxes.append(BBox(x0=top.x0, y0=top.y0, x1=top.x1, y1=aligned[-1].y1))
+    return tuple(boxes)
+
+
+def measure_ruled_table_boxes(pdf_path: str, page: PdfPage) -> tuple[BBox, ...]:
+    """Measure page-local table boxes on an upright page's original PDF sheet."""
+    if not pdf_path or not Path(pdf_path).is_file() or not _upright(page):
+        return ()
+    index = page.original_page_index
+    if index is None:
+        index = page.page_number - 1
+    try:
+        with fitz.open(pdf_path) as pdf:
+            if not 0 <= index < len(pdf):
+                return ()
+            source = pdf[index]
+            if (
+                source.rotation or abs(source.rect.width - page.width) > 1
+                or abs(source.rect.height - page.height) > 1
+            ):
+                return ()
+            return _closed_grid_boxes(source)
+    except (OSError, fitz.FileDataError):
+        return ()
 
 
 def _content_parts(page: PdfPage, region: _Region) -> tuple[TablePart, ...] | None:

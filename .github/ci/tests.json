@@ -115,6 +115,7 @@
     "tests/test_p061_lot_lof_cross_page_entry_ordering.py",
     "tests/test_p062_toc_cross_page_entry_ordering.py",
     "tests/test_p063_appendix_body_headings.py",
+    "tests/test_p063_appendix_subsections.py",
     "tests/test_p064_references_citations_structural.py",
     "tests/test_p065_dedication_centering_italic.py",
     "tests/test_p066_biosketch_degree_ordering.py",

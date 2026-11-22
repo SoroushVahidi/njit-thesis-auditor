@@ -103,6 +103,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "multiple_appendix_missing_letter": "Appendix missing letter label",
     "appendix_letter_sequence_gap": "Appendix letter sequence gap",
     "appendix_letter_sequence_repeat": "Appendix letter sequence repeated",
+    "appendix_subsection_missing_letter_prefix": "Appendix subsection number missing its letter",
     # Approval page
     "approval_page_advisor_role_label_missing": "Approval page advisor role label missing",
     "approval_page_signature_blocks_sparse": "Approval page signature blocks sparse",
@@ -544,6 +545,12 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "An appendix letter is repeated in the sequence. Each appendix must have "
         "a unique letter label (A, B, C, ...). Review appendix headings and "
         "correct the labels."
+    ),
+    ("P063", "appendix_subsection_missing_letter_prefix"): (
+        "Appendix subsection numbers start with the appendix's letter, followed by a dot and "
+        "the subsection number. A single appendix uses A in its subsection numbers even when "
+        "its main heading is just APPENDIX. For example, use A.1 in place of .1. Check that "
+        "the heading and its Table of Contents entry use the same complete number."
     ),
     ("P064", "references_structural_issue"): (
         "The references section may have a structural issue. Verify that all "
