@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_layout import join_content_span_texts
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine, format_bbox_detail
+from njit_auditor.pdf_table_continuations import measure_ruled_table_boxes
 from njit_auditor.rules.pdf_heading_levels import (
     _SKIP_HEADINGS,
     _is_qualified_heading,
@@ -38,6 +39,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     TOP_LEVEL_TOC_WORD_PREFIX_RE,
     TocEntryLine,
     TocPageContext,
+    _assemble_same_baseline_toc_rows,
     _line_reaches_page_number_column,
     _make_entry_from_line,
     collect_toc_visual_rows,
@@ -47,6 +49,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
 
 _IDENTIFIER = r"\.[0-9]+(?:\.[0-9]+)*"
 _NUMBER_ONLY_RE = re.compile(_IDENTIFIER + r"$")
+_SUBSECTION_START_RE = re.compile(rf"^{_IDENTIFIER}(?=\s|$)")
 _SUBSECTION_RE = re.compile(rf"^({_IDENTIFIER})\s+(.+)$")
 _TOC_APPENDIX_RE = re.compile(
     r"^APPENDIX\b(?:\s+([A-Z])(?=$|[\s:\-–—]))?", re.IGNORECASE,
@@ -59,6 +62,8 @@ _SECTION_START_RE = re.compile(r"^(?:[A-Z]\.)?[0-9]+(?:\.[0-9]+)*\s", re.IGNOREC
 _OTHER_BODY_BOUNDARIES = frozenset({
     "GLOSSARY", "INDEX", "LIST OF SYMBOLS", "LIST OF ABBREVIATIONS",
 })
+_TABLE_VALUE_RE = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)\s*%?")
+_TABLE_COLUMN_ALIGNMENT_PT = 2.0
 
 
 def _looks_like_title(title: str) -> bool:
@@ -150,6 +155,58 @@ def _body_section_boundary(line: PdfTextLine, owner: str) -> bool:
     )
 
 
+def _starts_in_table(box: BBox, tables: tuple[BBox, ...]) -> bool:
+    mid_y = (box.y0 + box.y1) / 2
+    return any(table.x0 <= box.x0 < table.x1 and table.y0 <= mid_y <= table.y1 for table in tables)
+
+
+def _has_borderless_table_peers(
+    line: PdfTextLine, identifier: str, lines: list[PdfTextLine], ruled: tuple[BBox, ...],
+) -> bool:
+    """Look for nearby rows with the same separated value and label columns."""
+    spans = [span for span in line.spans if span.text.strip()]
+    if len(spans) < 2 or spans[0].text.strip() != identifier:
+        return False
+    left, right = spans[:2]
+    if right.bbox.x0 - left.bbox.x1 < (left.size or left.bbox.height):
+        return False
+    mid_y = (left.bbox.y0 + left.bbox.y1) / 2
+    row_height = max(left.bbox.height, right.bbox.height)
+    nearby = [
+        peer for peer in lines
+        if abs((peer.bbox.y0 + peer.bbox.y1) / 2 - mid_y) <= 3 * row_height
+        and not _starts_in_table(peer.bbox, ruled)
+    ]
+    peers: list[tuple[float, str | None]] = []
+    for row in _assemble_same_baseline_toc_rows(nearby):
+        y = (row.bbox.y0 + row.bbox.y1) / 2
+        if abs(y - mid_y) <= _TABLE_COLUMN_ALIGNMENT_PT:
+            continue
+        first = next((span for span in row.spans
+                      if abs(span.bbox.x0 - left.bbox.x0) <= _TABLE_COLUMN_ALIGNMENT_PT), None)
+        second = next((span for span in row.spans
+                       if abs(span.bbox.x0 - right.bbox.x0) <= _TABLE_COLUMN_ALIGNMENT_PT), None)
+        if first is None or second is None or not any(c.isalpha() for c in second.text):
+            continue
+        value = first.text.strip()
+        if _TABLE_VALUE_RE.fullmatch(value):
+            peers.append((y, value))
+        elif y < mid_y and value.replace(" ", "").isalpha():
+            peers.append((y, None))
+
+    # A column header and another value, in the same local row rhythm, also
+    # support the first and last value rows of a borderless table.
+    for (y1, value1), (y2, value2) in zip(peers, peers[1:]):
+        if value1 is None and value2 is not None:
+            gaps = sorted((y1, y2, mid_y))
+            if abs((gaps[1] - gaps[0]) - (gaps[2] - gaps[1])) <= row_height * 0.25:
+                return True
+    # With no identifiable header, require value rows on both sides and
+    # distinguish decimal measurements from a run of split .1/.2 headings.
+    decimals = [y for y, value in peers if value and not value.startswith(".") and "." in value]
+    return any(y < mid_y for y in decimals) and any(y > mid_y for y in decimals)
+
+
 def _body_findings(
     document: PdfDocument, starts: list[tuple[int, str | None, BBox]], list_pages: set[int],
 ) -> list[AuditFinding]:
@@ -171,9 +228,10 @@ def _body_findings(
         page_starts = iter(starts_by_page.get(page.page_number, ()))
         next_start = next(page_starts, None)
         anchor_bottom = 0.0
-        joined = _split_number_headings(page, number_pattern=_NUMBER_ONLY_RE) if any(
-            _NUMBER_ONLY_RE.fullmatch(line.text.strip()) for line in lines
-        ) else {}
+        ruled = None
+        joined = _split_number_headings(
+            page, number_pattern=_NUMBER_ONLY_RE, require_unique_title=True,
+        ) if any(_NUMBER_ONLY_RE.fullmatch(line.text.strip()) for line in lines) else {}
         for line in lines:
             while next_start is not None and next_start[1].y0 <= line.bbox.y0:
                 owner, box = next_start
@@ -208,6 +266,12 @@ def _body_findings(
             if not all(span.bold for span in title_spans):
                 continue
             if identifier.count(".") == 1 and check_apa_title_case_phrase(title):
+                continue
+            if ruled is None:
+                ruled = measure_ruled_table_boxes(document.path, page)
+            if _starts_in_table(candidate.bbox, ruled) or _has_borderless_table_peers(
+                candidate, identifier, lines, ruled,
+            ):
                 continue
             findings.append(_finding(page.page_number, candidate, identifier, owner))
     return findings
@@ -250,10 +314,10 @@ def _toc_appendix(entry: TocEntryLine) -> tuple[str | None, tuple[int, float]] |
     return (match[1].upper() if match[1] else None), folio
 
 
-def _toc_subsection_title(
+def _toc_logical_subsection(
     rows: list[TocEntryLine], index: int, owner: _TocOwner,
-) -> str | None:
-    """Require a folio in the parent's column, possibly at the end of a title wrap."""
+) -> tuple[str, int] | None:
+    """Return the row text and final index if its hanging lines supply an aligned folio."""
     first = rows[index]
     parts = []
     previous = first
@@ -265,7 +329,6 @@ def _toc_subsection_title(
             or TOP_LEVEL_TOC_WORD_PREFIX_RE.match(text)
             or _OTHER_ROOT_RE.match(text)
             or _SECTION_START_RE.match(text)
-            or text.startswith(".")
         ):
             break
         parts.append(text)
@@ -273,7 +336,7 @@ def _toc_subsection_title(
         if folio is not None:
             number, x = folio
             if number >= owner.folio and abs(x - owner.column_x) <= RIGHT_EDGE_TOLERANCE_PT:
-                return " ".join(parts)
+                return " ".join(parts), index + offset
             break
         previous = row
     return None
@@ -298,7 +361,10 @@ def _toc_findings(
         )
         owner = None
         for page, rows in pages.items():
+            consumed_through = -1
             for index, row in enumerate(rows):
+                if index <= consumed_through:
+                    continue
                 text = row.cleaned_text
                 if TOP_LEVEL_TOC_WORD_PREFIX_RE.match(text) or _OTHER_ROOT_RE.match(text):
                     owner = None
@@ -317,14 +383,21 @@ def _toc_findings(
                 valid = LETTERED_SECTION_PREFIX_RE.match(text.upper())
                 if (valid and valid[1][0] != owner.letter) or SECTION_NUMBER_PREFIX_RE.match(text):
                     owner = None
-                elif (
-                    text.startswith(".")
-                    and row.indent_x >= owner.indent_x + LOGICAL_WRAP_MIN_INDENT_PT
+                    continue
+                malformed = _SUBSECTION_START_RE.match(_toc_title(row))
+                if not valid and (
+                    not malformed or row.indent_x < owner.indent_x + LOGICAL_WRAP_MIN_INDENT_PT
                 ):
-                    title = _toc_subsection_title(rows, index, owner)
-                    match = _SUBSECTION_RE.fullmatch(title) if title else None
-                    if match is not None and _looks_like_title(match[2]):
-                        findings.append(_finding(page, row.line, match[1], owner.letter, toc=True))
+                    continue
+                logical = _toc_logical_subsection(rows, index, owner)
+                if logical is None:
+                    continue
+                title, consumed_through = logical
+                # A prefixless-looking line deeper than an open numbered row
+                # may finish its title. Its aligned folio closes that entry.
+                match = _SUBSECTION_RE.fullmatch(title) if malformed else None
+                if match is not None and _looks_like_title(match[2]):
+                    findings.append(_finding(page, row.line, match[1], owner.letter, toc=True))
     return findings
 
 

@@ -832,16 +832,6 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Findings contain only structural metadata -- no title text."
         ),
     },
-    "P063": {
-        "rule_definition": (
-            "Body-page appendix headings must follow NJIT labeling rules: "
-            "if there is one appendix, its heading must be APPENDIX "
-            "(without a letter); if there are multiple appendices, each "
-            "heading must be APPENDIX A, APPENDIX B, APPENDIX C, etc. with "
-            "consecutive letter identifiers. Applies to body pages only; "
-            "the Table of Contents side is handled by a separate check."
-        ),
-    },
 }
 
 

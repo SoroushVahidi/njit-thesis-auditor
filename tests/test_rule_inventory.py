@@ -24,6 +24,26 @@ def test_inventory_and_project_rule_files_exist() -> None:
     assert Path("data/processed/rules/project_added_rules.json").exists()
 
 
+def test_p063_subsection_issue_is_registered_and_described_by_public_catalog() -> None:
+    from njit_auditor.web_app import _build_rule_catalog
+
+    rules = _load_json("data/processed/rules/project_added_rules.json")
+    p063 = next(rule for rule in rules if rule["id"] == "P063")
+    assert p063["issue_types"] == [
+        "single_appendix_uses_letter_label",
+        "multiple_appendix_missing_letter",
+        "appendix_letter_sequence_gap",
+        "appendix_letter_sequence_repeat",
+        "appendix_subsection_missing_letter_prefix",
+    ]
+    card = next(rule for rule in _build_rule_catalog()["student_rules"] if rule["id"] == "P063")
+    assert "subsection" in card["title"].lower()
+    assert "body and Table of Contents" in card["what_it_checks"]
+    assert "top-level appendix heading" in card["what_it_checks"]
+    assert "owning appendix letter" in card["how_to_correct"]
+    assert "A.1" in card["how_to_correct"] and "B.1" in card["how_to_correct"]
+
+
 def test_all_ester_rules_represented_in_inventory() -> None:
     inventory = _load_json("data/processed/rules/njit_rule_inventory.json")
     assert len(inventory) == 79

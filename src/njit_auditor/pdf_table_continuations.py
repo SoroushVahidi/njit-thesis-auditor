@@ -1,8 +1,8 @@
 """Opt-in, recognition-only metadata for a table spanning one page boundary.
 
-No detector consumes this sidecar. Neither the input layout nor page-local
-captions/findings are modified. Text in the returned metadata is private source
-material: callers must not export it as a diagnostic or a public fixture.
+No detector consumes logical table continuations. Page-local ruled regions can
+also be measured without changing the input layout. Text in continuation metadata
+is private source material and must stay out of diagnostics and public fixtures.
 """
 
 from __future__ import annotations
@@ -164,6 +164,28 @@ def _regions(page: PdfPage, raw_page: fitz.Page) -> list[_Region]:
             continue
         result.append(_Region(rules, tuple(edges), header, content, *signature))
     return result
+
+
+def measure_ruled_table_boxes(pdf_path: str, page: PdfPage) -> tuple[BBox, ...]:
+    """Measure page-local table boxes on an upright page's original PDF sheet."""
+    if not pdf_path or not Path(pdf_path).is_file() or not _upright(page):
+        return ()
+    index = page.original_page_index
+    if index is None:
+        index = page.page_number - 1
+    try:
+        with fitz.open(pdf_path) as pdf:
+            if not 0 <= index < len(pdf):
+                return ()
+            source = pdf[index]
+            if (
+                source.rotation or abs(source.rect.width - page.width) > 1
+                or abs(source.rect.height - page.height) > 1
+            ):
+                return ()
+            return tuple(region.bbox for region in _regions(page, source))
+    except (OSError, fitz.FileDataError):
+        return ()
 
 
 def _content_parts(page: PdfPage, region: _Region) -> tuple[TablePart, ...] | None:

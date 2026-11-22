@@ -210,6 +210,121 @@ def test_wrapped_body_heading_and_toc_continuation_keep_physical_pages(tmp_path:
     ]
 
 
+@pytest.mark.parametrize("first_label", ["A.1", ".2"])
+@pytest.mark.parametrize("intermediate_line", [False, True])
+def test_toc_decimal_at_start_of_wrapped_title(
+    tmp_path: Path, first_label: str, intermediate_line: bool,
+) -> None:
+    path = tmp_path / "toc_decimal_wrap.pdf"
+    with pymupdf.open() as doc:
+        toc = _page(doc, "TABLE OF CONTENTS")
+        _toc_line(toc, "CHAPTER 1 INTRODUCTION", 145, "1")
+        _toc_line(toc, "APPENDIX INSTRUMENT DATA", 175, "6")
+        _toc_line(toc, f"{first_label} Response of the Prototype at", 205, x=126)
+        if intermediate_line:
+            _toc_line(toc, "the Rated Operating Pressure of", 221, x=150)
+        last_y = 237 if intermediate_line else 221
+        _toc_line(toc, ".1 Bar Under Test", last_y, "7", x=150)
+        _toc_line(toc, "A.2 Secondary Analysis", last_y + 30, "8", x=126)
+        _page(doc, "CHAPTER 1 INTRODUCTION")
+        page = _page(doc, "APPENDIX")
+        _body_line(page, "A.1 Response of the Prototype at .1 Bar Under Test")
+        doc.save(path)
+    expected = [] if first_label == "A.1" else [(1, "table of contents", "A.2")]
+    assert _subsections(_findings(path)) == expected
+
+
+@pytest.mark.parametrize("preceding_folio", ["", "7"])
+def test_toc_independent_subsection_after_numbered_row(
+    tmp_path: Path, preceding_folio: str,
+) -> None:
+    path = tmp_path / "independent_toc.pdf"
+    with pymupdf.open() as doc:
+        toc = _page(doc, "TABLE OF CONTENTS")
+        _toc_line(toc, "APPENDIX INSTRUMENT DATA", 175, "6")
+        _toc_line(toc, "A.1 Prototype Response", 205, preceding_folio, x=126)
+        indent = 150 if preceding_folio else 126
+        _toc_line(toc, ".2 Instrument Calibration", 221, "8", x=indent)
+        _page(doc, "APPENDIX")
+        doc.save(path)
+    assert _subsections(_findings(path)) == [(1, "table of contents", "A.2")]
+
+
+def test_toc_wrapped_title_can_follow_an_isolated_malformed_number(tmp_path: Path) -> None:
+    path = tmp_path / "isolated_toc_number.pdf"
+    with pymupdf.open() as doc:
+        toc = _page(doc, "TABLE OF CONTENTS")
+        _toc_line(toc, "APPENDIX INSTRUMENT DATA", 175, "6")
+        _toc_line(toc, ".1", 205, x=126)
+        _toc_line(toc, "Prototype Response", 221, "7", x=150)
+        _page(doc, "APPENDIX")
+        doc.save(path)
+    assert _subsections(_findings(path)) == [(1, "table of contents", "A.1")]
+
+
+@pytest.mark.parametrize("ruled", [False, True])
+def test_table_decimal_cells_are_not_headings_but_nearby_subsections_are(
+    tmp_path: Path, ruled: bool,
+) -> None:
+    path = tmp_path / "table_decimal.pdf"
+    with pymupdf.open() as doc:
+        _page(doc, "CHAPTER 1 INTRODUCTION")
+        _page(doc, "REFERENCES")
+        page = _page(doc, "APPENDIX")
+        # Place genuine detached headings on both sides of the table. In the
+        # ruled variant their columns match the table's columns.
+        number_x, title_x = (116, 171) if ruled else (108, 150)
+        _body_line(page, ".3", 145, x=number_x)
+        _body_line(page, "Instrument Preparation", 145, x=title_x)
+        _body_line(page, "Table A.1. Sensor settings.", 172)
+        if ruled:
+            for y in (184, 205, 226, 247):
+                page.draw_line((108, y), (370, y))
+            for x in (108, 158, 370):
+                page.draw_line((x, 184), (x, 247))
+        for y, value, parameter in (
+            (198, "Value", "Parameter"),
+            (220, ".1", "Nominal Operating Voltage"),
+            (241, ".2", "Measured Input Current"),
+        ):
+            _body_line(page, value, y, x=116)
+            _body_line(page, parameter, y, x=171)
+        _body_line(page, ".4", 263, x=number_x)
+        _body_line(page, "Instrument Calibration", 263, x=title_x)
+        doc.save(path)
+    assert _subsections(_findings(path)) == [(3, "body", "A.3"), (3, "body", "A.4")]
+
+
+def test_original_ruled_table_decimal_reproduction(tmp_path: Path) -> None:
+    path = tmp_path / "ruled_review_case.pdf"
+    with pymupdf.open() as doc:
+        _page(doc, "TABLE OF CONTENTS")
+        _page(doc, "CHAPTER 1 INTRODUCTION")
+        page = _page(doc, "APPENDIX")
+        _body_line(page, "Table A.1. Sensor settings.", 145)
+        for y in (157, 178, 199):
+            page.draw_line((108, y), (370, y))
+        for x in (108, 158, 370):
+            page.draw_line((x, 157), (x, 199))
+        _body_line(page, "Value", 171, x=116)
+        _body_line(page, "Parameter", 171, x=171)
+        _body_line(page, ".1", 193, x=116)
+        _body_line(page, "Nominal Operating Voltage", 193, x=171)
+        doc.save(path)
+    assert _findings(path) == []
+
+
+def test_ambiguous_split_body_heading_abstains(tmp_path: Path) -> None:
+    path = tmp_path / "competing_title_columns.pdf"
+    with pymupdf.open() as doc:
+        page = _page(doc, "APPENDIX")
+        _body_line(page, ".1", x=108)
+        _body_line(page, "Setup", x=134)
+        _body_line(page, "Current", x=185)
+        doc.save(path)
+    assert _findings(path) == []
+
+
 @pytest.mark.parametrize("isolated_token", [False, True])
 def test_number_only_highlight_and_unrelated_output_preservation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, isolated_token: bool,
