@@ -615,8 +615,8 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "but describes a table. Move this entry to the List of Tables."
     ),
     ("P055", "lot_entry_missing_table_prefix"): (
-        "Problem: A List of Tables entry on page {page} is missing the required 'Table' prefix "
-        "before its number. Prepend 'Table ' to each List of Tables entry."
+        "A List of Tables entry on page {page} starts with a number. The auditor could "
+        "not identify a 'Table' column heading above the entry numbers."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
         "This saved List of Figures prefix advisory reflects an older policy."
@@ -943,11 +943,8 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P054", "toc_entry_has_terminal_period"): "",
     ("P055", "lot_entry_is_figure"): "Move this misplaced entry to the List of Figures.",
     ("P055", "lof_entry_is_table"): "Move this misplaced entry to the List of Tables.",
-    # The P055 catalog remediation describes misplaced entries; a numeric-only
-    # entry needs the literal prefix instead (Ester, 2026-09-04).
     ("P055", "lot_entry_missing_table_prefix"): (
-        "Begin this List of Tables entry with the word 'Table' before its "
-        "number (for example, Table 1.1)."
+        "Place the 'Table' column heading above the entry numbers on this List of Tables page."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
         "List of Figures entries may begin with a number; the word Figure is not required "

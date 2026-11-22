@@ -118,7 +118,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "toc_entry_has_terminal_period": "TOC entry has terminal period",
     "lot_entry_is_figure": "List of Tables entry describes a figure",
     "lof_entry_is_table": "List of Figures entry describes a table",
-    "lot_entry_missing_table_prefix": "List of Tables entry missing 'Table' prefix",
+    "lot_entry_missing_table_prefix": "Numbered entry without a recognized 'Table' heading",
     "lof_entry_missing_figure_prefix": "Legacy List of Figures prefix advisory",
     "body_figure_reference_abbreviated": "Abbreviated body figure reference",
     "lof_entry_missing_terminal_punctuation": "List of Figures entry missing terminal punctuation",
@@ -750,9 +750,8 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "a table. Move this entry to the List of Tables."
     ),
     ("P055", "lot_entry_missing_table_prefix"): (
-        "This means a List of Tables entry is missing the required 'Table' prefix "
-        "before its number. Each entry in the List of Tables should begin with the "
-        "word 'Table' (e.g., Table 1.1 ...)."
+        "The auditor found a numbered entry but could not match it to a 'Table' column "
+        "heading. Entries under that heading may begin with just their number."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
         "List of Figures entries may begin with a number; the word Figure is not required "

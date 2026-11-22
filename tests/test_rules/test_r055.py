@@ -1,3 +1,9 @@
+from pathlib import Path
+
+import pytest
+from reportlab.pdfgen.canvas import Canvas
+
+from njit_auditor.audit_runner import run_pdf_audit_full
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
@@ -79,8 +85,8 @@ def test_r055_valid_table_prefix():
     )
 
 
-def test_r055_numeric_only_lot_entry():
-    """Test numeric-only LoT entry should generate missing Table prefix finding"""
+def test_r055_numeric_only_lot_entry_without_column_heading():
+    """Keep the advisory when the table column heading is missing."""
     doc = make_mock_list_doc(
         [
             ("1.1 Experimental Results", 12),
@@ -154,42 +160,152 @@ def test_r055_numeric_only_lof_entry():
     assert findings == []
 
 
-def test_r055_missing_prefix_suggested_fix_names_the_prefix():
-    """The retained List of Tables requirement needs a precise prefix fix.
+def _draw_list(
+    canvas: Canvas,
+    heading: str,
+    label: str,
+    entries: list[tuple[str, str | None]],
+    *,
+    label_x: int = 108,
+    label_y: int = 670,
+    page_label: str = "Page",
+) -> None:
+    canvas.setFont("Times-Bold", 12)
+    canvas.drawCentredString(324, 710, heading)
+    if label:
+        canvas.drawString(label_x, label_y, label)
+    if page_label:
+        canvas.drawRightString(540, 670, page_label)
+    canvas.setFont("Times-Roman", 12)
+    for index, (entry, folio) in enumerate(entries):
+        y = 638 - 24 * index
+        canvas.drawString(108, y, entry)
+        canvas.drawString(405, y, "...................")
+        if folio:
+            canvas.drawRightString(540, y, folio)
+    canvas.showPage()
 
-    A numeric-only entry is not a misplaced entry, so its suggested fix must
-    ask for the prefix rather than reuse the cross-type "move" remediation.
-    """
+
+@pytest.mark.parametrize("label", ["Table", "TABLE", "Tables"])
+@pytest.mark.parametrize("single_entry", [True, False])
+def test_p055_accepts_numeric_lot_entries_under_column_heading(
+    tmp_path: Path, label: str, single_entry: bool
+) -> None:
+    path = tmp_path / "lot.pdf"
+    canvas = Canvas(str(path), pagesize=(612, 792))
+    rows = [("2.1 Experimental Results", "35")]
+    if not single_entry:
+        rows.extend([("2.2 Synthetic Inputs", "39"), ("A.1 Appendix Data", "72")])
+    _draw_list(canvas, "LIST OF TABLES", label, rows)
+    canvas.save()
+
+    findings = run_pdf_audit_full(path)
+    assert not [f for f in findings if f.rule_id in {"P031", "P055"}]
+
+
+@pytest.mark.parametrize(
+    ("label", "label_x", "label_y", "heading_issue"),
+    [
+        ("", 108, 670, "missing_left_column_header"),
+        ("Tab.", 108, 670, "missing_left_column_header"),
+        ("Figure", 108, 670, "missing_left_column_header"),
+        ("Table 2", 108, 670, "missing_left_column_header"),
+        ("Table", 440, 670, "left_column_header_misaligned"),
+        ("Table", 108, 622, "missing_left_column_header"),
+    ],
+)
+def test_p055_requires_reliable_table_column_heading(
+    tmp_path: Path, label: str, label_x: int, label_y: int, heading_issue: str
+) -> None:
+    path = tmp_path / "ambiguous_lot.pdf"
+    canvas = Canvas(str(path), pagesize=(612, 792))
+    _draw_list(
+        canvas, "LIST OF TABLES", label, [("2.1 Experimental Results", "35")],
+        label_x=label_x, label_y=label_y,
+    )
+    canvas.save()
+
+    findings = run_pdf_audit_full(path)
+    issues = {f.details.get("issue_type") for f in findings}
+    assert heading_issue in issues
+    (prefix,) = [f for f in findings if f.rule_id == "P055"]
+    assert prefix.page == 1
+    assert prefix.details["issue_type"] == "lot_entry_missing_table_prefix"
+    assert prefix.details["bbox"]
+    assert prefix.details["entry_id"].startswith("list-entry-")
+
+
+def test_p055_lot_exemption_leaves_other_checks_active(tmp_path: Path) -> None:
+    path = tmp_path / "mixed_lists.pdf"
+    canvas = Canvas(str(path), pagesize=(612, 792))
+    _draw_list(canvas, "LIST OF TABLES", "Table", [
+        ("2.1 Experimental Results", "35"),
+        ("2.2 Missing Page Reference", None),
+        ("Unnumbered Title.", "37"),
+        ("Table 3.4 Synthetic Data", "38"),
+        ("Table 3.3 Synthetic Inputs", "39"),
+        ("Table 3.2 Synthetic Output", "40"),
+        ("Figure 2.3 Wrong List", "41"),
+    ])
+    _draw_list(canvas, "LIST OF TABLES (Continued)", "Table", [
+        ("2.4 A Wrapped Synthetic", None),
+        ("    Title with a Page Number", "42"),
+        ("2.5 Another Result", "43"),
+    ], page_label="")
+    _draw_list(canvas, "LIST OF TABLES (Continued)", "", [
+        ("2.6 Numeric Entry Without a Column Heading", "44"),
+    ])
+    _draw_list(canvas, "LIST OF FIGURES", "Figure", [
+        ("1.1 Synthetic figure.", "45"),
+        ("Table 1.2 Wrong list.", "46"),
+    ])
+    _draw_list(canvas, "TABLE OF CONTENTS", "Table", [("2.1 Section", "47")])
+    canvas.setFont("Times-Roman", 12)
+    canvas.drawString(108, 510, "See Table 2.1 and Figure 1.1 for the results.")
+    canvas.drawString(108, 486, "See Fig. 1.1 for the control.")
+    canvas.drawString(108, 400, "Table 2.1 Synthetic Table Title.")
+    canvas.save()
+
+    findings = run_pdf_audit_full(path)
+    rule_issues = {(f.page, f.rule_id, f.details.get("issue_type")) for f in findings}
+    assert {row for row in rule_issues if row[1] == "P055"} == {
+        (1, "P055", "lot_entry_is_figure"),
+        (3, "P055", "lot_entry_missing_table_prefix"),
+        (4, "P055", "lof_entry_is_table"),
+        (6, "P055", "body_figure_reference_abbreviated"),
+    }
+    assert (1, "P018", "missing_page_number") in rule_issues
+    assert (1, "P053", "lot_entry_has_terminal_period") in rule_issues
+    assert (1, "P059", "lot_entry_numbers_not_nondecreasing") in rule_issues
+    assert (2, "P031", "missing_page_column_header") in rule_issues
+    assert (3, "P031", "missing_left_column_header") in rule_issues
+    assert (6, "P017", "unexpected_terminal_period") in rule_issues
+
+
+def test_r055_missing_prefix_suggested_fix_points_to_column_heading():
+    """The retained advisory directs students to the column heading."""
     from njit_auditor.polished_comments import resolve_suggested_fix_for_display
 
-    for section, issue_type, word in (
-        ("list_of_tables", "lot_entry_missing_table_prefix", "Table"),
-    ):
-        doc = make_mock_list_doc(
-            [("1.1 System Architecture", 12), ("1.2 Experimental Setup", 15)],
-            section,
-        )
-        finding = next(
-            f
-            for f in check_pdf_lot_lof_entry_type(doc)
-            if f.details.get("issue_type") == issue_type
-        )
-        fix = resolve_suggested_fix_for_display(
-            "P055", issue_type, existing=finding.details.get("suggested_fix", "")
-        )
-        assert f"with the word '{word}' before its number" in fix
-        assert "misplaced" not in fix.lower()
+    doc = make_mock_list_doc([("1.1 Experimental Setup", 12)])
+    (finding,) = check_pdf_lot_lof_entry_type(doc)
+    fix = resolve_suggested_fix_for_display(
+        finding.rule_id, finding.details["issue_type"],
+        existing=finding.details.get("suggested_fix", ""),
+    )
+    assert "'Table' column heading above the entry numbers" in fix
+    assert "before its number" not in fix
+    assert "misplaced" not in fix.lower()
 
     cross_type_fix = resolve_suggested_fix_for_display("P055", "lot_entry_is_figure")
     assert "misplaced entry" in cross_type_fix
 
 
-def test_r055_public_card_describes_prefix_requirement():
+def test_r055_public_card_describes_heading_and_body_requirements():
     from njit_auditor.web_app import _build_rule_catalog
 
     card = next(r for r in _build_rule_catalog()["student_rules"] if r["id"] == "P055")
     assert "body references" in card["title"]
     assert "do not need that prefix" in card["how_to_correct"]
-    assert "'Table'" in card["how_to_correct"]
+    assert "'Table' column heading may begin with their number" in card["how_to_correct"]
     assert "only a number" in card["what_it_checks"]
     assert "misplaced entries" in card["what_it_checks"]

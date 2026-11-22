@@ -592,21 +592,20 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Remove the final period from each Table of Contents entry."
         ),
     },
-    # Ester 2026-11-17: numeric-only LoF entries are valid. Body references
-    # use Figure; preserve the separate LoT and misplaced-entry requirements.
     "P055": {
         "question": ("Are list entries in the correct list, and is 'Figure' "
                      "written out in body references?"),
         "rule_definition": (
             "Checks misplaced entries between the List of Tables and List of Figures, "
-            "missing 'Table' prefixes in the List of Tables, and explicit 'Fig.' "
-            "abbreviations in body references. List of Figures entries may begin "
-            "with only a number. Bare body numbers are not classified as figure references."
+            "numbered List of Tables entries without a recognized 'Table' column heading, "
+            "and explicit 'Fig.' abbreviations in body references. List of Figures entries "
+            "may begin with only a number. Bare body numbers are not classified as "
+            "figure references."
         ),
         "remediation": (
-            "Move any misplaced entry to the correct list. Begin List of Tables "
-            "entries with 'Table'. Use the full word 'Figure' in body references; "
-            "List of Figures entries do not need that prefix."
+            "Move any misplaced entry to the correct list. List of Tables entries under "
+            "the 'Table' column heading may begin with their number. Write 'Figure' in "
+            "full in body references. List of Figures entries do not need that prefix."
         ),
     },
     "P074": {
