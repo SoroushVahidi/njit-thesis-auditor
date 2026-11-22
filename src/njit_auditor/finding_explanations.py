@@ -742,8 +742,8 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Move this entry to the List of Tables."
     ),
     ("P055", "lot_entry_missing_table_prefix"): (
-        "A List of Tables entry on this page is missing the required 'Table' prefix. "
-        "Each entry in the List of Tables must begin with the word 'Table' (e.g., Table 1.1)."
+        "This List of Tables entry starts with a number. Check that the 'Table' column "
+        "heading is present above the entry numbers on this page."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
         "List of Figures entries may begin with a number; the word Figure is not required "

@@ -983,8 +983,8 @@
     "id": "P055",
     "section": "PDF List of Tables / List of Figures cross-type entry check",
     "question": "Are list entries in the correct list, and is 'Figure' written out in body references?",
-    "rule_definition": "List entry checks extend Q063/Q072. Check complete LoT entries starting with Figure or lacking Table, complete LoF entries starting with Table, and explicit Fig. abbreviations in body references. Numeric-only List of Figures entries are valid. Body references require Figure (Ester 2026-11-17); bare numbers and ambiguous text are not classified as references. Caption checks remain separate.",
-    "remediation": "Move misplaced entries to the correct list. Keep Table prefixes in the List of Tables. Write Figure in full in body references; numeric-only List of Figures entries need no prefix.",
+    "rule_definition": "List entry checks extend Q063/Q072. Check complete LoT entries starting with Figure or starting with a number without a recognized Table column heading, complete LoF entries starting with Table, and explicit Fig. abbreviations in body references. Numeric-only List of Figures entries are valid. Body references require Figure (Ester 2026-11-17); bare numbers and ambiguous text are not classified as references. Caption checks remain separate.",
+    "remediation": "Move misplaced entries to the correct list. List of Tables entries under the Table column heading may begin with their number. Write Figure in full in body references. List of Figures entries do not need that prefix.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -994,7 +994,7 @@
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Q063/Q072 list-entry type extension. Ester 2026-11-17 supersedes the earlier LoF per-entry prefix interpretation. Q072 concerns the Figure column header, checked separately. issue_types: lot_entry_is_figure, lof_entry_is_table, lot_entry_missing_table_prefix, body_figure_reference_abbreviated. Legacy lof_entry_missing_figure_prefix is no longer emitted. Body checks require explicit prose reference cues and exclude detected list pages and captions.",
+    "notes": "Q063/Q072 list-entry type extension. The November 17 LoF clarification and November 19–20 LoT feedback allow entries to begin with their number in the supported contexts. Column-header diagnostics are separate. issue_types: lot_entry_is_figure, lof_entry_is_table, lot_entry_missing_table_prefix, body_figure_reference_abbreviated. Legacy lof_entry_missing_figure_prefix is no longer emitted. Body checks require explicit prose reference cues and exclude detected list pages and captions.",
     "implementation_module": "njit_auditor.rules.pdf_lot_lof_entry_type"
   },
   {

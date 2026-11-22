@@ -102,6 +102,21 @@ def _expected_left_x(entries: list[TocEntryLine]) -> float:
     return LEFT_MARGIN_PT
 
 
+def has_lot_table_column_header(context: TocPageContext, entries: list[TocEntryLine]) -> bool:
+    """Confirm a Table label above the entries and near their number column."""
+    if context.page_type != "list_of_tables" or not entries:
+        return False
+    first_entry_top = min(entry.line.bbox.y0 for entry in entries)
+    expected_left_x = _expected_left_x(entries)
+    return any(
+        _matches_left_label(line.text, context.page_type)
+        and context.heading_bottom_y <= line.bbox.y0
+        and line.bbox.y1 <= first_entry_top
+        and abs(line.bbox.x0 - expected_left_x) <= LEFT_HEADER_TOLERANCE_PT
+        for line in _collect_header_zone_lines(context)
+    )
+
+
 def _expected_page_x(entries: list[TocEntryLine]) -> float:
     right_edges = [
         entry.page_number_right_x
