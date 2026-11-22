@@ -1,8 +1,8 @@
 # Roadmap
 
-For what's true *right now* (SHA, test count, open PRs), see
-[docs/status/CURRENT_STATUS.md](status/CURRENT_STATUS.md). This file is about direction, not
-a snapshot — it should change rarely and shouldn't need dated entries.
+For the last verified main, deployment, and release revisions, see the
+[dated status](status/CURRENT_STATUS.md). This roadmap records direction and
+open work. Use GitHub and the service endpoints to verify current state.
 
 ## Completed capabilities
 

@@ -14,7 +14,7 @@ the reviewer ground-truth summary separately.
 
 Current durable evidence:
 
-- [R036 current state](CURRENT_STATUS.md#r036-current-state) records the policy, 24 known false positives, zero confirmed true positives, and conservative production behavior.
+- [Historical R036 state](CURRENT_STATUS.md#historical-r036-state) records the policy, 24 known false positives, zero confirmed true positives, and conservative production behavior.
 - [Production suppression design](r036_production_page_relative_suppression_design_20260916.md) records the decision and validation results.
 - [Ester false-positive ground truth](../../data/evaluation/r036_ester_false_positive_ground_truth_20260916.json) contains the 24 reviewed labels and explicitly does not infer true positives.
 

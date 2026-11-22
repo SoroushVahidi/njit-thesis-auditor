@@ -1,9 +1,10 @@
 # Web Upload UI Operations Guide
 
-- **Date:** 2026-06-16
-- **Baseline commit:** `9e54b7b` (PR #318 — mobile/desktop parity fixes)
-- **Scope:** Current public FastAPI web UI behavior and operations
-- **Current public input surface:** PDF upload only
+This guide describes the public FastAPI website and local development. Use the
+[deployment runbook](DEPLOYMENT.md) for live service operations and rollback,
+and [dated status](status/CURRENT_STATUS.md) for the last verified deployment.
+
+The original UI parity baseline was PR #318 at `9e54b7b` on 2026-06-16.
 
 ## 1. Current Stable Scope
 
@@ -12,7 +13,8 @@ The public web UI is **PDF-only**.
 It supports:
 
 - uploading a local PDF
-- downloading a generated synthetic sample PDF to save and upload manually
+- downloading a generated synthetic sample or following the public example link,
+  then uploading the PDF manually
 
 It does **not** currently expose TeX, ZIP, or DOCX inputs in the public browser UI.
 Those workflows remain separate CLI or internal tooling paths.
@@ -23,53 +25,40 @@ stacking, wrapping, spacing, and column count.
 
 ## 2. Running Locally
 
-```bash
-./scripts/run_web_gui.sh
-# or
-python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
-```
-
-Then open `http://localhost:8000`.
-
-For localhost-only use:
+From a development worktree, activate its environment using the
+[local setup guide](REPRODUCIBILITY.md#checkout-and-dependencies). Pick a free
+loopback port and a runtime directory inside that worktree:
 
 ```bash
-./scripts/run_web_gui.sh 127.0.0.1
+NJIT_AUDITOR_WEB_RUNTIME_DIR="$PWD/.runtime/web_audits_dev" \
+  ./scripts/run_web_gui.sh 127.0.0.1 8001
 ```
 
-## 3. Persistent tmux Service
+Open `http://127.0.0.1:8001`. Stop the local process with Ctrl-C.
 
-Start:
+## 3. Production supervision
+
+The live website runs under the user systemd unit `thesis-auditor-web.service`
+from a dedicated deployment worktree. Earlier development sessions used tmux.
+Their supervision instructions are historical.
+
+On the production host these read-only commands verify the service and the
+running version:
 
 ```bash
-tmux new -d -s thesis-auditor-web \
-  'cd /home/soroush/njit-thesis-auditor && ./scripts/run_web_gui.sh'
+systemctl --user is-active thesis-auditor-web.service
+curl --fail --silent --show-error http://127.0.0.1:8000/healthz
+curl --fail --silent --show-error http://127.0.0.1:8000/version
 ```
 
-Inspect logs:
+Health reports whether the service responds successfully. Version reports the
+running commit, environment, and process start time. Compare its commit with the
+deployment record. Follow the [clean-worktree deployment procedure](DEPLOYMENT.md#clean-worktree-requirement)
+and [rollback procedure](DEPLOYMENT.md#rollback) for authorized service changes.
 
-```bash
-tmux capture-pane -t thesis-auditor-web -p -S -200
-tmux attach -t thesis-auditor-web
-```
+## 4. Reloading local changes
 
-Restart:
-
-```bash
-tmux kill-session -t thesis-auditor-web 2>/dev/null || true
-tmux new -d -s thesis-auditor-web \
-  'cd /home/soroush/njit-thesis-auditor && ./scripts/run_web_gui.sh'
-```
-
-Stop:
-
-```bash
-tmux kill-session -t thesis-auditor-web
-```
-
-## 4. Critical Restart Rule
-
-After changing any of the following, restart the uvicorn/tmux process:
+Restart the local Uvicorn process after changing:
 
 - routes
 - Jinja globals
@@ -78,8 +67,8 @@ After changing any of the following, restart the uvicorn/tmux process:
 - startup-time configuration
 - environment-dependent behavior
 
-Template auto-reload alone is **not** sufficient for those changes because Python route tables
-and Jinja registrations are created at import time.
+Python route tables and Jinja registrations are created at import time.
+Template auto-reload only updates templates.
 
 ## 5. Environment Variables
 
@@ -91,13 +80,15 @@ and Jinja registrations are created at import time.
 | `NJIT_AUDITOR_WEB_CLEANUP_INTERVAL_SECONDS` | `300` | How often the background sweeper deletes expired jobs, independent of requests |
 | `NJIT_AUDITOR_WEB_HOST` | `0.0.0.0` | Helper-script bind host |
 | `NJIT_AUDITOR_WEB_PORT` | `8000` | Helper-script bind port |
-| `NJIT_AUDITOR_WEB_ENVIRONMENT` | `local-dev` | Deployment label reported by `/version`; set it to `production` in the live service unit (not yet set there as of 2026-10-08) |
+| `NJIT_AUDITOR_WEB_ENVIRONMENT` | `local-dev` | Environment label reported by `/version`. The live service reports `production`. |
 
 ## 6. Routes
 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/` | Upload page |
+| `GET` | `/healthz` | Service health |
+| `GET` | `/version` | Running commit, environment, and process start time |
 | `POST` | `/audits` | Start a PDF upload audit |
 | `POST` | `/audits/url` | Reject legacy shortcut; 303 to upload-required error page |
 | `POST` | `/audits/sample` | Reject legacy shortcut; 303 to upload-required error page |
@@ -116,6 +107,7 @@ and Jinja registrations are created at import time.
 | `GET` | `/audits/{job_id}/pdf/highlighted?...` | Highlighted PDF route |
 | `GET` | `/help` | Help page |
 | `GET` | `/rules` | Student-facing PDF rule reference |
+| `GET` | `/about` | About the project |
 
 ## 7. User-Facing Behavior
 
@@ -184,21 +176,17 @@ Browser-native preview behavior can still vary by device, browser, extension, or
   would require explicit publication approval from the relevant rights holders and
   confirmation that annotations and student content may be released.
 
-Recommended cleanup before a live restart:
-
-```bash
-rm -rf .runtime/web_audits/*
-```
+The service runbook governs retention and maintenance of the live runtime directory.
 
 ## 10. Validation and QA
 
-Automated parity coverage is documented in
-`docs/planning/mobile_desktop_consistency_audit.md`.
+See the [dated mobile and desktop parity audit](planning/mobile_desktop_consistency_audit.md).
 
 Use:
 
-- `docs/web_ui_demo_guide.md` for a concise end-to-end demo
-- `docs/web_ui_manual_qa_checklist.md` for browser smoke checks
+- [Web UI demo guide](web_ui_demo_guide.md) for a concise end-to-end demo
+- [Manual QA checklist](web_ui_manual_qa_checklist.md) for browser smoke checks
+- [Browser validation](REPRODUCIBILITY.md#browser-checks-with-synthetic-local-services) for automated Chromium checks
 
 Representative viewport profiles for parity checks:
 
@@ -208,5 +196,5 @@ Representative viewport profiles for parity checks:
 ## 11. Known Limits
 
 - Browser PDF preview/download behavior is not fully app-controlled.
-- Current automated parity tests use `TestClient`, not a real layout engine.
-- No dedicated `/version` or `/healthz` endpoint is documented yet.
+- Request-level parity tests use `TestClient`. Browser checks cover layout and
+  navigation separately.

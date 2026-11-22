@@ -1,9 +1,36 @@
 # Current Status
 
-> **Dated evidence, not continuous monitoring.** The leading snapshot records the
-> observed baseline before the documentation/CI maintenance PR. Later sections
-> preserve historical results and priorities; they are not new work instructions.
-> Check remote main, the production worktree and live `/version` for present state.
+> Each snapshot records what was observed on its stated date. Verify the
+> advertised GitHub main and the live `/version` before using these values for
+> development or release work.
+
+## Verified baseline — 2026-11-22
+
+| Role | Observation |
+| --- | --- |
+| GitHub main | `7e49954c06b1734cff1b2842dd289316f7675ef1`, the PR #684 squash merge. Its tree `92cbd0f5e894bb2658332400da16a283082140f8` matches the validated PR tree. |
+| Deployed website | `47bb4b97e384546e31fea749adb5c05fc5f9b2a3`. The user systemd service was active, `/healthz` returned OK, and `/version` reported `production`. |
+| Merged changes awaiting a deployment decision | PRs #681–#684 are in main and absent from the running website revision. No production deployment or restart was scheduled by this maintenance pass. Use the [deployment runbook](../DEPLOYMENT.md) for any authorized rollout or rollback. |
+| Published Windows desktop | The distribution repository lists [0.2.0-rc.3](https://github.com/SoroushVahidi/njit-thesis-auditor-desktop/releases/tag/desktop-v0.2.0-rc.3) as its published beta prerelease. Follow the [immutable release record](../releases/windows-0.2.0-rc.3.md) for its source and checksum, and the [release procedure](../PUBLIC_WINDOWS_RELEASE.md) for historical rc.2 and native qualification limits. |
+| Local validation | The #684 tree recorded 12,723 Python 3.12 pytest passes, 36 skips and one unauthorized fixture deselected. Ruff, mypy and 17 Chromium tests passed. The same tree recorded 437 focused passes after squash merge. |
+| Hosted validation | The [main run](https://github.com/SoroushVahidi/njit-thesis-auditor/actions/runs/45063874204) recorded zero steps across seven jobs because of account billing or spending limits. See [CI and private validation](../CI_PRIVACY.md) for coverage boundaries. |
+
+### Recent merge and regression index
+
+| Work | Disposition | Tracked regression or evidence |
+| --- | --- | --- |
+| R055 List of Tables | [#681](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/681) merged | [List entry evidence](../../tests/test_r055_evidence.py) |
+| R063 N02 appendix ownership | [#682](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/682) merged | [Appendix ownership tests](../../tests/test_p063_appendix_body_headings.py) |
+| R063 N01 appendix subsection prefixes | [#683](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/683) merged | [Subsection tests](../../tests/test_p063_appendix_subsections.py) |
+| R057 P075 leader-cell capacity | [#684](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/684) merged | [Leader tests](../../tests/test_r057_toc_leader_gaps.py) and [synthetic PDF and TeX fixtures](../../tests/fixtures/r057_leader_cells/) |
+| F29A table continuation metadata | [#680](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/680) merged | [Table continuation tests](../../tests/test_f29_table_continuations.py) |
+| F30 figure caption continuation | [#678](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/678) merged | [F30 scope and validation](f30_cross_page_figure_descriptions_20261120.md) |
+
+R054 attached title punctuation (E03) and R018 justified leader spacing (S04)
+remain separate feedback tasks. Reviewer reconciliation and authorized comparison
+evidence stay in the private workspace. Follow the
+[development guide](../DEVELOPMENT.md#source-outputs-and-retention) and
+[evaluation data policy](../EVALUATION_DATA.md) for retention and access.
 
 ## Verified baseline — 2026-11-04
 

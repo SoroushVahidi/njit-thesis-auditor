@@ -111,6 +111,11 @@ Checks TeX source files without compiling — recursively loads `\input{}`/`\inc
 
 ### PDF layout audit (P011-P068, P074-P075, P078, P084-P087 standalone; P069-P073/P076/P077/P079/P081 infrastructure)
 
+This table preserves the rule coverage of the architecture audit. See the
+[rule inventory](rules/rule_inventory.md) and the
+[current project-added catalog](../data/processed/rules/project_added_rules.json)
+for subsequent additions, including P088.
+
 | Rule | Area | Check |
 |------|------|-------|
 | P011 | Margins | Text crossing 1.5"/1" margin boundaries; compression artifact guard reduces false positives on compressed PDFs |
