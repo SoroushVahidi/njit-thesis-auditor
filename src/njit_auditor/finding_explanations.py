@@ -520,6 +520,11 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Apply italic formatting to the dedication text."
     ),
     # --- P063 appendix/body headings ---
+    ("P063", "appendix_subsection_missing_letter_prefix"): (
+        "Add the owning appendix's letter to the beginning of the subsection number. "
+        "For a single bare APPENDIX, use A as the letter. Correct the number in the heading "
+        "and its Table of Contents entry wherever the prefix is missing."
+    ),
     ("P063", "single_appendix_uses_letter_label"): (
         "Observed: The document appears to have only one appendix, but its "
         "heading is labeled 'APPENDIX {letter_found}' with a letter. "

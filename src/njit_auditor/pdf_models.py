@@ -53,9 +53,8 @@ class PdfTextSpan(BaseModel):
     bold: bool = False
     italic: bool = False
     # Optional per-character horizontal extents, one ``(x0, x1)`` pair per
-    # character of ``text``. Only populated for pages whose layout needs
-    # sub-span geometry (TOC/List-style pages with dot-leader runs); ``None``
-    # everywhere else, and consumers must treat ``None`` as "unmeasured".
+    # character of ``text``. Populated selectively for leader-bearing pages
+    # and possible prefixless subsection lines. Treat ``None`` as unmeasured.
     char_x_bounds: list[tuple[float, float]] | None = None
     # Actual text origin; glyph-box centers differ across fonts on one baseline.
     baseline_y: float | None = None

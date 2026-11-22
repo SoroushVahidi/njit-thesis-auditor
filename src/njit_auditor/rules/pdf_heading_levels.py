@@ -799,7 +799,9 @@ _SPLIT_BASELINE_TOLERANCE_PT = 2.0
 _SPLIT_MAX_GAP_PT = 72.0
 
 
-def _split_number_headings(page: PdfPage) -> dict[int, PdfTextLine]:
+def _split_number_headings(
+    page: PdfPage, *, number_pattern: re.Pattern[str] = _NUMBER_ONLY_RE,
+) -> dict[int, PdfTextLine]:
     """Map each split heading's title line to one line carrying number + title.
 
     Some PDFs extract a numbered heading's number and its title as two lines
@@ -813,7 +815,7 @@ def _split_number_headings(page: PdfPage) -> dict[int, PdfTextLine]:
     numbers = [
         line
         for line in lines
-        if _NUMBER_ONLY_RE.match(line.text.strip()) and _is_bold_line(line)
+        if number_pattern.match(line.text.strip()) and _is_bold_line(line)
     ]
     merged: dict[int, PdfTextLine] = {}
     for number in numbers:

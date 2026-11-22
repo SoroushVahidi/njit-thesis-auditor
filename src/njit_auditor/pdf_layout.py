@@ -42,6 +42,7 @@ _LEADER_ONLY_SPAN_RE = re.compile(r"^[.\u2026\u00b7]+$")
 # LaTeX dotfill leaders extract as one span per dot; a line carrying at least
 # this many dot-only spans is treated as a leader-bearing line.
 _MIN_DOT_ONLY_SPANS_FOR_LEADER = 4
+_PREFIXLESS_SECTION_HINT_RE = re.compile(r"^\s*\.[0-9]")
 
 
 def _parse_line_dir(raw_dir: object) -> tuple[float, float] | None:
@@ -141,6 +142,18 @@ def _page_has_leader_run(page_dict: dict) -> bool:
                     if dot_only_spans >= _MIN_DOT_ONLY_SPANS_FOR_LEADER:
                         return True
     return False
+
+
+def _prefixless_section_lines(page_dict: dict) -> set[tuple[int, int]]:
+    """Find lines that may need precise geometry for a leading .1-style identifier."""
+    return {
+        (block_index, line_index)
+        for block_index, block in enumerate(page_dict.get("blocks", []))
+        for line_index, line in enumerate(block.get("lines", []))
+        if _PREFIXLESS_SECTION_HINT_RE.match(
+            "".join(span["text"] for span in line.get("spans", []))
+        )
+    }
 
 
 def _char_x_bounds_by_span(
@@ -336,11 +349,13 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                         )
                     )
 
+            has_leaders = _page_has_leader_run(page_dict)
+            prefixless_lines = _prefixless_section_lines(page_dict) if not has_leaders else set()
             glyph_map = (
                 _char_x_bounds_by_span(
                     page, exclude_annotation_appearances=exclude_annotation_appearances
                 )
-                if _page_has_leader_run(page_dict)
+                if has_leaders or prefixless_lines
                 else {}
             )
             for block_index, block in enumerate(page_dict.get("blocks", [])):
@@ -360,7 +375,11 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                         text = str(span.get("text", ""))
                         if not text.strip():
                             continue
-                        glyphs = glyph_map.get((block_index, line_index, span_index))
+                        glyphs = (
+                            glyph_map.get((block_index, line_index, span_index))
+                            if has_leaders or (block_index, line_index) in prefixless_lines
+                            else None
+                        )
                         char_x_bounds = (
                             glyphs[1]
                             if glyphs is not None
