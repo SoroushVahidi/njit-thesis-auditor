@@ -1,0 +1,24 @@
+\documentclass[12pt]{article}
+\usepackage[letterpaper,left=108bp,right=72bp,top=85bp]{geometry}
+\usepackage{newtxtext}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\baselineskip}{14bp}
+\newcommand{\tocrow}[3][.]{%
+  \noindent\hbox to 432bp{%
+    #2\leaders\hbox to 4.50bp{\hfil#1\hfil}\hfill
+    \hbox to 17bp{\hfil#3}}\par}
+\begin{document}
+\begin{center}\textbf{TABLE OF CONTENTS}\end{center}
+\vspace{12bp}
+\tocrow{1 INTRODUCTION}{11}
+\vspace{10bp}
+\tocrow{2 ANALYSIS OF INDEPENDENT SIGNALS}{22}
+\vspace{10bp}
+\tocrow{3 EXPERIMENTAL ANALYSIS}{33}
+\vspace{10bp}
+
+\tocrow{\hbox to 409bp{\spaceskip=3bp plus 1fil\relax 4 FINAL LINE OF A SYNTHETIC TITLE WITH DOTTED LEADER DOTS}}{44}
+\vspace{10bp}
+\tocrow[\phantom{.}]{\hbox to 409bp{\spaceskip=3bp plus 1fil\relax 5 FINAL LINE OF A SYNTHETIC TITLE WITH DOTTED LEADER DOTS}}{55}
+\end{document}

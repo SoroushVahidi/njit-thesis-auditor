@@ -9,18 +9,19 @@ consistently use dots, all use hyphens, or fewer than 3 paged entries exist.
 Fires for: mixed dot+hyphen leaders (toc_mixed_leader_styles) or some entries
 missing a leader while others have one (toc_missing_leader_style).
 
-Implementation note: the shared PAGE_NUMBER_TOKEN_RE uses _clean_text which
-collapses whitespace, so hyphen-leader and no-leader entries have no
-page_number_token. P075 falls back to entry.line.text (the uncollapsed raw
-extraction) for those cases so whitespace and hyphens are visible.
+For dot grids, measured terminal cells and the folio column establish whether
+a long title leaves room for a leader. The text fallback still handles rows
+without sufficient geometry, including hyphen leaders.
 """
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, format_bbox_detail
+from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextSpan, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     detect_toc_like_pages,
@@ -28,6 +29,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     extract_toc_entry_lines,
     has_trailing_page_number_token,
 )
+from njit_auditor.toc_entry_geometry import LEADER_CHARS, row_glyphs
 
 MIN_ENTRIES_FOR_LEADER_CHECK = 3
 
@@ -42,6 +44,184 @@ _SPACE_PAGED_RE = re.compile(
     r"\s{2,}(?:[0-9]+|[ivxlcdm]+)\s*$",
     re.IGNORECASE,
 )
+
+# Scaled by the measured folio size to absorb extraction and grid rounding.
+_GRID_JITTER_EM = 0.10
+
+
+@dataclass(frozen=True)
+class _LeaderRow:
+    title_right: float
+    folio_left: float
+    folio_right: float
+    font_size: float
+    dots: tuple[tuple[float, float], ...]
+
+
+def _detached_dots(page: PdfPage) -> list[tuple[float, float, float]]:
+    # Visual-row reconstruction can leave dot-only fragments in the right
+    # margin. Recover them here without changing folio or title ownership.
+    return [
+        (line.baseline_y, glyph.x0, glyph.x1)
+        for block in page.text_blocks
+        for line in block.lines
+        if line.baseline_y is not None and line.text.strip()
+        and all(c in LEADER_CHARS or c.isspace() for c in line.text)
+        for glyph in row_glyphs(line)
+        if glyph.char in LEADER_CHARS and glyph.x0 is not None and glyph.x1 is not None
+    ]
+
+
+def _extend_fragmented_title(
+    title_right: float, stop_x: float, spans: list[PdfTextSpan], page: PdfPage, jitter: float,
+) -> float:
+    # The TOC parser can drop isolated spans in the right half of the page.
+    # Only extend a title when its retained final row establishes a repeated
+    # interword gap and the omitted fragments continue that same typography.
+    title = [
+        span for span in sorted(spans, key=lambda span: span.bbox.x0)
+        if span.bbox.x1 <= title_right and span.text.strip()
+    ]
+    if len(title) < 3 or title[-1].bbox.x1 != title_right:
+        return title_right
+    first, middle, last = title[-3:]
+    if not last.font or last.baseline_y is None:
+        return title_right
+
+    def same_text_style(span: PdfTextSpan) -> bool:
+        return (
+            span.font == last.font and span.size == last.size
+            and span.baseline_y == last.baseline_y
+        )
+
+    before = middle.bbox.x0 - first.bbox.x1
+    after = last.bbox.x0 - middle.bbox.x1
+    if (
+        not same_text_style(first) or not same_text_style(middle)
+        or min(before, after) <= jitter or abs(before - after) > jitter
+    ):
+        return title_right
+    gap = (before + after) / 2
+    candidates = sorted(
+        (
+            span for block in page.text_blocks for line in block.lines for span in line.spans
+            if title_right < span.bbox.x0 < span.bbox.x1 <= stop_x
+            and same_text_style(span)
+            and span.text == span.text.strip()
+            and any(c.isalnum() for c in span.text)
+        ),
+        key=lambda span: span.bbox.x0,
+    )
+    for span in candidates:
+        if abs(span.bbox.x0 - title_right - gap) > jitter:
+            break
+        title_right = span.bbox.x1
+    return title_right
+
+
+def _measure_leader_row(
+    entry: TocEntryLine, detached: list[tuple[float, float, float]], page: PdfPage,
+) -> _LeaderRow | None:
+    row, token = entry.page_number_line, entry.page_number_token
+    if row is None or not token or not row.spans:
+        return None
+    folio_span = max(row.spans, key=lambda span: span.bbox.x1)
+    if not folio_span.size or folio_span.baseline_y is None:
+        return None
+    jitter = _GRID_JITTER_EM * folio_span.size
+    glyphs = [glyph for glyph in row_glyphs(row) if not glyph.char.isspace()]
+    tail = glyphs[-len(token):]
+    if (
+        len(glyphs) <= len(token)
+        or not re.search(rf"[\s.…·]{re.escape(token)}\s*$", row.text, re.IGNORECASE)
+        or "".join(g.char for g in tail).casefold() != token.casefold()
+    ):
+        return None
+    folio_left, folio_right = tail[0].x0, tail[-1].x1
+    if (
+        folio_left is None or folio_right is None or not folio_left < folio_right
+        or entry.page_number_right_x is None
+        or abs(folio_right - entry.page_number_right_x) > jitter
+    ):
+        return None
+
+    end = len(glyphs) - len(token) - 1
+    dots: set[tuple[float, float]] = set()
+    while end > 0 and glyphs[end].char in LEADER_CHARS:
+        dot, preceding = glyphs[end], glyphs[end - 1]
+        if dot.x0 is None or dot.x1 is None or preceding.x1 is None:
+            return None
+        if (
+            dot.char == "." and preceding.char not in LEADER_CHARS
+            and dot.x0 - preceding.x1 <= jitter
+        ):
+            # An attached full stop consumes title space.
+            break
+        if not dot.x0 < dot.x1 <= folio_left:
+            return None
+        dots.add((dot.x0, dot.x1))
+        end -= 1
+    title_right = glyphs[end].x1
+    if (
+        title_right is None or title_right >= folio_left
+        or not any(g.char.isalpha() for g in glyphs[:end + 1])
+    ):
+        return None
+    title_right = _extend_fragmented_title(
+        title_right, min((left for left, _ in dots), default=folio_left),
+        row.spans, page, jitter,
+    )
+    dots.update(
+        (left, right) for baseline, left, right in detached
+        if abs(baseline - folio_span.baseline_y) <= jitter
+        and title_right + jitter < left < right <= folio_left
+    )
+    return _LeaderRow(title_right, folio_left, folio_right, folio_span.size, tuple(sorted(dots)))
+
+
+def _measured_grid_style(
+    row: _LeaderRow, peers: list[_LeaderRow], column: float,
+) -> str | None:
+    jitter = _GRID_JITTER_EM * row.font_size
+    if abs(row.folio_right - column) > jitter:
+        return None
+    terminal_cells = [
+        peer.dots[-2:] for peer in peers
+        if peer is not row and abs(peer.folio_right - column) <= jitter and len(peer.dots) >= 2
+    ]
+    if len(terminal_cells) < 2:
+        return None
+    previous_x = median(cells[0][0] for cells in terminal_cells)
+    last_x = median(cells[1][0] for cells in terminal_cells)
+    pitch = last_x - previous_x
+    dot_width = median(cells[1][1] - cells[1][0] for cells in terminal_cells)
+    agreement = sum(
+        abs(previous[0] - previous_x) <= jitter and abs(last[0] - last_x) <= jitter
+        and abs(previous[1] - previous[0] - dot_width) <= jitter
+        and abs(last[1] - last[0] - dot_width) <= jitter
+        for previous, last in terminal_cells
+    )
+    if agreement < 2 or agreement * 2 <= len(terminal_cells) or not 0 < dot_width <= pitch:
+        return None
+
+    # Matching uses jitter. Fit uses both edges of the centered cell itself,
+    # including the space on each side of the rendered dot.
+    padding = (pitch - dot_width) / 2
+    last_cell_left = last_x - padding
+    if last_cell_left + pitch > row.folio_left:
+        return None
+    if not row.dots:
+        return "short" if row.title_right > last_cell_left else "none"
+    if len(row.dots) >= 2:
+        if abs(row.dots[-2][0] - previous_x) <= jitter and abs(row.dots[-1][0] - last_x) <= jitter:
+            return "dot"
+        return None
+    ((left, right),) = row.dots
+    return (
+        "dot" if abs(left - last_x) <= jitter and abs(right - left - dot_width) <= jitter
+        and row.title_right > previous_x - padding
+        else "none"
+    )
 
 
 def _count_phrase(label: str, count: int) -> str:
@@ -103,8 +283,19 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
         if context.page_type != "table_of_contents":
             continue
         entries = extract_toc_entry_lines(context)
-        for index, entry in enumerate(entries):
+        detached = _detached_dots(context.page)
+        measured = [_measure_leader_row(entry, detached, context.page) for entry in entries]
+        peers = [row for row in measured if row is not None]
+        column = median(row.folio_right for row in peers) if len(peers) >= 3 else None
+        for index, (entry, row) in enumerate(zip(entries, measured, strict=True)):
             style = _classify_entry(entry, context.page, entries)
+            if (
+                row is not None and column is not None and style != "hyphen"
+                and (style != "dot" or len(row.dots) == 1)
+            ):
+                # Keep established multi-dot and hyphen detections. A lone
+                # dot on the grid can still leave a missing earlier cell.
+                style = _measured_grid_style(row, peers, column) or style
             if style is not None:
                 paged.append((style, context.page, index, entry))
 

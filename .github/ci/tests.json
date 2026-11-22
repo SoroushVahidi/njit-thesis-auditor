@@ -159,6 +159,7 @@
     "tests/test_r045_no_numbering_20261006.py",
     "tests/test_r055_evidence.py",
     "tests/test_r055_lof_segmentation.py",
+    "tests/test_r057_toc_leader_gaps.py",
     "tests/test_realistic_tex_fixture.py",
     "tests/test_report_outputs.py",
     "tests/test_report_text.py",
