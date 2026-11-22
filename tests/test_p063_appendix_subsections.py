@@ -433,9 +433,34 @@ def test_adversarial_right_aligned_borderless_values(
     _assert_structural_findings(path, monkeypatch, [(3, "body", "A.2")])
 
 
+@pytest.mark.parametrize("with_header", [True, False])
+def test_final_right_aligned_borderless_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, with_header: bool,
+) -> None:
+    path = tmp_path / "borderless_last_value.pdf"
+    with pymupdf.open() as doc:
+        page = _page(doc)
+        page.insert_text((268, 100), "APPENDIX", fontname="Times-Bold", fontsize=14)
+        _body_line(page, "Table A.1. Sensor settings.", 145)
+        rows = [
+            (192, "0.245", "Initial Calibration"),
+            (214, "0.550", "Average Output Current"),
+            (236, ".1", "Nominal Operating Voltage"),
+        ]
+        if with_header:
+            rows.insert(0, (170, "Value", "Parameter"))
+        for y, value, label in rows:
+            number_x = 139 - pymupdf.get_text_length(value, fontname="Times-Bold", fontsize=12)
+            page.insert_text((number_x, y), value, fontname="Times-Bold", fontsize=12)
+            _body_line(page, label, y, x=171)
+        doc.save(path)
+    _assert_structural_findings(path, monkeypatch, [])
+
+
+@pytest.mark.parametrize("with_header", [True, False])
 @pytest.mark.parametrize("followed_by_prose", [False, True])
 def test_adversarial_new_heading_ends_borderless_table(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, followed_by_prose: bool,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, followed_by_prose: bool, with_header: bool,
 ) -> None:
     path = tmp_path / "heading_after_table.pdf"
     with pymupdf.open() as doc:
@@ -443,7 +468,10 @@ def test_adversarial_new_heading_ends_borderless_table(
         _page(doc, "REFERENCES")
         page = _page(doc, "APPENDIX")
         _body_line(page, "Table A.1. Sensor settings.", 145)
-        for y, value, label in ((170, "Value", "Parameter"), (192, "0.22", "Signal Gain")):
+        first_row = (170, "Value", "Parameter") if with_header else (
+            170, "0.24", "Initial Calibration",
+        )
+        for y, value, label in (first_row, (192, "0.22", "Signal Gain")):
             _body_line(page, value, y, x=116, bold=False)
             _body_line(page, label, y, x=171, bold=False)
         page.insert_text((116, 214), ".1", fontname="Helvetica-Bold", fontsize=14)

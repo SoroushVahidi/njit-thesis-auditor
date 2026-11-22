@@ -276,10 +276,18 @@ def _has_borderless_table_peers(
         # At a trailing edge, a heading-style change followed by prose
         # terminates the table even when the heading fits its columns.
         if (
-            earlier is not None and earlier.is_header and previous.is_value
+            earlier is not None and previous.is_value
             and earlier.aligns_with(candidate, right_aligned=right_aligned)
             and _keeps_row_spacing(earlier, previous, candidate)
             and (previous.keeps_typography(candidate) or not following_is_prose)
+            and (
+                earlier.is_header
+                or (
+                    earlier.is_value
+                    and (earlier.is_measurement or previous.is_measurement)
+                    and earlier.keeps_typography(previous)
+                )
+            )
         ):
             return True
     return False
