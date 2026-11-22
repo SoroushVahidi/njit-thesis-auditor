@@ -325,6 +325,178 @@ def test_ambiguous_split_body_heading_abstains(tmp_path: Path) -> None:
     assert _findings(path) == []
 
 
+def _assert_structural_findings(
+    path: Path, monkeypatch: pytest.MonkeyPatch, expected: list[tuple[int, str, str]],
+) -> None:
+    layout = load_pdf_layout(str(path))
+    findings = collect_pdf_layout_findings(layout, path)
+    with monkeypatch.context() as patch:
+        patch.setattr(pdf_appendix_body_headings, "check_appendix_subsections", lambda *_: [])
+        baseline = collect_pdf_layout_findings(layout, path)
+    assert [f for f in findings if f.details.get("issue_type") != _ISSUE] == baseline
+    targets = [f for f in findings if f.details.get("issue_type") == _ISSUE]
+    assert _subsections(targets) == expected
+    report = audit_findings_to_json_dict(targets, {"audit_type": "pdf"})
+    boxes = _highlight_boxes_by_page(report["findings"])
+    assert set(boxes) == {page for page, _, _ in expected}
+    with pymupdf.open(path) as pdf:
+        for physical_page, page_boxes in boxes.items():
+            page = pdf[physical_page - 1]
+            _draw_boxes_for_page(page, page_boxes)
+            rendered = [tuple(mark.rect) for mark in page.annots()]
+            for f in [f for f in targets if f.page == physical_page]:
+                assert f.rule_id == "P063"
+                token = f.details["actual_identifier"]
+                x0, y0, x1, y1 = (float(v) for v in f.details["bbox"].split(","))
+                assert any(
+                    tuple(rect) == pytest.approx((x0, y0, x1, y1), abs=0.1)
+                    for rect in page.search_for(token)
+                )
+                assert any(
+                    rect == pytest.approx((x0 - 1, y0 - 1, x1 + 1, y1 + 1), abs=0.1)
+                    for rect in rendered
+                )
+
+
+@pytest.mark.parametrize("folio", ["", "7"])
+def test_adversarial_toc_title_number_and_column_folio(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, folio: str,
+) -> None:
+    path = tmp_path / "toc_title_number.pdf"
+    with pymupdf.open() as doc:
+        toc = _page(doc, "TABLE OF CONTENTS")
+        _toc_line(toc, "CHAPTER 1 INTRODUCTION", 145, "1")
+        _toc_line(toc, "APPENDIX INSTRUMENT DATA", 175, "6")
+        _toc_line(
+            toc, "A.1 Measured Response of Sensors on Circuit Boards in Chamber 2",
+            205, folio, x=126,
+        )
+        if folio:
+            _toc_line(toc, ".2 Spectral Analysis", 221, "8", x=150)
+        else:
+            _toc_line(toc, ".1 Bar Under Test", 221, "7", x=150)
+        _toc_line(toc, ".3 Independent Analysis", 247, "9", x=126)
+        _page(doc, "CHAPTER 1 INTRODUCTION")
+        _page(doc, "APPENDIX")
+        doc.save(path)
+    expected = [(1, "table of contents", "A.2")] if folio else []
+    _assert_structural_findings(path, monkeypatch, [*expected, (1, "table of contents", "A.3")])
+
+
+@pytest.mark.parametrize("bold_header", [False, True])
+@pytest.mark.parametrize("composite", [False, True])
+def test_adversarial_ruled_table_cells_are_independent_of_header_style_and_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bold_header: bool, composite: bool,
+) -> None:
+    path = tmp_path / "ruled_table.pdf"
+    with pymupdf.open() as doc:
+        _page(doc, "CHAPTER 1 INTRODUCTION")
+        _page(doc, "REFERENCES")
+        page = _page(doc, "APPENDIX")
+        _body_line(page, ".3 Instrument Setup", 145)
+        _body_line(page, "Table A.1. Sensor settings.", 169)
+        drawing = page.new_shape() if composite else page
+        for y in (181, 202, 223):
+            drawing.draw_line((108, y), (370, y))
+        for x in (108, 158, 370):
+            drawing.draw_line((x, 181), (x, 223))
+        if isinstance(drawing, pymupdf.Shape):
+            drawing.finish()
+            drawing.commit()
+        _body_line(page, "Value", 196, x=116, bold=bold_header)
+        _body_line(page, "Parameter", 196, x=171, bold=bold_header)
+        _body_line(page, ".1", 217, x=116)
+        _body_line(page, "Nominal Operating Voltage", 217, x=171)
+        _body_line(page, ".4 Circuit Calibration", 246)
+        doc.save(path)
+    _assert_structural_findings(path, monkeypatch, [(3, "body", "A.3"), (3, "body", "A.4")])
+
+
+def test_adversarial_right_aligned_borderless_values(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "borderless_table.pdf"
+    with pymupdf.open() as doc:
+        _page(doc, "CHAPTER 1 INTRODUCTION")
+        _page(doc, "REFERENCES")
+        page = _page(doc, "APPENDIX")
+        _body_line(page, "Table A.1. Sensor settings.", 145)
+        for y, value, label in (
+            (170, "Value", "Parameter"), (192, "0.245", "Initial Calibration"),
+            (214, ".1", "Nominal Operating Voltage"), (236, "0.550", "Average Output Current"),
+        ):
+            number_x = 139 - pymupdf.get_text_length(value, fontname="Times-Bold", fontsize=12)
+            page.insert_text((number_x, y), value, fontname="Times-Bold", fontsize=12)
+            _body_line(page, label, y, x=171)
+        _body_line(page, ".2 Instrument Setup", 264)
+        doc.save(path)
+    _assert_structural_findings(path, monkeypatch, [(3, "body", "A.2")])
+
+
+@pytest.mark.parametrize("followed_by_prose", [False, True])
+def test_adversarial_new_heading_ends_borderless_table(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, followed_by_prose: bool,
+) -> None:
+    path = tmp_path / "heading_after_table.pdf"
+    with pymupdf.open() as doc:
+        _page(doc, "CHAPTER 1 INTRODUCTION")
+        _page(doc, "REFERENCES")
+        page = _page(doc, "APPENDIX")
+        _body_line(page, "Table A.1. Sensor settings.", 145)
+        for y, value, label in ((170, "Value", "Parameter"), (192, "0.22", "Signal Gain")):
+            _body_line(page, value, y, x=116, bold=False)
+            _body_line(page, label, y, x=171, bold=False)
+        page.insert_text((116, 214), ".1", fontname="Helvetica-Bold", fontsize=14)
+        page.insert_text((171, 214), "Instrument Calibration", fontname="Helvetica-Bold",
+                         fontsize=14)
+        if followed_by_prose:
+            _body_line(page, "The calibration procedure verified each instrument.", 240, bold=False)
+        doc.save(path)
+    expected = [(3, "body", "A.1")] if followed_by_prose else []
+    _assert_structural_findings(path, monkeypatch, expected)
+
+
+def test_heading_between_equal_width_grids_and_rules_is_not_a_table_cell(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "separate_grids.pdf"
+    with pymupdf.open() as doc:
+        page = _page(doc, "APPENDIX")
+        for top, number in ((140, ".1"), (240, ".2")):
+            for y in (top, top + 21, top + 42):
+                page.draw_line((108, y), (370, y))
+            for x in (108, 158, 370):
+                page.draw_line((x, top), (x, top + 42))
+            _body_line(page, "Value", top + 16, x=116, bold=False)
+            _body_line(page, "Parameter", top + 16, x=171, bold=False)
+            _body_line(page, number, top + 37, x=116)
+            _body_line(page, "Nominal Operating Voltage", top + 37, x=171)
+        _body_line(page, ".3", 216, x=116)
+        _body_line(page, "Instrument Calibration", 216, x=171)
+        for y in (310, 330, 351):
+            page.draw_line((108, y), (370, y))
+        _body_line(page, ".4 Instrument Setup", 344)
+        doc.save(path)
+    _assert_structural_findings(path, monkeypatch, [(1, "body", "A.3"), (1, "body", "A.4")])
+
+
+def test_single_aligned_row_does_not_establish_borderless_membership(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "unrelated-alignment.pdf"
+    with pymupdf.open() as doc:
+        page = _page(doc, "APPENDIX")
+        for y, value, label in (
+            (182, "0.222", "One measurement"),
+            (204, ".1", "Instrument Calibration"),
+        ):
+            number_x = 139 - pymupdf.get_text_length(value, fontname="Times-Bold", fontsize=12)
+            page.insert_text((number_x, y), value, fontname="Times-Bold", fontsize=12)
+            _body_line(page, label, y, x=171)
+        doc.save(path)
+    _assert_structural_findings(path, monkeypatch, [(1, "body", "A.1")])
+
+
 @pytest.mark.parametrize("isolated_token", [False, True])
 def test_number_only_highlight_and_unrelated_output_preservation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, isolated_token: bool,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from statistics import median as _median
 
 import fitz
@@ -232,7 +233,10 @@ def _page_dict_reading_rotation(page: fitz.Page, page_dict: dict) -> int:
     return reading_frame_rotation(int(page.rotation), directions)
 
 
-def _horizontal_rule_bboxes(page: fitz.Page, reading_rotation: int = 0) -> list[BBox]:
+def _horizontal_rule_bboxes(
+    page: fitz.Page, reading_rotation: int = 0, *,
+    drawing_rects: Iterable[fitz.Rect] | None = None,
+) -> list[BBox]:
     """Join adjacent thin drawing segments into full visible horizontal rules.
 
     PDF table borders are often emitted as several touching filled rectangles,
@@ -244,14 +248,17 @@ def _horizontal_rule_bboxes(page: fitz.Page, reading_rotation: int = 0) -> list[
     reads upright only after ``/Rotate`` (*reading_rotation* != 0, e.g. a
     pdflscape landscape page) a visually horizontal rule is vertical in
     unrotated space, so segments are grouped in the displayed frame and the
-    resulting rules are mapped back to unrotated space.
+    resulting rules are mapped back to unrotated space. Callers measuring
+    individual path items can supply their visible segment rectangles.
     """
     to_frame = page.rotation_matrix if reading_rotation else fitz.Identity
     segments: list[fitz.Rect] = []
-    for drawing in page.get_drawings():
-        rect = drawing["rect"] * to_frame
-        if not _drawing_is_visible(drawing):
-            continue
+    if drawing_rects is None:
+        drawing_rects = (
+            drawing["rect"] for drawing in page.get_drawings() if _drawing_is_visible(drawing)
+        )
+    for drawing_rect in drawing_rects:
+        rect = drawing_rect * to_frame
         if (
             0 <= rect.height <= _MAX_HORIZONTAL_RULE_HEIGHT_PT
             and rect.width >= _MIN_HORIZONTAL_SEGMENT_WIDTH_PT

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_layout import join_content_span_texts
-from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine, format_bbox_detail
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine, PdfTextSpan, format_bbox_detail
 from njit_auditor.pdf_table_continuations import measure_ruled_table_boxes
 from njit_auditor.rules.pdf_heading_levels import (
     _SKIP_HEADINGS,
@@ -160,51 +160,129 @@ def _starts_in_table(box: BBox, tables: tuple[BBox, ...]) -> bool:
     return any(table.x0 <= box.x0 < table.x1 and table.y0 <= mid_y <= table.y1 for table in tables)
 
 
+@dataclass(frozen=True)
+class _ColumnRow:
+    value: PdfTextSpan
+    label: PdfTextSpan
+
+    @property
+    def baseline(self) -> float:
+        if self.value.baseline_y is not None:
+            return self.value.baseline_y
+        return (self.value.bbox.y0 + self.value.bbox.y1) / 2
+
+    def aligns_with(self, candidate: _ColumnRow, *, right_aligned: bool) -> bool:
+        box, other = self.value.bbox, candidate.value.bbox
+        delta = box.x1 - other.x1 if right_aligned else box.x0 - other.x0
+        return (
+            abs(delta) <= _TABLE_COLUMN_ALIGNMENT_PT
+            and abs(self.label.bbox.x0 - candidate.label.bbox.x0) <= _TABLE_COLUMN_ALIGNMENT_PT
+        )
+
+    def keeps_typography(self, candidate: _ColumnRow) -> bool:
+        for cell, other in ((self.value, candidate.value), (self.label, candidate.label)):
+            if (
+                not cell.font or not other.font or cell.size is None or other.size is None
+                or cell.font.split("+")[-1] != other.font.split("+")[-1]
+                or abs(cell.size - other.size) > 0.5
+                or (cell.bold, cell.italic) != (other.bold, other.italic)
+            ):
+                return False
+        return True
+
+    @property
+    def is_value(self) -> bool:
+        return _TABLE_VALUE_RE.fullmatch(self.value.text.strip()) is not None
+
+    @property
+    def is_header(self) -> bool:
+        return self.value.text.strip().replace(" ", "").isalpha()
+
+    @property
+    def is_measurement(self) -> bool:
+        text = self.value.text.strip()
+        return self.is_value and "." in text and _NUMBER_ONLY_RE.fullmatch(text) is None
+
+
+def _column_row(line: PdfTextLine) -> _ColumnRow | None:
+    spans = [span for span in line.spans if span.text.strip()]
+    if len(spans) < 2:
+        return None
+    left, right = spans[:2]
+    if (
+        right.bbox.x0 - left.bbox.x1 < (left.size or left.bbox.height)
+        or not any(c.isalpha() for c in right.text)
+    ):
+        return None
+    return _ColumnRow(left, right)
+
+
+def _keeps_row_spacing(first: _ColumnRow, middle: _ColumnRow, last: _ColumnRow) -> bool:
+    before, after = middle.baseline - first.baseline, last.baseline - middle.baseline
+    height = max(middle.value.bbox.height, middle.label.bbox.height)
+    return (
+        0 < before <= 2 * height and 0 < after <= 2 * height
+        and abs(before - after) <= height / 4
+    )
+
+
 def _has_borderless_table_peers(
     line: PdfTextLine, identifier: str, lines: list[PdfTextLine], ruled: tuple[BBox, ...],
 ) -> bool:
-    """Look for nearby rows with the same separated value and label columns."""
-    spans = [span for span in line.spans if span.text.strip()]
-    if len(spans) < 2 or spans[0].text.strip() != identifier:
+    """Infer membership from contiguous value/label rows in the same columns."""
+    candidate = _column_row(line)
+    if candidate is None or candidate.value.text.strip() != identifier:
         return False
-    left, right = spans[:2]
-    if right.bbox.x0 - left.bbox.x1 < (left.size or left.bbox.height):
-        return False
-    mid_y = (left.bbox.y0 + left.bbox.y1) / 2
-    row_height = max(left.bbox.height, right.bbox.height)
+    mid_y = (candidate.value.bbox.y0 + candidate.value.bbox.y1) / 2
+    row_height = max(candidate.value.bbox.height, candidate.label.bbox.height)
     nearby = [
         peer for peer in lines
         if abs((peer.bbox.y0 + peer.bbox.y1) / 2 - mid_y) <= 3 * row_height
-        and not _starts_in_table(peer.bbox, ruled)
     ]
-    peers: list[tuple[float, str | None]] = []
+    above: list[_ColumnRow | None] = []
+    following = None
+    following_is_prose = False
     for row in _assemble_same_baseline_toc_rows(nearby):
-        y = (row.bbox.y0 + row.bbox.y1) / 2
-        if abs(y - mid_y) <= _TABLE_COLUMN_ALIGNMENT_PT:
-            continue
-        first = next((span for span in row.spans
-                      if abs(span.bbox.x0 - left.bbox.x0) <= _TABLE_COLUMN_ALIGNMENT_PT), None)
-        second = next((span for span in row.spans
-                       if abs(span.bbox.x0 - right.bbox.x0) <= _TABLE_COLUMN_ALIGNMENT_PT), None)
-        if first is None or second is None or not any(c.isalpha() for c in second.text):
-            continue
-        value = first.text.strip()
-        if _TABLE_VALUE_RE.fullmatch(value):
-            peers.append((y, value))
-        elif y < mid_y and value.replace(" ", "").isalpha():
-            peers.append((y, None))
+        columns = None if _starts_in_table(row.bbox, ruled) else _column_row(row)
+        y = columns.baseline if columns else (row.baseline_y or row.bbox.y1)
+        if y < candidate.baseline - _TABLE_COLUMN_ALIGNMENT_PT:
+            above.append(columns)
+        elif y > candidate.baseline + _TABLE_COLUMN_ALIGNMENT_PT:
+            following = columns
+            following_is_prose = (
+                columns is None and row.bbox.x0 <= candidate.value.bbox.x0
+                and not _is_bold_line(row)
+                and sum(word.isalpha() for word in row.text.split()) >= 4
+            )
+            break
 
-    # A column header and another value, in the same local row rhythm, also
-    # support the first and last value rows of a borderless table.
-    for (y1, value1), (y2, value2) in zip(peers, peers[1:]):
-        if value1 is None and value2 is not None:
-            gaps = sorted((y1, y2, mid_y))
-            if abs((gaps[1] - gaps[0]) - (gaps[2] - gaps[1])) <= row_height * 0.25:
-                return True
-    # With no identifiable header, require value rows on both sides and
-    # distinguish decimal measurements from a run of split .1/.2 headings.
-    decimals = [y for y, value in peers if value and not value.startswith(".") and "." in value]
-    return any(y < mid_y for y in decimals) and any(y > mid_y for y in decimals)
+    previous = above[-1] if above else None
+    earlier = above[-2] if len(above) >= 2 else None
+    for right_aligned in (False, True):
+        if previous is None or not previous.aligns_with(candidate, right_aligned=right_aligned):
+            continue
+        if (
+            following is not None and following.is_value
+            and following.aligns_with(candidate, right_aligned=right_aligned)
+            and _keeps_row_spacing(previous, candidate, following)
+            and (
+                (previous.is_measurement and following.is_measurement)
+                or (previous.is_header and (
+                    following.is_measurement or following.keeps_typography(candidate)
+                ))
+            )
+        ):
+            return True
+        # At a trailing edge, a heading-style change followed by prose
+        # terminates the table even when the heading fits its columns.
+        if (
+            earlier is not None and earlier.is_header and previous.is_value
+            and earlier.aligns_with(candidate, right_aligned=right_aligned)
+            and _keeps_row_spacing(earlier, previous, candidate)
+            and (previous.keeps_typography(candidate) or not following_is_prose)
+        ):
+            return True
+    return False
 
 
 def _body_findings(
@@ -285,20 +363,21 @@ class _TocOwner:
     column_x: float
 
 
-def _toc_folio(entry: TocEntryLine) -> tuple[int, float] | None:
+def _toc_folio(entry: TocEntryLine, column_x: float | None = None) -> tuple[int, float] | None:
     token, right_x = entry.page_number_token, entry.page_number_right_x
     if (
         token and token.isascii() and token.isdecimal() and right_x is not None
         and _line_reaches_page_number_column(entry.line)
+        and (column_x is None or abs(right_x - column_x) <= RIGHT_EDGE_TOLERANCE_PT)
     ):
         return int(token), right_x
     return None
 
 
-def _toc_title(entry: TocEntryLine) -> str:
+def _toc_title(entry: TocEntryLine, *, has_folio: bool) -> str:
     text = entry.cleaned_text
     token = entry.page_number_token
-    if token:
+    if has_folio and token:
         text = text.removesuffix(token).rstrip()
     return _TRAILING_LEADERS_RE.sub("", text).rstrip()
 
@@ -307,7 +386,7 @@ def _toc_appendix(entry: TocEntryLine) -> tuple[str | None, tuple[int, float]] |
     folio = _toc_folio(entry)
     if folio is None:
         return None
-    text = _toc_title(entry)
+    text = _toc_title(entry, has_folio=True)
     match = _TOC_APPENDIX_RE.match(text)
     if match is None or _NUMBERED_APPENDIX_TAIL_RE.match(text[match.end():].lstrip()):
         return None
@@ -322,7 +401,10 @@ def _toc_logical_subsection(
     parts = []
     previous = first
     for offset, row in enumerate(rows[index : index + LOGICAL_WRAP_MAX_ROWS]):
-        text = _toc_title(row)
+        # A trailing title number outside the established column is neither
+        # stripped from the title nor allowed to terminate the open entry.
+        folio = _toc_folio(row, owner.column_x)
+        text = _toc_title(row, has_folio=folio is not None)
         if offset and (
             row.line.bbox.y0 - previous.line.bbox.y0 > LOGICAL_WRAP_Y_GAP_PT
             or row.indent_x < first.indent_x + LOGICAL_WRAP_MIN_INDENT_PT
@@ -332,10 +414,8 @@ def _toc_logical_subsection(
         ):
             break
         parts.append(text)
-        folio = _toc_folio(row)
         if folio is not None:
-            number, x = folio
-            if number >= owner.folio and abs(x - owner.column_x) <= RIGHT_EDGE_TOLERANCE_PT:
+            if folio[0] >= owner.folio:
                 return " ".join(parts), index + offset
             break
         previous = row
@@ -384,7 +464,7 @@ def _toc_findings(
                 if (valid and valid[1][0] != owner.letter) or SECTION_NUMBER_PREFIX_RE.match(text):
                     owner = None
                     continue
-                malformed = _SUBSECTION_START_RE.match(_toc_title(row))
+                malformed = _SUBSECTION_START_RE.match(text)
                 if not valid and (
                     not malformed or row.indent_x < owner.indent_x + LOGICAL_WRAP_MIN_INDENT_PT
                 ):
