@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import fitz
+import pytest
 
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.rules.pdf_appendix_body_headings import (
@@ -298,3 +299,168 @@ def test_p063_finding_rule_id_and_severity(tmp_path: Path) -> None:
     for f in findings:
         assert f.rule_id == "P063"
         assert f.severity == Severity.WARNING
+
+def _add_section_page(
+    doc: fitz.Document, heading: str, rows: tuple[str, ...] = ()
+) -> fitz.Page:
+    page = doc.new_page(width=612, height=792)
+    page.insert_text((205, 86), heading, fontname="Times-Bold", fontsize=14)
+    for index, row in enumerate(rows):
+        page.insert_text((108, 145 + 24 * index), row, fontsize=12)
+    return page
+
+
+@pytest.mark.parametrize("references", [1, 2])
+@pytest.mark.parametrize("body_heading", ["APPENDIX", "APPENDIX A"])
+def test_p063_toc_reference_is_not_a_second_appendix(
+    tmp_path: Path, references: int, body_heading: str
+) -> None:
+    path = tmp_path / "toc_appendix.pdf"
+    with fitz.open() as doc:
+        _add_section_page(doc, "TABLE OF CONTENTS", (
+            "CHAPTER 1 INTRODUCTION ........... 1",
+            *(["APPENDIX ........... 95"] * references),
+            "A.1 Instrument Results ........... 95",
+            "A.1.7 Response under load ........... 96",
+        ))
+        _add_section_page(doc, "CHAPTER 1 INTRODUCTION")
+        _add_section_page(doc, body_heading, ("A.1 Instrument Results",))
+        doc.save(path)
+
+    findings = _p063_findings(path)
+    if body_heading == "APPENDIX":
+        assert not findings
+    else:
+        (finding,) = findings
+        assert finding.page == 3
+        assert finding.details["issue_type"] == "single_appendix_uses_letter_label"
+        assert finding.details["appendix_count"] == "1"
+
+
+def test_p063_ignores_detached_folio_on_unheaded_toc_continuation(tmp_path: Path) -> None:
+    path = tmp_path / "toc_continuation.pdf"
+    with fitz.open() as doc:
+        _add_section_page(doc, "TABLE OF CONTENTS", ("CHAPTER 1 INTRODUCTION .... 1",))
+        continuation = doc.new_page(width=612, height=792)
+        continuation.insert_text((108, 100), "APPENDIX A INSTRUMENT DATA", fontsize=12)
+        continuation.insert_text((528, 100), "95", fontsize=12)
+        _add_section_page(doc, "CHAPTER 1 INTRODUCTION")
+        _add_section_page(doc, "APPENDIX")
+        doc.save(path)
+
+    assert _p063_findings(path) == []
+
+
+@pytest.mark.parametrize("heading", [
+    "LIST OF TABLES", "LIST OF FIGURES (Continued)", "LIST OF SYMBOLS", "ACKNOWLEDGEMENTS",
+    "REFERENCES",
+])
+def test_p063_non_body_sections_do_not_contribute_appendix_candidates(
+    tmp_path: Path, heading: str
+) -> None:
+    path = tmp_path / "not_body.pdf"
+    with fitz.open() as doc:
+        _add_section_page(doc, "CHAPTER 1 INTRODUCTION")
+        _add_section_page(doc, heading, ("APPENDIX A INSTRUMENT DATA",))
+        page = _add_section_page(doc, "APPENDIX A")
+        # A real, visibly formatted appendix can also start after References.
+        page.insert_text((108, 150), "A.1 Instrument Data", fontsize=12)
+        doc.save(path)
+
+    (finding,) = _p063_findings(path)
+    assert finding.page == 3
+    assert finding.details["issue_type"] == "single_appendix_uses_letter_label"
+    assert finding.details["appendix_count"] == "1"
+
+
+def test_p063_reference_continuation_is_not_an_appendix(tmp_path: Path) -> None:
+    path = tmp_path / "reference_continuation.pdf"
+    with fitz.open() as doc:
+        _add_section_page(doc, "CHAPTER 1 INTRODUCTION")
+        _add_section_page(doc, "BIBLIOGRAPHY", ("A. Author. Invented References.",))
+        continuation = doc.new_page(width=612, height=792)
+        continuation.insert_text((108, 100), "APPENDIX B", fontsize=12)
+        _add_section_page(doc, "APPENDIX A")
+        doc.save(path)
+
+    (finding,) = _p063_findings(path)
+    assert finding.page == 4
+    assert finding.details["issue_type"] == "single_appendix_uses_letter_label"
+    assert finding.details["appendix_count"] == "1"
+
+
+@pytest.mark.parametrize("label", ["Appendix B describes these samples", "APPENDIX B Results were",
+                                  "APPENDIX B.1 Subsection", "Appendix B."])
+def test_p063_ambiguous_prose_and_subsections_are_not_appendices(
+    tmp_path: Path, label: str
+) -> None:
+    path = tmp_path / "no_appendix.pdf"
+    with fitz.open() as doc:
+        _add_section_page(doc, "CHAPTER 1 INTRODUCTION")
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((108, 96), label, fontsize=12)
+        page.insert_text((108, 111), "described earlier in this paragraph.", fontsize=12)
+        page.insert_text((108, 174), ".1 millimeter is the observed resolution.", fontsize=12)
+        doc.save(path)
+
+    assert _p063_findings(path) == []
+
+
+def test_p063_centered_prose_geometry_does_not_establish_heading(tmp_path: Path) -> None:
+    path = tmp_path / "centered_prose.pdf"
+    with fitz.open() as doc:
+        _add_section_page(doc, "CHAPTER 1 INTRODUCTION")
+        page = doc.new_page(width=612, height=792)
+        rect = fitz.Rect(72, 76, 576, 100)
+        text = "Appendix B Results were collected in this paragraph"
+        page.insert_textbox(rect, text, fontsize=12, align=fitz.TEXT_ALIGN_CENTER)
+        page.insert_text((108, 108), "and were measured twice before analysis.", fontsize=12)
+        doc.save(path)
+
+    assert _p063_findings(path) == []
+
+
+def test_p063_wrapped_heading_at_page_boundary_keeps_its_own_page(tmp_path: Path) -> None:
+    path = tmp_path / "wrapped_appendix.pdf"
+    with fitz.open() as doc:
+        page = _add_section_page(doc, "CHAPTER 1 INTRODUCTION")
+        page.insert_text((225, 684), "APPENDIX A DATA FROM", fontname="Times-Bold", fontsize=14)
+        page.insert_text((225, 702), "APPENDIX MATERIAL", fontname="Times-Bold", fontsize=14)
+        _add_section_page(doc, "APPENDIX A (Continued)", ("A.1 Instrument Data",))
+        doc.save(path)
+
+    (finding,) = _p063_findings(path)
+    assert finding.page == 1
+    assert finding.details["issue_type"] == "single_appendix_uses_letter_label"
+    assert finding.details["appendix_count"] == "1"
+    assert float(finding.details["bbox"].split(",")[1]) > 650
+
+
+def test_p063_multiple_separate_headings_are_counted_once_each(tmp_path: Path) -> None:
+    path = tmp_path / "separate_appendices.pdf"
+    with fitz.open() as doc:
+        _add_section_page(doc, "CHAPTER 1 INTRODUCTION")
+        page = _add_section_page(doc, "APPENDIX A")
+        page.insert_text((108, 145), "A.1 Valid Measurements", fontsize=12)
+        page.insert_text((248, 330), "APPENDIX B", fontname="Times-Bold", fontsize=14)
+        page.insert_text((108, 378), "B.1.7 Response under load", fontsize=12)
+        _add_section_page(doc, "APPENDIX", ("C.1 Instrument Data",))
+        doc.save(path)
+
+    (finding,) = _p063_findings(path)
+    assert finding.page == 3
+    assert finding.details["issue_type"] == "multiple_appendix_missing_letter"
+    assert finding.details["appendix_count"] == "3"
+
+
+def test_p063_separately_wrapped_letter_belongs_to_heading(tmp_path: Path) -> None:
+    path = tmp_path / "split_appendix_label.pdf"
+    with fitz.open() as doc:
+        _add_section_page(doc, "CHAPTER 1 INTRODUCTION")
+        page = _add_section_page(doc, "APPENDIX")
+        page.insert_text((241, 104), "A", fontname="Times-Bold", fontsize=14)
+        _add_section_page(doc, "APPENDIX B")
+        _add_section_page(doc, "APPENDIX C")
+        doc.save(path)
+
+    assert _p063_findings(path) == []
