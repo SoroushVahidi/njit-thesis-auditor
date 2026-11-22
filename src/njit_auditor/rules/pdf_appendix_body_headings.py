@@ -61,7 +61,7 @@ from njit_auditor.rules.pdf_headings import (
     _line_centered,
     normalize_heading_text,
 )
-from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT, RIGHT_MARGIN_PT
+from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT, RIGHT_MARGIN_PT, TOP_MARGIN_PT
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 from njit_auditor.rules.pdf_references_citations_structural import (
     _page_heading as _references_page_heading,
@@ -128,6 +128,17 @@ def _has_folio_peer(line: PdfTextLine, folios: list[PdfTextLine]) -> bool:
     return False
 
 
+def _is_upper_folio(line: PdfTextLine, page_width: float) -> bool:
+    """Recognize an isolated number in an upper-margin folio position."""
+    if line.bbox.y1 > TOP_MARGIN_PT or not PAGE_NUM_RE.fullmatch(line.text.strip()):
+        return False
+    right_edge = page_width - RIGHT_MARGIN_PT
+    return (
+        _line_centered(line, LEFT_MARGIN_PT, right_edge, page_width=page_width)
+        or abs(line.bbox.x1 - right_edge) <= CENTER_TOLERANCE_PT
+    )
+
+
 def _is_wrapped_letter(previous: PdfTextLine, following: PdfTextLine) -> bool:
     if not (
         re.fullmatch(r"[A-Z]", following.text.strip())
@@ -183,7 +194,10 @@ def _collect_appendix_headings(pdf_doc: PdfDocument) -> list[tuple[int, str, BBo
             # only a styled opening heading can establish a new appendix.
             if not styled and (previous is not None or in_references):
                 continue
-            if in_references and previous is not None:
+            # An isolated upper folio can precede the heading without sharing its row.
+            if in_references and previous is not None and (
+                index != 1 or not _is_upper_folio(previous, page.width)
+            ):
                 continue
             text = _heading_text(line, bold=bold)
             if text is None or _has_folio_peer(line, folios):

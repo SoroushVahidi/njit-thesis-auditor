@@ -7,10 +7,16 @@ from pathlib import Path
 import fitz
 import pytest
 
+from njit_auditor.audit_runner import collect_pdf_layout_findings
+from njit_auditor.pdf_highlight import _draw_boxes_for_page, get_pdf_page_sizes
 from njit_auditor.pdf_layout import load_pdf_layout
+from njit_auditor.report_outputs import audit_findings_to_json_dict
+from njit_auditor.report_view import build_report_view
 from njit_auditor.rules.pdf_appendix_body_headings import (
+    _collect_appendix_headings,
     check_pdf_appendix_body_headings,
 )
+from njit_auditor.web_app import _highlight_boxes_by_page
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -387,6 +393,91 @@ def test_p063_reference_continuation_is_not_an_appendix(tmp_path: Path) -> None:
     assert finding.page == 4
     assert finding.details["issue_type"] == "single_appendix_uses_letter_label"
     assert finding.details["appendix_count"] == "1"
+
+
+@pytest.mark.parametrize("folio_x", [None, 525, 303])
+@pytest.mark.parametrize("second_heading", ["APPENDIX B", "APPENDIX"])
+def test_p063_appendix_pair_directly_after_references(
+    tmp_path: Path, folio_x: int | None, second_heading: str
+) -> None:
+    path = tmp_path / "appendices_after_references.pdf"
+    with fitz.open() as doc:
+        _add_section_page(doc, "CHAPTER 1 INTRODUCTION")
+        _add_section_page(doc, "REFERENCES", ("Author. (2020). Synthetic reference.",))
+        page = doc.new_page(width=612, height=792)
+        if folio_x is not None:
+            page.insert_text((folio_x, 43), "3", fontname="Times-Roman", fontsize=12)
+        page.insert_textbox(
+            (108, 100, 540, 128), "APPENDIX A", fontname="Times-Bold", fontsize=14,
+            align=fitz.TEXT_ALIGN_CENTER,
+        )
+        page.insert_text(
+            (108, 175), "A.1 Invented Measurements", fontname="Times-Bold", fontsize=12,
+        )
+        _add_section_page(doc, second_heading, ("B.1.7 Response under load",))
+        doc.save(path)
+
+    layout = load_pdf_layout(str(path))
+    headings = _collect_appendix_headings(layout)
+    assert [(page, text) for page, text, _ in headings] == [(3, "APPENDIX A"), (4, second_heading)]
+    assert headings[0][2].y0 == pytest.approx(100)
+
+    report = audit_findings_to_json_dict(
+        collect_pdf_layout_findings(layout, path), {"audit_type": "pdf"},
+    )
+    findings = [row for row in report["findings"] if row["rule_id"] == "P063"]
+    cards = [
+        card for card in build_report_view(report, pdf_page_sizes=get_pdf_page_sizes(path)).findings
+        if card.rule_id == "P063"
+    ]
+    boxes = _highlight_boxes_by_page(findings)
+    if second_heading == "APPENDIX B":
+        assert findings == []
+        assert cards == []
+        assert boxes == {}
+        return
+
+    (finding,) = findings
+    (card,) = cards
+    assert finding["page"] == 4
+    assert finding["details"]["issue_type"] == "multiple_appendix_missing_letter"
+    assert finding["details"]["appendix_count"] == "2"
+    assert card.finding_id == f'f{report["findings"].index(finding)}'
+    assert card.has_highlight
+    assert list(boxes) == [4]
+    with fitz.open(path) as doc:
+        page = doc[3]
+        (heading_rect,) = page.search_for("APPENDIX")
+        _draw_boxes_for_page(page, boxes[4])
+        (annotation,) = page.annots()
+        x0, y0, x1, y1 = (float(value) for value in finding["details"]["bbox"].split(","))
+        assert (x0, y0, x1, y1) == pytest.approx(tuple(heading_rect), abs=0.1)
+        assert tuple(annotation.rect) == pytest.approx((x0 - 1, y0 - 1, x1 + 1, y1 + 1), abs=0.1)
+
+
+@pytest.mark.parametrize("preceding_lines", [
+    [(525, 43, "3"), (108, 100, "Author. (2020). A continued citation.")],
+    [(525, 100, "3")],
+    [(108, 43, "3")],
+])
+def test_p063_styled_appendix_text_on_reference_continuation_is_ignored(
+    tmp_path: Path, preceding_lines: list[tuple[int, int, str]]
+) -> None:
+    path = tmp_path / "references_with_appendix_mention.pdf"
+    with fitz.open() as doc:
+        _add_section_page(doc, "CHAPTER 1 INTRODUCTION")
+        _add_section_page(doc, "REFERENCES", ("Author. (2020). Synthetic reference.",))
+        continuation = doc.new_page(width=612, height=792)
+        for x, y, text in preceding_lines:
+            continuation.insert_text((x, y), text, fontname="Times-Roman", fontsize=12)
+        continuation.insert_text((235, 160), "APPENDIX B", fontname="Times-Bold", fontsize=14)
+        _add_section_page(doc, "APPENDIX", ("A.1 Instrument Data",))
+        doc.save(path)
+
+    layout = load_pdf_layout(str(path))
+    headings = _collect_appendix_headings(layout)
+    assert [(page, text) for page, text, _ in headings] == [(4, "APPENDIX")]
+    assert check_pdf_appendix_body_headings(layout) == []
 
 
 @pytest.mark.parametrize("label", ["Appendix B describes these samples", "APPENDIX B Results were",
