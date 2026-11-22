@@ -7,7 +7,7 @@
 **Date:** 2026-06-19
 **Branch:** `fix/sub-page-location-labels-current-ui` (from `main` @ `47be2ab`, PR #325)
 **Source PR reviewed:** #311, `feature/subpage-location-labels` (opened 2026-06-15, head `a65d480`)
-**Outcome:** Fresh reimplementation, not a rebase. See [Decision](#decision) below.
+**Outcome:** Fresh reimplementation, not a rebase. See [Decision](#3-decision) below.
 
 ## 1. Why this wasn't a mechanical rebase
 

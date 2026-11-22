@@ -213,7 +213,7 @@ roles, private notes, environment paths and evidence retention.
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Live-deployment procedure, smoke test, rollback. |
 | [docs/TERMINOLOGY.md](docs/TERMINOLOGY.md) | Verified names (Ester Flaim) and stable `ester_*` identifiers. |
 | [docs/status/README.md](docs/status/README.md) | Index of historical/dated status and audit reports. |
-| [docs/web_gui_mvp.md](docs/web_gui_mvp.md) | Web upload UI operations guide: current public FastAPI web UI behavior. |
+| [docs/web_gui_mvp.md](docs/web_gui_mvp.md) | Website behavior and local development. Use the [deployment runbook](docs/DEPLOYMENT.md) for production operations. |
 | [docs/planning/synthetic_web_demo_fixtures.md](docs/planning/synthetic_web_demo_fixtures.md) | Synthetic PDF fixtures for web UI demos/screenshots. |
 
 ## Development
