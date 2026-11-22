@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfPage, format_bbox_detail
+from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextSpan, format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
     detect_toc_like_pages,
@@ -72,8 +72,55 @@ def _detached_dots(page: PdfPage) -> list[tuple[float, float, float]]:
     ]
 
 
+def _extend_fragmented_title(
+    title_right: float, stop_x: float, spans: list[PdfTextSpan], page: PdfPage, jitter: float,
+) -> float:
+    # The TOC parser can drop isolated spans in the right half of the page.
+    # Only extend a title when its retained final row establishes a repeated
+    # interword gap and the omitted fragments continue that same typography.
+    title = [
+        span for span in sorted(spans, key=lambda span: span.bbox.x0)
+        if span.bbox.x1 <= title_right and span.text.strip()
+    ]
+    if len(title) < 3 or title[-1].bbox.x1 != title_right:
+        return title_right
+    first, middle, last = title[-3:]
+    if not last.font or last.baseline_y is None:
+        return title_right
+
+    def same_text_style(span: PdfTextSpan) -> bool:
+        return (
+            span.font == last.font and span.size == last.size
+            and span.baseline_y == last.baseline_y
+        )
+
+    before = middle.bbox.x0 - first.bbox.x1
+    after = last.bbox.x0 - middle.bbox.x1
+    if (
+        not same_text_style(first) or not same_text_style(middle)
+        or min(before, after) <= jitter or abs(before - after) > jitter
+    ):
+        return title_right
+    gap = (before + after) / 2
+    candidates = sorted(
+        (
+            span for block in page.text_blocks for line in block.lines for span in line.spans
+            if title_right < span.bbox.x0 < span.bbox.x1 <= stop_x
+            and same_text_style(span)
+            and span.text == span.text.strip()
+            and any(c.isalnum() for c in span.text)
+        ),
+        key=lambda span: span.bbox.x0,
+    )
+    for span in candidates:
+        if abs(span.bbox.x0 - title_right - gap) > jitter:
+            break
+        title_right = span.bbox.x1
+    return title_right
+
+
 def _measure_leader_row(
-    entry: TocEntryLine, detached: list[tuple[float, float, float]],
+    entry: TocEntryLine, detached: list[tuple[float, float, float]], page: PdfPage,
 ) -> _LeaderRow | None:
     row, token = entry.page_number_line, entry.page_number_token
     if row is None or not token or not row.spans:
@@ -120,6 +167,10 @@ def _measure_leader_row(
         or not any(g.char.isalpha() for g in glyphs[:end + 1])
     ):
         return None
+    title_right = _extend_fragmented_title(
+        title_right, min((left for left, _ in dots), default=folio_left),
+        row.spans, page, jitter,
+    )
     dots.update(
         (left, right) for baseline, left, right in detached
         if abs(baseline - folio_span.baseline_y) <= jitter
@@ -142,24 +193,25 @@ def _measured_grid_style(
         return None
     previous_x = median(cells[0][0] for cells in terminal_cells)
     last_x = median(cells[1][0] for cells in terminal_cells)
+    pitch = last_x - previous_x
     dot_width = median(cells[1][1] - cells[1][0] for cells in terminal_cells)
     agreement = sum(
         abs(previous[0] - previous_x) <= jitter and abs(last[0] - last_x) <= jitter
+        and abs(previous[1] - previous[0] - dot_width) <= jitter
         and abs(last[1] - last[0] - dot_width) <= jitter
         for previous, last in terminal_cells
     )
-    if (
-        agreement < 2 or agreement * 2 <= len(terminal_cells)
-        or not 0 < dot_width <= last_x - previous_x
-        or last_x + dot_width > row.folio_left + jitter
-    ):
+    if agreement < 2 or agreement * 2 <= len(terminal_cells) or not 0 < dot_width <= pitch:
         return None
 
-    # The last two measured cells define capacity even when the template
-    # reserves a large fixed space before the folio.
-    available = row.folio_left - row.title_right
+    # Matching uses jitter. Fit uses both edges of the centered cell itself,
+    # including the space on each side of the rendered dot.
+    padding = (pitch - dot_width) / 2
+    last_cell_left = last_x - padding
+    if last_cell_left + pitch > row.folio_left:
+        return None
     if not row.dots:
-        return "short" if available < row.folio_left - last_x + dot_width - jitter else "none"
+        return "short" if row.title_right > last_cell_left else "none"
     if len(row.dots) >= 2:
         if abs(row.dots[-2][0] - previous_x) <= jitter and abs(row.dots[-1][0] - last_x) <= jitter:
             return "dot"
@@ -167,7 +219,7 @@ def _measured_grid_style(
     ((left, right),) = row.dots
     return (
         "dot" if abs(left - last_x) <= jitter and abs(right - left - dot_width) <= jitter
-        and available < row.folio_left - previous_x + dot_width - jitter
+        and row.title_right > previous_x - padding
         else "none"
     )
 
@@ -232,7 +284,7 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
             continue
         entries = extract_toc_entry_lines(context)
         detached = _detached_dots(context.page)
-        measured = [_measure_leader_row(entry, detached) for entry in entries]
+        measured = [_measure_leader_row(entry, detached, context.page) for entry in entries]
         peers = [row for row in measured if row is not None]
         column = median(row.folio_right for row in peers) if len(peers) >= 3 else None
         for index, (entry, row) in enumerate(zip(entries, measured, strict=True)):

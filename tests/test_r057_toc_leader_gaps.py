@@ -14,6 +14,36 @@ from njit_auditor.rules.pdf_toc_alignment import (
 from njit_auditor.rules.pdf_toc_leader_consistency import check_pdf_toc_leader_consistency
 from njit_auditor.rules.pdf_toc_terminal_period import check_pdf_toc_terminal_period
 
+_LEADER_CELL_FIXTURES = Path(__file__).parent / "fixtures" / "r057_leader_cells"
+
+
+def test_wrapped_title_overlaps_previous_centered_cell() -> None:
+    # TeX centers its dots in 9.36 pt cells. The extracted title ends at
+    # x=501.405, past the preceding cell's left edge at x=501.117, even
+    # though that cell's visible dot would start farther right at x=504.303.
+    layout = load_pdf_layout(str(_LEADER_CELL_FIXTURES / "centered-cell-wrap.pdf"))
+    (context,) = detect_toc_like_pages(layout)
+    entries = extract_toc_entry_lines(context)
+    assert entries[-1].page_number_token == "44" and entries[-1].is_wrapped
+    assert check_pdf_toc_leader_consistency(layout) == []
+
+
+def test_empty_cell_with_equivalent_populated_row_still_warns() -> None:
+    # Both titles end at x=516.999 and the last 4.50 pt cell starts at
+    # x=517.501. TeX renders exactly one dot for folio 44. The source uses
+    # a phantom of equal width for folio 55, leaving the same cell empty.
+    layout = load_pdf_layout(str(_LEADER_CELL_FIXTURES / "tight-cell-empty.pdf"))
+    (context,) = detect_toc_like_pages(layout)
+    entries = extract_toc_entry_lines(context)
+    populated, omitted = entries[-2:]
+    assert (populated.page_number_token, omitted.page_number_token) == ("44", "55")
+    assert populated.page_number_right_x == pytest.approx(omitted.page_number_right_x, abs=0.01)
+    (finding,) = check_pdf_toc_leader_consistency(layout)
+    assert finding.page == 1
+    assert finding.details["issue_type"] == "toc_missing_leader_style"
+    assert finding.details["entry_index"] == str(entries.index(omitted))
+    assert finding.details["entries_without_leader"] == "1"
+
 
 def _toc_pdf(
     path: Path, case: str, *, size: float, pitch_em: float, wrapped: bool,
@@ -36,6 +66,7 @@ def _toc_pdf(
         title += "."
     folio_left = (126 if wrapped else 108) + width(title) + 1.40 * size
     last_dot = folio_left - 1.50 * size
+    last_cell_left = last_dot - (pitch - width(".")) / 2
     with pymupdf.open() as pdf:
         pdf.new_page(width=612, height=792)
         page = pdf.new_page(width=612, height=792)
@@ -54,9 +85,11 @@ def _toc_pdf(
             write(str(10 + 20 * index), folio_left, y)
 
         baseline = 222
-        title_right = last_dot + 0.18 * size
+        title_right = last_cell_left + 0.06 * size
         if case in {"one", "bad_dot"}:
-            title_right = last_dot - 0.24 * size
+            title_right = last_cell_left - 0.16 * size
+        elif case == "one_missing":
+            title_right = last_cell_left - pitch - 0.16 * size
         elif case in {"wide", "wide_one", "multi"}:
             title = "MODEL 2.5: VALIDATION" if wrapped else "2 MODEL 2.5: VALIDATION"
             title_right = (126 if wrapped else 108) + width(title)
@@ -66,7 +99,7 @@ def _toc_pdf(
             write("2 AN EXTENDED STUDY OF INDEPENDENT MEASUREMENTS IN THE LAB", 108, baseline)
             baseline += 14
         write(title, title_right - width(title), baseline)
-        if case in {"one", "wide_one"}:
+        if case in {"one", "one_missing", "wide_one"}:
             write(".", last_dot, baseline)
         if case == "bad_dot":
             write(".", last_dot + 0.40 * size, baseline)
@@ -93,6 +126,7 @@ def _toc_pdf(
         ("ambiguous", False, True, False),
         ("zero", True, False, False),
         ("one", True, False, False),
+        ("one_missing", True, True, False),
         ("wide", True, True, False),
         ("missing", False, False, False),
         ("misaligned", False, True, False),
@@ -143,3 +177,16 @@ def test_short_gap_uses_local_font_and_dot_pitch(
     _toc_pdf(path, case, size=size, pitch_em=pitch_em, wrapped=False)
     findings = check_pdf_toc_leader_consistency(load_pdf_layout(str(path)))
     assert bool(findings) is (case == "wide_one")
+
+
+def test_short_gap_with_unmeasured_baselines_abstains(tmp_path: Path) -> None:
+    path = tmp_path / "unmeasured.pdf"
+    _toc_pdf(path, "zero", size=11, pitch_em=0.60, wrapped=False)
+    layout = load_pdf_layout(str(path))
+    for block in layout.pages[1].text_blocks:
+        for line in block.lines:
+            for span in line.spans:
+                span.baseline_y = None
+    (finding,) = check_pdf_toc_leader_consistency(layout)
+    assert finding.details["issue_type"] == "toc_missing_leader_style"
+    assert finding.details["entries_without_leader"] == "1"
