@@ -358,6 +358,20 @@ def entry_has_visible_dot_leader(
         return True
     if re.search(r"(?:\s[.·…]){2,}\s+\S+\s*$", entry.cleaned_text):
         return True
+    # Preserve the legacy bbox path for old rows with no source spans.
+    # Measured rows still require the title-to-folio ownership check.
+    if (
+        entry.page_number_line is None
+        and not entry.line.spans
+        and entry.page_number_right_x is not None
+    ):
+        return any(
+            line.baseline_y is None
+            and re.fullmatch(r"[.·…]{2,}", re.sub(r"\s+", "", line.text))
+            and entry.line.bbox.y0 - 2 <= line.bbox.y0 < line.bbox.y1 <= entry.line.bbox.y1 + 2
+            and entry.indent_x + 10 < line.bbox.x0 < line.bbox.x1 < entry.page_number_right_x - 2
+            for block in page.text_blocks for line in block.lines
+        )
     # A long title can leave room for only two dots before the folio.
     return any(
         sum(char in LEADER_CHARS for char in line.text) >= 2
