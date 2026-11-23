@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from statistics import median
 
 from njit_auditor.digital_commons_wrapper import (
@@ -217,6 +218,54 @@ def is_isolated_terminal_grid_leader_dot(
     return matching_grid_rows >= LEADER_GRID_MIN_ROWS
 
 
+@dataclass(frozen=True)
+class _DetachedLeaderGap:
+    title_right: float
+    folio_left: float
+    baseline: float
+    jitter: float
+
+    def contains(self, line: PdfTextLine) -> bool:
+        return (
+            line.baseline_y is not None
+            and abs(line.baseline_y - self.baseline) <= self.jitter
+            and self.title_right < line.bbox.x0 < line.bbox.x1 <= self.folio_left
+        )
+
+
+def _detached_leader_gap(entry: TocEntryLine) -> _DetachedLeaderGap | None:
+    row, token = entry.page_number_line, entry.page_number_token
+    if row is None or not token or not row.spans or entry.page_number_right_x is None:
+        return None
+    folio_span = max(row.spans, key=lambda span: span.bbox.x1)
+    baseline = folio_span.baseline_y
+    if baseline is None:
+        return None
+    glyphs = [glyph for glyph in row_glyphs(row) if not glyph.char.isspace()]
+    if len(glyphs) <= len(token) or not re.search(
+        rf"\s{re.escape(token)}\s*$", row.text, re.IGNORECASE
+    ):
+        return None
+    tail = glyphs[-len(token):]
+    if "".join(glyph.char for glyph in tail).casefold() != token.casefold():
+        return None
+    title_right, folio_left, folio_right = glyphs[-len(token) - 1].x1, tail[0].x0, tail[-1].x1
+    jitter = LEADER_GAP_JITTER_EM * row_font_size(glyphs)
+    if (
+        title_right is None or folio_left is None or folio_right is None
+        or not entry.indent_x < title_right < folio_left < folio_right
+        or abs(folio_right - entry.page_number_right_x) > jitter
+        or not any(
+            span.baseline_y is not None
+            and abs(span.baseline_y - baseline) <= jitter
+            and span.bbox.x0 < title_right <= span.bbox.x1
+            for span in row.spans
+        )
+    ):
+        return None
+    return _DetachedLeaderGap(title_right, folio_left, baseline, jitter)
+
+
 def entry_has_visible_dot_leader(
     entry: TocEntryLine, page: PdfPage, peers: list[TocEntryLine]
 ) -> bool:
@@ -227,6 +276,8 @@ def entry_has_visible_dot_leader(
         return True
     if entry.page_number_right_x is None:
         return False
+    gap = _detached_leader_gap(entry)
+    peer_gaps = None
     for block in page.text_blocks:
         for line in block.lines:
             compact = re.sub(r"\s+", "", line.text)
@@ -234,9 +285,18 @@ def entry_has_visible_dot_leader(
             # the fixed page-number column (Pennock's chapter-6 TOC row).
             if not re.fullmatch(r"[.·…]{2,}", compact):
                 continue
+            if gap is not None and line.baseline_y is not None:
+                # Font ascenders can differ on a common baseline. Use the
+                # final title and its folio to assign the fragment to one row.
+                if not gap.contains(line):
+                    continue
+                if peer_gaps is None:
+                    peer_gaps = [_detached_leader_gap(peer) for peer in peers if peer is not entry]
+                if not any(other is not None and other.contains(line) for other in peer_gaps):
+                    return True
+                continue
             if (
-                # A wrapped entry's merged bbox spans both title rows;
-                # detached dots align with its final row, not bbox center.
+                # Older layouts can lack source baselines or glyph geometry.
                 line.bbox.y0 >= entry.line.bbox.y0 - 2
                 and line.bbox.y1 <= entry.line.bbox.y1 + 2
                 and line.bbox.x0 > entry.indent_x + 10
