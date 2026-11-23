@@ -264,6 +264,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "the page number unless this page type is intentionally numbered."
     ),
     # --- P023 body spacing ---
+    ("P023", "blank_line_above_level_three_heading"): (
+        "Problem: The gap above this level-three heading appears to contain a blank line. "
+        "Remove the extra line above the heading and keep the surrounding body spacing."
+    ),
     ("P023", "possible_body_text_not_double_spaced"): (
         "Problem: Body text on this page does not appear to be double-spaced. "
         "NJIT requires body text to be double-spaced, except for tables, figure "

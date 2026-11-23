@@ -161,6 +161,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
         "Biographical Sketch bullet section not single-spaced"
     ),
     "multiline_body_heading_not_single_spaced": "Wrapped body heading not single-spaced",
+    "blank_line_above_level_three_heading": "Blank line above level-three heading",
     "biosketch_degree_order_suspicious": "Biographical Sketch degree order suspicious",
     "biosketch_publication_order_suspicious": "Biographical Sketch publication order suspicious",
     "unexpected_opening_indent": "Unexpected opening paragraph indent",
@@ -344,6 +345,10 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "double-spaced prose line pitch. Multi-line titles should be single-spaced "
         "within the title. Change the heading's line spacing; leave the spacing "
         "between the heading and body paragraph alone."
+    ),
+    ("P023", "blank_line_above_level_three_heading"): (
+        "Nearby prose lines indicate that there is room for an extra blank line above "
+        "this level-three heading. Remove the blank line above the heading."
     ),
     ("P016", "excessive_line_gap"): (
         "This means unusually large spacing was detected between lines on this "
