@@ -278,6 +278,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "(centered, near the top of the page, bold, and in all capital letters)."
     ),
     # --- P016 paragraph/line spacing gaps ---
+    ("P016", "blank_line_above_continuing_body_text"): (
+        "Problem: An extra blank line appears above the continuing body text. "
+        "Remove the extra line so the text starts at its normal top margin."
+    ),
     ("P016", "excessive_line_gap"): (
         "Unusually large spacing was detected between lines on this page. "
         "Excluding necessary page breaks for new chapters or to keep figures "

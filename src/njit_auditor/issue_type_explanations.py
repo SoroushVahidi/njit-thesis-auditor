@@ -53,6 +53,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     # Spacing
     "possible_body_text_not_double_spaced": "Body text not double-spaced",
     "excessive_line_gap": "Excessive line gap",
+    "blank_line_above_continuing_body_text": "Blank line above continuing body text",
     "excessive_paragraph_gap": "Excessive paragraph gap",
     "suspicious_heading_blank_gap": "Suspicious heading blank gap",
     # Abstract
@@ -344,6 +345,10 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "double-spaced prose line pitch. Multi-line titles should be single-spaced "
         "within the title. Change the heading's line spacing; leave the spacing "
         "between the heading and body paragraph alone."
+    ),
+    ("P016", "blank_line_above_continuing_body_text"): (
+        "An extra blank line appears above the continuing body text. "
+        "Remove it so the text starts at its normal top margin."
     ),
     ("P016", "excessive_line_gap"): (
         "This means unusually large spacing was detected between lines on this "

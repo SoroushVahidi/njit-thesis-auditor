@@ -2396,6 +2396,14 @@ def audit_findings_to_json_dict(
         ):
             entry["student_facing_role"] = "inventory"
 
+    # Report routes use the raw array index as the finding ID. Number
+    # problems in page order above, then append the new page-top findings so
+    # inserting one earlier in a document cannot change existing route IDs.
+    serialized_findings.sort(key=lambda entry: (
+        entry["rule_id"] == "P016"
+        and entry["details"].get("issue_type") == "blank_line_above_continuing_body_text"
+    ))
+
     inventory_finding_count = sum(
         1
         for entry in serialized_findings
@@ -4147,6 +4155,7 @@ def write_markdown_report(
         init_p026_display_state,
     )
 
+    visible_problem_findings.sort(key=lambda finding: finding["problem_number"])
     p012_count_by_page = count_p012_annotations_by_page(serialized_findings)
     p026_pattern_stats = init_p026_display_state(
         collect_p026_pattern_pages_from_serialized(serialized_findings),
