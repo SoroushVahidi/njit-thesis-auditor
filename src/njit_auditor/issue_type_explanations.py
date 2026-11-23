@@ -480,7 +480,8 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "NJIT requires '(Continued)' in the heading when such lists span multiple pages."
     ),
     ("P030", "missing_symbols_continued_heading"): (
-        "This page continues the List of Symbols. Use LIST OF SYMBOLS (Continued) above the entries."
+        "This page continues the List of Symbols. "
+        "Use LIST OF SYMBOLS (Continued) above the entries."
     ),
     ("P033", "frontmatter_title_mismatch"): (
         "The dissertation title text differs between two or more front-matter "
