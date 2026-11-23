@@ -144,6 +144,8 @@ def _inject_job(wa: Any, findings: list[AuditFinding], *, page_count: int = 10) 
                 "severity": fv.severity,
                 "page": fv.page,
                 "finding_id": fv.finding_id,
+                "problem_number": fv.problem_number,
+                "problem_anchor": fv.problem_anchor,
                 "issue_type": fv.issue_type,
                 "category": fv.category,
                 "polished_comment": fv.polished_comment,
@@ -219,6 +221,129 @@ def test_page_only_finding_returns_original_single_page_pdf(app: tuple[TestClien
     with fitz.open(stream=resp.content, filetype="pdf") as doc:
         assert doc.page_count == 1
         assert len(list(doc[0].annots() or [])) == 0
+
+
+def test_p046_highlight_uses_continued_figure_list_page_in_both_pdf_routes(
+    app: tuple[TestClient, Any],
+) -> None:
+    client, web = app
+    target_text = "Figure 4 Synthetic layout comparison."
+    with fitz.open() as source:
+        for number in (1, 2):
+            page = source.new_page(width=612, height=792)
+            heading = "LIST OF FIGURES" if number == 1 else "LIST OF FIGURES (continued)"
+            page.insert_text((190, 90), heading, fontsize=16, fontname="Times-Bold")
+            page.insert_text((108, 115), "Figure")
+            page.insert_text((500, 115), "Page")
+            page.insert_text((108, 140), f"Figure {number * 2 - 1} Synthetic example.")
+            page.insert_text((503, 140), "12")
+            page.insert_text(
+                (145 if number == 2 else 108, 207),
+                target_text if number == 2 else "Figure 2 Synthetic example.",
+            )
+            page.insert_text((503, 207), "13")
+        target_row, = source[1].search_for(target_text)
+        pdf = source.tobytes()
+
+    response = client.post(
+        "/audits", files={"file": ("synthetic.pdf", pdf, "application/pdf")}, follow_redirects=False
+    )
+    assert response.status_code == 303
+    location = response.headers["location"]
+    assert client.get(location + "/status").json()["state"] == "complete"
+    job = web._get_job(location.rsplit("/", 1)[1])
+    card, = [card for card in job.findings if card["rule_id"] == "P046"]
+    assert card["issue_type"] == "lof_entry_number_column_misaligned"
+    assert card["page"] == 2
+    assert card["has_highlight"]
+    assert "List of Figures entry 2" in card["location_label"]
+    row_index = int(card["finding_id"][1:])
+    rows = client.get(location + "/download/json").json()["findings"]
+    row = rows[row_index]
+    assert (row["rule_id"], row["page"], row["problem_number"]) == (
+        "P046", 2, card["problem_number"]
+    )
+    source_bbox = tuple(float(part) for part in row["details"]["bbox"].split(","))
+    assert source_bbox[0] == pytest.approx(target_row.x0, abs=0.06)
+    assert source_bbox[1::2] == pytest.approx((target_row.y0, target_row.y1), abs=0.06)
+
+    job_html = html.unescape(client.get(location).text)
+    link = next(
+        href for href in extract_audit_pdf_links(job_html)
+        if f"finding_id={card['finding_id']}" in href
+    )
+    assert "page=2" in link
+    single = client.get(link)
+    complete = client.get(location + "/download/student-report.pdf")
+    _assert_valid_pdf_response(single)
+    assert complete.status_code == 200
+    with fitz.open(stream=single.content) as doc:
+        assert doc.page_count == 1
+        source_page = doc[0]
+        assert target_text in source_page.get_text()
+        mark, = source_page.annots()
+        rect = tuple(mark.rect)
+        assert fitz.Rect(target_row) in fitz.Rect(*rect)
+    with fitz.open(stream=complete.content) as doc:
+        assert doc.page_count > 2
+        first_page, continued_page = doc[0], doc[1]
+        assert rect in [tuple(mark.rect) for mark in continued_page.annots()]
+        assert rect not in [tuple(mark.rect) for mark in first_page.annots()]
+
+
+@pytest.mark.parametrize("bbox", [None, "0,0,0,0", "900,900,910,910"])
+def test_p046_without_drawable_location_keeps_both_pdfs_unmarked(
+    app: tuple[TestClient, Any], bbox: str | None
+) -> None:
+    client, web = app
+    details = {"issue_type": "lof_entry_number_column_misaligned"}
+    if bbox is not None:
+        details["bbox"] = bbox
+    finding = AuditFinding(
+        rule_id="P046", severity=Severity.WARNING, page=2, message="Synthetic list alignment.",
+        details=details,
+    )
+    job_id = _inject_job(web, [finding], page_count=3)
+    card, = web._get_job(job_id).findings
+    assert not card["has_highlight"]
+    location = f"/audits/{job_id}"
+    single = client.get(location + "/highlighted-page.pdf", params={"page": 2, "finding_id": "f0"})
+    complete = client.get(location + "/download/student-report.pdf")
+    _assert_valid_pdf_response(single)
+    assert complete.status_code == 200
+    with fitz.open(stream=single.content) as doc:
+        assert doc.page_count == 1
+        assert "Synthetic thesis page 2" in doc[0].get_text()
+        assert not list(doc[0].annots())
+    with fitz.open(stream=complete.content) as doc:
+        assert doc.page_count > 3
+        assert not any(list(page.annots()) for page in doc)
+
+
+def test_p046_relocation_preserves_json_indexes_and_page_ordered_problem_numbers(
+    tmp_path: Path,
+) -> None:
+    legacy = AuditFinding(
+        rule_id="P046", severity=Severity.WARNING, page=1, message="Synthetic list alignment.",
+        details={"issue_type": "lof_entry_number_column_misaligned"},
+    )
+    relocated = legacy.model_copy(update={
+        "page": 3,
+        "details": {**legacy.details, "list_start_page": "1", "bbox": "120,150,300,162"},
+    })
+    unrelated = _bbox_finding(page=2)
+    metadata = {"audit_type": "pdf"}
+    before = audit_findings_to_json_dict([legacy, unrelated], metadata)["findings"]
+    after = audit_findings_to_json_dict([relocated, unrelated], metadata)["findings"]
+    assert [row["rule_id"] for row in after] == [row["rule_id"] for row in before]
+    assert [(row["page"], row["problem_number"]) for row in after] == [(3, 2), (2, 1)]
+    view = build_report_view({"findings": after, "metadata": metadata})
+    assert [(f.finding_id, f.page, f.problem_number) for f in view.findings] == [
+        ("f1", 2, 1), ("f0", 3, 2)
+    ]
+    md = tmp_path / "report.md"
+    write_markdown_report([relocated, unrelated], metadata, md)
+    assert re.findall(r"^### Problem (\d+)", md.read_text(), flags=re.M) == ["1", "2"]
 
 
 def test_document_level_finding_renders_no_highlight_button(app: tuple[TestClient, Any]) -> None:
