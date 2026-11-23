@@ -168,6 +168,42 @@ def has_trailing_page_number_token(entry: TocEntryLine) -> bool:
     )
 
 
+def _has_list_leader_folio(entry: TocEntryLine) -> bool:
+    if has_trailing_page_number_token(entry):
+        return True
+
+    # The wrap merger strips the folio from display text but retains its
+    # visual row. Require the retained row, not a separately paired numeral.
+    row = entry.page_number_line
+    token = entry.page_number_token
+    if not entry.is_wrapped or row is None or not token or not row.spans:
+        return False
+    if (
+        row.bbox.y0 <= entry.line.bbox.y0
+        or entry.line.spans[-len(row.spans):] != row.spans
+    ):
+        return False
+    folio = _right_edge_page_number_span(row)
+    if (
+        folio is None or _clean_text(folio.text).casefold() != token.casefold()
+        or folio.bbox.x1 != entry.page_number_right_x
+        or folio.baseline_y is None or not folio.size
+        or not re.search(rf"\s{re.escape(token)}\s*$", _row_text(row), re.IGNORECASE)
+    ):
+        return False
+    title = [span for span in row.spans if span is not folio and span.text.strip()]
+    return bool(
+        title
+        and any(char.isalpha() for span in title for char in span.text)
+        and all(
+            span.baseline_y is not None
+            and abs(span.baseline_y - folio.baseline_y) <= SAME_BASELINE_Y_TOLERANCE_PT
+            for span in title
+        )
+        and folio.bbox.x0 - max(span.bbox.x1 for span in title) >= folio.size
+    )
+
+
 def is_isolated_terminal_grid_leader_dot(
     entry: TocEntryLine, peers: list[TocEntryLine]
 ) -> bool:
@@ -1745,12 +1781,15 @@ def _add_entry_consistency_findings(
             if expected_page_edge is not None
             and entry.page_number_right_x is not None
             and abs(entry.page_number_right_x - expected_page_edge) <= RIGHT_EDGE_TOLERANCE_PT
-            and has_trailing_page_number_token(entry)
+            and _has_list_leader_folio(entry)
             and not entry_has_visible_dot_leader(entry, context.page, entries)
         ]
         if missing_dots_entries:
+            previously_eligible = [
+                entry for entry in missing_dots_entries if has_trailing_page_number_token(entry)
+            ]
             worst_entry = _select_worst_leader_dots_entry(
-                entries, missing_dots_entries, entry_positions
+                entries, previously_eligible or missing_dots_entries, entry_positions
             )
             page_issue_findings["inconsistent_leader_dots"] = AuditFinding(
                 rule_id="P018",
@@ -1766,6 +1805,7 @@ def _add_entry_consistency_findings(
                         "worst_entry_index": str(entry_positions[worst_entry]),
                         "confidence": "medium",
                         "source_q_rule_id": "Q052",
+                        **({} if previously_eligible else {"_preserve_prior_finding_ids": "true"}),
                     },
                     worst_entry,
                 ),
