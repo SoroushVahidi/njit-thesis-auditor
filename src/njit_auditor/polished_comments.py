@@ -293,6 +293,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "NJIT requires body text to be double-spaced, except for tables, figure "
         "descriptions, bullet points, and multi-line titles."
     ),
+    ("P023", "blank_line_before_opening_level_three_heading"): (
+        "An extra blank line appears above the level-three heading on page {page}."
+    ),
     ("P023", "multiline_body_heading_not_single_spaced"): (
         "The highlighted lines of a numbered body heading on page {page} appear "
         "to use the same double-spaced line pitch as the surrounding prose. "
@@ -809,6 +812,9 @@ _REMEDIATION_OVERRIDES: dict[str, str] = {
 # that do not apply here. An empty string means "this finding's comment body
 # already states the complete fix; do not append anything else."
 _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
+    ("P023", "blank_line_before_opening_level_three_heading"): (
+        "Remove the blank line above the heading. Keep the prescribed 8 pt of heading spacing."
+    ),
     ("P023", "multiline_body_heading_not_single_spaced"): (
         "Single-space the wrapped lines within this heading. Keep the normal "
         "spacing between the heading and the body paragraph."

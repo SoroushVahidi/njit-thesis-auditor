@@ -130,6 +130,7 @@ from njit_auditor.rules.pdf_references_citations_structural import (
 )
 from njit_auditor.rules.pdf_roman_section_anchors import check_pdf_roman_section_anchors
 from njit_auditor.rules.pdf_roman_sequence import check_pdf_roman_sequence
+from njit_auditor.rules.pdf_section_page_top_spacing import check_pdf_section_page_top_spacing
 from njit_auditor.rules.pdf_spacing import check_pdf_spacing
 from njit_auditor.rules.pdf_title_capitalization import check_pdf_title_capitalization
 from njit_auditor.rules.pdf_title_consistency import check_pdf_title_consistency
@@ -396,6 +397,7 @@ def collect_pdf_layout_findings(
                 },
             )
         )
+    findings.extend(run_check(check_pdf_section_page_top_spacing, content_doc))
     page_details_by_number = {
         page.page_number: page_identity_details(page)
         for page in content_doc.pages
