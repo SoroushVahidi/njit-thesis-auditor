@@ -116,14 +116,14 @@ def _detached_dots(page: PdfPage) -> dict[float, list[Glyph]]:
 
 def _with_detached_followers(
     entry: TocEntryLine, leaders: list[Glyph], baseline: float | None,
-    detached: dict[float, list[Glyph]],
+    detached: dict[float, list[Glyph]], *, title_end: float | None = None,
 ) -> list[Glyph]:
     # The shared entry parser can omit standalone later dots. Use them only
     # as corroboration for a mixed row, on the measured leader baseline and
     # strictly between the last reconstructed dot and the folio.
-    if not leaders or baseline is None or entry.page_number_line is None:
+    if baseline is None or entry.page_number_line is None:
         return leaders
-    last_x = leaders[-1].x1
+    last_x = leaders[-1].x1 if leaders else title_end
     if last_x is None:
         return leaders
     folio_glyphs = [g for g in row_glyphs(entry.page_number_line) if not g.char.isspace()]
@@ -150,24 +150,26 @@ def _peer_leader_glyphs(
     start = len(visible)
     while start and glyphs[visible[start - 1]].char in _DOT_LEADER_CHARS:
         start -= 1
-    if start == 0 or len(visible) - start < 2:
+    if start == 0:
         return []
-    preceding = glyphs[visible[start - 1]]
-    first = glyphs[visible[start]]
-    # Only count the first dot as grid evidence when it is separated from the
-    # peer title. A genuine period in a peer title cannot establish the grid.
-    if (
-        first.x0 is None
-        or preceding.x1 is None
-        or not first.size
-        or first.x0 - preceding.x1 <= LEADER_GAP_JITTER_EM * first.size
-    ):
-        start += 1
+    title_end = glyphs[visible[start - 1]].x1
+    if start < len(visible):
+        first = glyphs[visible[start]]
+        # Only separated dots corroborate peer columns. A title period cannot.
+        if (
+            first.x0 is None
+            or title_end is None
+            or not first.size
+            or first.x0 - title_end <= LEADER_GAP_JITTER_EM * first.size
+        ):
+            title_end = first.x1
+            start += 1
     leaders = [glyphs[i] for i in visible[start:]]
     spans = sorted(row.spans, key=lambda span: span.bbox.x0)
     last = _span_at_glyph(spans, visible[-1])
     baseline = last[0].baseline_y if last is not None else None
-    return _with_detached_followers(entry, leaders, baseline, detached)
+    # Long gaps can place every leader outside the entry parser's region.
+    return _with_detached_followers(entry, leaders, baseline, detached, title_end=title_end)
 
 
 def _nearest_peer_dot(
