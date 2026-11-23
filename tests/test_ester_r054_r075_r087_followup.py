@@ -209,6 +209,29 @@ def test_p054_mixed_leader_controls_and_highlights(mixed_dot_toc: Path, tmp_path
         )
 
 
+def test_p054_wrapped_period_with_partial_glyph_metrics(mixed_dot_toc: Path) -> None:
+    layout = load_pdf_layout(str(mixed_dot_toc))
+    context, = detect_toc_like_pages(layout)
+    entries = extract_toc_entry_lines(context)
+    index, entry = next(
+        (index, entry) for index, entry in enumerate(entries) if entry.page_number_token == "121"
+    )
+    assert entry.is_wrapped
+    assert entry.page_number_line is not None
+    title_span = next(s for s in entry.page_number_line.spans if s.text.endswith("line."))
+    assert title_span.char_x_bounds is not None
+    title_span.char_x_bounds = None
+
+    finding, = [
+        finding for finding in _check_toc_terminal_period_page(context, entries, 0)
+        if finding.details["entry_index"] == str(index)
+    ]
+    bbox = tuple(float(v) for v in finding.details["bbox"].split(","))
+    assert bbox[0] == pytest.approx(title_span.bbox.x0, abs=0.05)
+    assert bbox[2] == pytest.approx(title_span.bbox.x1, abs=0.05)
+    assert bbox[2] < float(finding.details["highlight_right_limit"])
+
+
 def _toc_pdf(tmp_path: Path, lines: list[str]):
     path = tmp_path / "synthetic_toc.pdf"
     doc = fitz.open()
