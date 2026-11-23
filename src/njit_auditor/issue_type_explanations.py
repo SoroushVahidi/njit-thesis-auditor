@@ -64,6 +64,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "toc_missing_leader_style": "TOC missing leader style",
     # Headings / TOC
     "missing_continued_heading": "Missing continued heading",
+    "missing_symbols_continued_heading": "List of Symbols continued heading missing",
     "toc_missing_continued_heading": "TOC missing continued heading",
     "heading_phrase_not_exact": "Heading phrase not exact",
     "heading_style_issue": "Heading style issue",
@@ -477,6 +478,9 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "A multi-page list (such as a List of Tables or List of Figures) may be "
         "missing a required continued heading on a continuation page. "
         "NJIT requires '(Continued)' in the heading when such lists span multiple pages."
+    ),
+    ("P030", "missing_symbols_continued_heading"): (
+        "This page continues the List of Symbols. Use LIST OF SYMBOLS (Continued) above the entries."
     ),
     ("P033", "frontmatter_title_mismatch"): (
         "The dissertation title text differs between two or more front-matter "
