@@ -104,6 +104,7 @@ _INTERNAL_STUDENT_EXPORT_DETAIL_KEYS: frozenset[str] = frozenset(
         "source_q_rule_ids",
         "source_q_rule",
         "source_q_rule_basis",
+        "_preserve_prior_finding_ids",
     }
 )
 
@@ -1007,7 +1008,11 @@ def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFindi
     """
     return sorted(
         findings,
-        key=lambda finding: (finding.page is None, finding.page or 0),
+        key=lambda finding: (
+            finding.details.get("_preserve_prior_finding_ids") == "true",
+            finding.page is None,
+            finding.page or 0,
+        ),
     )
 
 
@@ -3504,8 +3509,7 @@ def _problem_number_map(
     )
     from njit_auditor.title_case_student_preview import consume_p020_display_slot
 
-    mapping: dict[int, int] = {}
-    next_problem_number = 1
+    visible_indexes: list[int] = []
     p020_display_seen: set[tuple] = set()
     page_number_display_seen: set[tuple] = set()
     grouped_display_seen: set[tuple] = set()
@@ -3565,9 +3569,16 @@ def _problem_number_map(
             claimed_page_number_keys=frozenset(claimed_page_number_keys),
         ):
             continue
-        mapping[index] = next_problem_number
-        next_problem_number += 1
-    return mapping
+        visible_indexes.append(index)
+
+    # Late-appended JSON rows preserve route IDs. Number visible problems
+    # by their physical pages, with raw row order as the same-page tiebreaker.
+    def physical_page(index: int) -> tuple[bool, int]:
+        page = serialized_findings[index]["page"]
+        return page is None, page or 0
+
+    visible_indexes.sort(key=physical_page)
+    return {index: number for number, index in enumerate(visible_indexes, start=1)}
 
 
 def format_source_location(details: dict[str, str]) -> str:
@@ -4137,6 +4148,7 @@ def write_markdown_report(
         for finding in serialized_findings
         if isinstance(finding.get("problem_number"), int) and finding["problem_number"] > 0
     ]
+    visible_problem_findings.sort(key=lambda finding: finding["problem_number"])
     from njit_auditor.p011_student_preview import (
         collect_p011_margin_pages_from_serialized,
         init_p011_display_state,

@@ -28,6 +28,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     entry_has_visible_dot_leader,
     extract_toc_entry_lines,
     has_trailing_page_number_token,
+    leader_evidence_entry,
 )
 from njit_auditor.toc_entry_geometry import LEADER_CHARS, row_glyphs
 
@@ -278,11 +279,18 @@ def _anchor_details(entry: TocEntryLine, page: PdfPage, index: int) -> dict[str,
 def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P075 warnings when TOC leader styles are inconsistent (Q052)."""
     paged: list[tuple[str, PdfPage, int, TocEntryLine]] = []
+    overprinted_entries: set[TocEntryLine] = set()
 
     for context in detect_toc_like_pages(pdf_document):
         if context.page_type != "table_of_contents":
             continue
-        entries = extract_toc_entry_lines(context)
+        originals = extract_toc_entry_lines(context)
+        entries = [leader_evidence_entry(entry) for entry in originals]
+        overprinted_entries.update(
+            entry
+            for entry, original in zip(entries, originals, strict=True)
+            if entry is not original
+        )
         detached = _detached_dots(context.page)
         measured = [_measure_leader_row(entry, detached, context.page) for entry in entries]
         peers = [row for row in measured if row is not None]
@@ -352,9 +360,9 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
     if (dot_count > 0 or hyphen_count > 0) and none_count > 0:
         dominant = "dot" if dot_count >= hyphen_count else "hyphen"
         dominant_count = dot_count if dominant == "dot" else hyphen_count
-        _, missing_page, missing_index, missing_entry = next(
-            row for row in paged if row[0] == "none"
-        )
+        missing = [row for row in paged if row[0] == "none"]
+        previously_missing = [row for row in missing if row[3] not in overprinted_entries]
+        _, missing_page, missing_index, missing_entry = (previously_missing or missing)[0]
         first_missing_page = missing_page.page_number
         style_summary = "; ".join(
             [
@@ -390,6 +398,7 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
                     ),
                     "source_q_rule_id": "Q052",
                     **_anchor_details(missing_entry, missing_page, missing_index),
+                    **({} if previously_missing else {"_preserve_prior_finding_ids": "true"}),
                 },
             )
         ]
