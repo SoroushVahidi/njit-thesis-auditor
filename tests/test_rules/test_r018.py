@@ -47,6 +47,73 @@ from njit_auditor.rules.pdf_toc_leader_consistency import check_pdf_toc_leader_c
 
 
 @pytest.mark.parametrize(
+    ("heading", "prefix"),
+    [
+        ("TABLE OF CONTENTS", ""),
+        ("LIST OF FIGURES", "Figure "),
+        ("LIST OF TABLES", "Table "),
+    ],
+)
+@pytest.mark.parametrize(
+    ("offset", "placement", "warns"),
+    [
+        (1.25, "gap", False),
+        (-1.25, "gap", False),
+        (0.0, "tall", False),
+        (1.25, "competitor", True),
+        (1.25, "missing_title_origin", True),
+        (1.25, "beyond_folio", True),
+        (1.95, "gap", True),
+        (0.0, "absent", True),
+    ],
+)
+def test_detached_dot_run_requires_one_visual_row_owner(
+    tmp_path: Path, heading: str, prefix: str, offset: float, placement: str, warns: bool,
+) -> None:
+    path = tmp_path / "offset-leaders.pdf"
+    title = f"{prefix}3 Synthetic target entry"
+    with fitz.open() as doc:
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((220, 85), heading, fontname="hebo", fontsize=14)
+        for number, y in enumerate((130, 155, 180, 205, 230), start=1):
+            label = title if number == 3 else f"{prefix}{number} Synthetic peer entry ...."
+            page.insert_text((108, y), label, fontsize=10)
+            page.insert_text((530, y), str(10 + number), fontsize=10)
+        if placement != "absent":
+            x = 550 if placement == "beyond_folio" else 435
+            size = 16 if placement == "tall" else 10
+            page.insert_text((x, 180 + offset), ". . . .", fontname="tiro", fontsize=size)
+        if placement == "competitor":
+            # This source line is too far right to become an extracted entry.
+            page.insert_text((350, 182.5), "Other text", fontsize=10)
+        doc.save(path)
+
+    layout = load_pdf_layout(str(path))
+    if placement == "missing_title_origin":
+        (span,) = [
+            span for block in layout.pages[0].text_blocks for line in block.lines
+            for span in line.spans if span.text == title
+        ]
+        span.baseline_y = None
+    (context,) = detect_toc_like_pages(layout)
+    entries = extract_toc_entry_lines(context)
+    assert entries[2].page_number_token == "13"
+    assert not entries[2].has_leader_dots
+    findings = check_pdf_toc_alignment(layout) + check_pdf_toc_leader_consistency(layout)
+    assert all(finding.details["issue_type"] != "missing_page_number" for finding in findings)
+    if heading == "TABLE OF CONTENTS":
+        rule, issue, index_key = "P075", "toc_missing_leader_style", "entry_index"
+    else:
+        rule, issue, index_key = "P018", "inconsistent_leader_dots", "worst_entry_index"
+    targeted = [finding for finding in findings if finding.details["issue_type"] == issue]
+    if warns:
+        (finding,) = targeted
+        assert (finding.rule_id, finding.page, finding.details[index_key]) == (rule, 1, "2")
+    else:
+        assert not targeted
+
+
+@pytest.mark.parametrize(
     ("placement", "warns"),
     [
         ("same_baseline", False),
