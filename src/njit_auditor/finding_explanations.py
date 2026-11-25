@@ -268,6 +268,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Problem: The gap above this level-three heading appears to contain a blank line. "
         "Remove the extra line above the heading and keep the surrounding body spacing."
     ),
+    ("P023", "blank_line_before_opening_level_three_heading"): (
+        "Problem: An extra blank line appears above this level-three heading at the page start. "
+        "Remove the blank line and keep the prescribed 8 pt of heading spacing."
+    ),
     ("P023", "possible_body_text_not_double_spaced"): (
         "Problem: Body text on this page does not appear to be double-spaced. "
         "NJIT requires body text to be double-spaced, except for tables, figure "

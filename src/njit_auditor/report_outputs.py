@@ -2396,12 +2396,12 @@ def audit_findings_to_json_dict(
         ):
             entry["student_facing_role"] = "inventory"
 
-    # Report routes use the raw array index as the finding ID. Number
-    # problems in page order above, then append the new page-top findings so
-    # inserting one earlier in a document cannot change existing route IDs.
+    # Keep page-start findings after the established raw finding IDs.
     serialized_findings.sort(key=lambda entry: (
-        entry["rule_id"] == "P016"
-        and entry["details"].get("issue_type") == "blank_line_above_continuing_body_text"
+        (entry["rule_id"], entry["details"].get("issue_type")) in {
+            ("P016", "blank_line_above_continuing_body_text"),
+            ("P023", "blank_line_before_opening_level_three_heading"),
+        }
     ))
 
     inventory_finding_count = sum(

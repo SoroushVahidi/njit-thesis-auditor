@@ -147,6 +147,7 @@
     "tests/test_pdf_only_website_wording.py",
     "tests/test_pdf_reading_frame.py",
     "tests/test_pdf_rules.py",
+    "tests/test_pdf_section_page_top_spacing.py",
     "tests/test_pdf_toc_leader_consistency.py",
     "tests/test_problem_drilldown.py",
     "tests/test_problem_numbers_and_page_actions.py",

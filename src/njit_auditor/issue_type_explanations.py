@@ -162,6 +162,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "biosketch_bullet_section_not_single_spaced": (
         "Biographical Sketch bullet section not single-spaced"
     ),
+    "blank_line_before_opening_level_three_heading": "Blank line above opening level-three heading",
     "multiline_body_heading_not_single_spaced": "Wrapped body heading not single-spaced",
     "blank_line_above_level_three_heading": "Blank line above level-three heading",
     "biosketch_degree_order_suspicious": "Biographical Sketch degree order suspicious",
@@ -341,6 +342,9 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "spacing. NJIT requires double line spacing throughout the body text. "
         "Check paragraph spacing settings and ensure no manual spacing overrides "
         "are in effect."
+    ),
+    ("P023", "blank_line_before_opening_level_three_heading"): (
+        "Level-three headings use 8 pt of preceding space. Remove the empty line above this one."
     ),
     ("P023", "multiline_body_heading_not_single_spaced"): (
         "Two lines of the same numbered body heading appear to use the page's "
