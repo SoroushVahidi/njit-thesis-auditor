@@ -749,30 +749,17 @@ def _is_likely_expected_indent(indent_pt: float) -> bool:
     return abs(indent_pt - EXPECTED_NORMAL_INDENT_PT) <= INDENT_TOLERANCE_PT
 
 
-def _without_ruled_table_lines(path: str, page: PdfPage) -> PdfPage:
-    """Exclude lines inside verified closed grids from P015's paragraph evidence."""
-    # The layout loader measures these rules on pages with table caption cues.
-    # The grid check also requires outer edges and internal row and column dividers.
-    if len(page.horizontal_rules) < 3:
-        return page
-    boxes = measure_ruled_table_boxes(path, page)
-    if not boxes:
-        return page
-    blocks = []
-    for block in page.text_blocks:
-        lines = [
-            line for line in block.lines
-            if not any(
-                table.x0 <= line.bbox.x0 < line.bbox.x1 <= table.x1
-                and table.y0 <= line.bbox.y0 < line.bbox.y1 <= table.y1
-                for table in boxes
-            )
-        ]
-        if len(lines) == len(block.lines):
-            blocks.append(block)
-        elif lines:
-            blocks.append(block.model_copy(update={"lines": lines}))
-    return page.model_copy(update={"text_blocks": blocks})
+def _paragraph_inside_ruled_table(
+    paragraph: list[PdfTextLine], tables: tuple[BBox, ...],
+) -> bool:
+    return any(
+        all(
+            table.x0 <= line.bbox.x0 < line.bbox.x1 <= table.x1
+            and table.y0 <= line.bbox.y0 < line.bbox.y1 <= table.y1
+            for line in paragraph
+        )
+        for table in tables
+    )
 
 
 def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
@@ -789,7 +776,6 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
     for page in pdf_document.pages:
         if page.page_number in excluded_pages:
             continue
-        page = _without_ruled_table_lines(pdf_document.path, page)
         if _has_page_heading_in(page, REFERENCES_LIKE_HEADINGS):
             continue
         paragraphs = group_lines_into_paragraphs(page)
@@ -840,7 +826,18 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
 
         seen_indented_paragraph = False
         page_issue_findings: dict[str, AuditFinding] = {}
+        # Leave the existing heading, grouping and style evidence intact so
+        # unrelated prose keeps the same diagnosis. Only skip findings with
+        # a paragraph fully owned by one verified closed table.
+        tables = (
+            measure_ruled_table_boxes(pdf_document.path, page)
+            if len(page.horizontal_rules) >= 3 else ()
+        )
         for idx, paragraph, indent_pt in paragraph_data:
+            if indent_pt >= STRONG_INDENT_THRESHOLD_PT:
+                seen_indented_paragraph = True
+            if _paragraph_inside_ruled_table(paragraph, tables):
+                continue
             if idx in heading_exempt and indent_pt >= STRONG_INDENT_THRESHOLD_PT:
                 current = AuditFinding(
                     rule_id="P015",
@@ -906,9 +903,6 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                 existing = page_issue_findings.get("unexpected_indent_on_continuation_line")
                 if existing is None or indent_pt > float(existing.details["indent_pt"]):
                     page_issue_findings["unexpected_indent_on_continuation_line"] = current
-
-            if indent_pt >= STRONG_INDENT_THRESHOLD_PT:
-                seen_indented_paragraph = True
 
             # Detect body-text paragraphs after the first that are missing first-line indent.
             if idx >= 1:

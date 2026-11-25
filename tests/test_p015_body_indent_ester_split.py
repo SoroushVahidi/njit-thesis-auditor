@@ -109,17 +109,19 @@ def _draw_paragraph(
 
 
 @pytest.mark.parametrize(
-    ("inner_divider", "outside_paragraph", "expected_baseline"),
-    [(True, False, None), (False, False, 368), (True, True, 538)],
+    ("inner_divider", "outside_paragraph", "cell_baseline", "expected_baseline"),
+    [(True, False, 368, None), (False, False, 368, 368),
+     (True, True, 368, 538), (True, False, 409, 409)],
 )
 def test_p015_excludes_only_verified_table_rows(
-    tmp_path: Path, inner_divider: bool, outside_paragraph: bool, expected_baseline: int | None,
+    tmp_path: Path, inner_divider: bool, outside_paragraph: bool,
+    cell_baseline: int, expected_baseline: int | None,
 ) -> None:
     path = tmp_path / "table-and-body.pdf"
     with fitz.open() as pdf:
         pdf.new_page(width=612, height=792)
         page = pdf.new_page(width=612, height=792)
-        for y in (100, 202):
+        for y in (65, 135, 205):
             _draw_paragraph(page, first_x=144, rest_x=108, y=y)
         page.insert_text((108, 300), "Table 4.1 Configuration Descriptions")
         for x in (105, 510):
@@ -130,7 +132,7 @@ def test_p015_excludes_only_verified_table_rows(
             page.draw_line((105, y), (510, y))
         page.insert_text((110, 339), "Parameter")
         page.insert_text((447, 339), "Result")
-        _draw_paragraph(page, first_x=108, rest_x=108, y=368)
+        _draw_paragraph(page, first_x=108, rest_x=108, y=cell_baseline)
         if outside_paragraph:
             _draw_paragraph(page, first_x=108, rest_x=108, y=538)
         pdf.save(path)
