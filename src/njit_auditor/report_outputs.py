@@ -2396,11 +2396,12 @@ def audit_findings_to_json_dict(
         ):
             entry["student_facing_role"] = "inventory"
 
-    # Route IDs use serialized array indices. Append the new page-start
-    # findings after assigning display numbers in physical page order.
+    # Keep page-start findings after the established raw finding IDs.
     serialized_findings.sort(key=lambda entry: (
-        entry["rule_id"] == "P023"
-        and entry["details"].get("issue_type") == "blank_line_before_opening_level_three_heading"
+        (entry["rule_id"], entry["details"].get("issue_type")) in {
+            ("P016", "blank_line_above_continuing_body_text"),
+            ("P023", "blank_line_before_opening_level_three_heading"),
+        }
     ))
 
     inventory_finding_count = sum(

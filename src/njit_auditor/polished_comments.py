@@ -169,6 +169,10 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "List of Figures on page {page} does not include the correct continued "
         "heading. Add the correct continued heading on this continuation page."
     ),
+    ("P030", "missing_symbols_continued_heading"): (
+        "The List of Symbols continues on page {page}. "
+        "Add LIST OF SYMBOLS (Continued) above the entries."
+    ),
     ("P034", "copyright_year_mismatch"): (
         "Copyright page year format on page {page} may need review. "
         "Confirm the copyright block includes the required year format."
@@ -301,7 +305,13 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "to use the same double-spaced line pitch as the surrounding prose. "
         "Multi-line titles must be single-spaced within the title."
     ),
+    ("P023", "blank_line_above_level_three_heading"): (
+        "The level-three heading on page {page} appears to have a blank line above it."
+    ),
     # --- P016 paragraph/line spacing gaps ---
+    ("P016", "blank_line_above_continuing_body_text"): (
+        "An extra blank line appears above the continuing body text on page {page}."
+    ),
     ("P016", "excessive_line_gap"): (
         "Unusually large spacing (about {largest_gap_pt}pt) was detected between "
         "lines on page {page}. Excluding necessary page breaks, text should flow "
@@ -812,12 +822,18 @@ _REMEDIATION_OVERRIDES: dict[str, str] = {
 # that do not apply here. An empty string means "this finding's comment body
 # already states the complete fix; do not append anything else."
 _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
+    ("P016", "blank_line_above_continuing_body_text"): (
+        "Remove the extra blank line so the continuing body text starts at its normal top margin."
+    ),
     ("P023", "blank_line_before_opening_level_three_heading"): (
         "Remove the blank line above the heading. Keep the prescribed 8 pt of heading spacing."
     ),
     ("P023", "multiline_body_heading_not_single_spaced"): (
         "Single-space the wrapped lines within this heading. Keep the normal "
         "spacing between the heading and the body paragraph."
+    ),
+    ("P023", "blank_line_above_level_three_heading"): (
+        "Remove the blank line above this level-three heading. Keep the normal body spacing."
     ),
     # P078 has two issue types; the rule-level remediation covers both, so a
     # pronoun finding told students to replace "paper"/"article". Give each

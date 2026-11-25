@@ -264,6 +264,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "the page number unless this page type is intentionally numbered."
     ),
     # --- P023 body spacing ---
+    ("P023", "blank_line_above_level_three_heading"): (
+        "Problem: The gap above this level-three heading appears to contain a blank line. "
+        "Remove the extra line above the heading and keep the surrounding body spacing."
+    ),
     ("P023", "blank_line_before_opening_level_three_heading"): (
         "Problem: An extra blank line appears above this level-three heading at the page start. "
         "Remove the blank line and keep the prescribed 8 pt of heading spacing."
@@ -282,6 +286,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "(centered, near the top of the page, bold, and in all capital letters)."
     ),
     # --- P016 paragraph/line spacing gaps ---
+    ("P016", "blank_line_above_continuing_body_text"): (
+        "Problem: An extra blank line appears above the continuing body text. "
+        "Remove the extra line so the text starts at its normal top margin."
+    ),
     ("P016", "excessive_line_gap"): (
         "Unusually large spacing was detected between lines on this page. "
         "Excluding necessary page breaks for new chapters or to keep figures "
@@ -441,6 +449,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Problem: A continuation page of a multi-page Table of Contents, List of "
         "Tables, or List of Figures does not include the correct continued heading. "
         "Add the correct continued heading on this continuation page."
+    ),
+    ("P030", "missing_symbols_continued_heading"): (
+        "Problem: The List of Symbols continues on this page without its continued heading. "
+        "Add LIST OF SYMBOLS (Continued) above the symbol entries."
     ),
     # --- P033 title consistency ---
     ("P033", "frontmatter_title_mismatch"): (
