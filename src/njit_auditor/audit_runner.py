@@ -64,6 +64,7 @@ from njit_auditor.rules.pdf_biosketch_publication_ordering import (
     check_pdf_biosketch_publication_ordering,
 )
 from njit_auditor.rules.pdf_body_heading_spacing import check_pdf_body_heading_spacing
+from njit_auditor.rules.pdf_body_page_top_spacing import check_pdf_body_page_top_spacing
 from njit_auditor.rules.pdf_body_spacing import check_pdf_body_spacing
 from njit_auditor.rules.pdf_captions import check_pdf_captions
 from njit_auditor.rules.pdf_copyright_page import (
@@ -396,6 +397,8 @@ def collect_pdf_layout_findings(
                 },
             )
         )
+    # Keep existing findings ahead of any new page-top warning on the same page.
+    findings.extend(run_check(check_pdf_body_page_top_spacing, content_doc))
     page_details_by_number = {
         page.page_number: page_identity_details(page)
         for page in content_doc.pages

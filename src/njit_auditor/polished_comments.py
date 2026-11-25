@@ -306,6 +306,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "The level-three heading on page {page} appears to have a blank line above it."
     ),
     # --- P016 paragraph/line spacing gaps ---
+    ("P016", "blank_line_above_continuing_body_text"): (
+        "An extra blank line appears above the continuing body text on page {page}."
+    ),
     ("P016", "excessive_line_gap"): (
         "Unusually large spacing (about {largest_gap_pt}pt) was detected between "
         "lines on page {page}. Excluding necessary page breaks, text should flow "
@@ -816,6 +819,9 @@ _REMEDIATION_OVERRIDES: dict[str, str] = {
 # that do not apply here. An empty string means "this finding's comment body
 # already states the complete fix; do not append anything else."
 _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
+    ("P016", "blank_line_above_continuing_body_text"): (
+        "Remove the extra blank line so the continuing body text starts at its normal top margin."
+    ),
     ("P023", "multiline_body_heading_not_single_spaced"): (
         "Single-space the wrapped lines within this heading. Keep the normal "
         "spacing between the heading and the body paragraph."
