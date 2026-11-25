@@ -1259,8 +1259,10 @@ def extract_toc_logical_entry_lines(
 
     The ordinary extractor deliberately filters rows that do not resemble a
     standalone entry. A wrapped title can contain exactly such a row, or a
-    numeral inside its first row can be mistaken for the page number. Normally, it rejoins hanging rows with a terminal folio in the page's established column. P018's missing-number check can also use a final
-    hanging row's own right-side dot leaders when the column estimate is
+    numeral inside its first row can be mistaken for the page number. Normally,
+    it rejoins hanging rows with a terminal folio in the established column.
+    P018's missing-number check can also use a final hanging row's own
+    right-side dot leaders when the column estimate is
     contaminated. Other rules keep the established entry geometry.
     """
     entries = extract_toc_entry_lines(context, require_right_edge=require_right_edge)
