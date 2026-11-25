@@ -18,6 +18,7 @@ from njit_auditor.pdf_models import (
     PdfTextBlock,
     PdfTextLine,
     PdfTextSpan,
+    format_bbox_detail,
 )
 from njit_auditor.rules.pdf_indentation import _effective_row_start_x, check_pdf_indentation
 
@@ -105,6 +106,48 @@ def _draw_paragraph(
             (rest_x, y + (idx * 14)),
             "Continuation synthetic paragraph line text for indentation checks.",
         )
+
+
+@pytest.mark.parametrize(
+    ("inner_divider", "outside_paragraph", "expected_baseline"),
+    [(True, False, None), (False, False, 368), (True, True, 538)],
+)
+def test_p015_excludes_only_verified_table_rows(
+    tmp_path: Path, inner_divider: bool, outside_paragraph: bool, expected_baseline: int | None,
+) -> None:
+    path = tmp_path / "table-and-body.pdf"
+    with fitz.open() as pdf:
+        pdf.new_page(width=612, height=792)
+        page = pdf.new_page(width=612, height=792)
+        for y in (100, 202):
+            _draw_paragraph(page, first_x=144, rest_x=108, y=y)
+        page.insert_text((108, 300), "Table 4.1 Configuration Descriptions")
+        for x in (105, 510):
+            page.draw_line((x, 320), (x, 448))
+        if inner_divider:
+            page.draw_line((434, 320), (434, 448))
+        for y in (320, 350, 448):
+            page.draw_line((105, y), (510, y))
+        page.insert_text((110, 339), "Parameter")
+        page.insert_text((447, 339), "Result")
+        _draw_paragraph(page, first_x=108, rest_x=108, y=368)
+        if outside_paragraph:
+            _draw_paragraph(page, first_x=108, rest_x=108, y=538)
+        pdf.save(path)
+
+    document = load_pdf_layout(str(path))
+    source_lines = [line for block in document.pages[1].text_blocks for line in block.lines]
+    findings = check_pdf_indentation(document)
+    assert [line for block in document.pages[1].text_blocks for line in block.lines] == source_lines
+    if expected_baseline is None:
+        assert findings == []
+        return
+    target, = [line for line in source_lines if line.baseline_y == expected_baseline]
+    finding, = findings
+    assert finding.rule_id == "P015" and finding.page == 2
+    assert finding.details["issue_type"] == "missing_later_indent"
+    assert finding.details["bbox"] == format_bbox_detail(target.bbox)
+    assert "body paragraph" in finding.details["suggested_fix"]
 
 
 @pytest.fixture()
