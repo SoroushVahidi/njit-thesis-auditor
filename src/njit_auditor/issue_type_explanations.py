@@ -65,6 +65,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "toc_missing_leader_style": "TOC missing leader style",
     # Headings / TOC
     "missing_continued_heading": "Missing continued heading",
+    "missing_symbols_continued_heading": "List of Symbols continued heading missing",
     "toc_missing_continued_heading": "TOC missing continued heading",
     "heading_phrase_not_exact": "Heading phrase not exact",
     "heading_style_issue": "Heading style issue",
@@ -162,6 +163,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
         "Biographical Sketch bullet section not single-spaced"
     ),
     "multiline_body_heading_not_single_spaced": "Wrapped body heading not single-spaced",
+    "blank_line_above_level_three_heading": "Blank line above level-three heading",
     "biosketch_degree_order_suspicious": "Biographical Sketch degree order suspicious",
     "biosketch_publication_order_suspicious": "Biographical Sketch publication order suspicious",
     "unexpected_opening_indent": "Unexpected opening paragraph indent",
@@ -346,6 +348,10 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "within the title. Change the heading's line spacing; leave the spacing "
         "between the heading and body paragraph alone."
     ),
+    ("P023", "blank_line_above_level_three_heading"): (
+        "Nearby prose lines indicate that there is room for an extra blank line above "
+        "this level-three heading. Remove the blank line above the heading."
+    ),
     ("P016", "blank_line_above_continuing_body_text"): (
         "An extra blank line appears above the continuing body text. "
         "Remove it so the text starts at its normal top margin."
@@ -482,6 +488,10 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "A multi-page list (such as a List of Tables or List of Figures) may be "
         "missing a required continued heading on a continuation page. "
         "NJIT requires '(Continued)' in the heading when such lists span multiple pages."
+    ),
+    ("P030", "missing_symbols_continued_heading"): (
+        "This page continues the List of Symbols. "
+        "Use LIST OF SYMBOLS (Continued) above the entries."
     ),
     ("P033", "frontmatter_title_mismatch"): (
         "The dissertation title text differs between two or more front-matter "

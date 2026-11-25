@@ -28,6 +28,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     entry_has_visible_dot_leader,
     extract_toc_entry_lines,
     has_trailing_page_number_token,
+    owned_detached_leader_lines,
 )
 from njit_auditor.toc_entry_geometry import LEADER_CHARS, row_glyphs
 
@@ -56,20 +57,6 @@ class _LeaderRow:
     folio_right: float
     font_size: float
     dots: tuple[tuple[float, float], ...]
-
-
-def _detached_dots(page: PdfPage) -> list[tuple[float, float, float]]:
-    # Visual-row reconstruction can leave dot-only fragments in the right
-    # margin. Recover them here without changing folio or title ownership.
-    return [
-        (line.baseline_y, glyph.x0, glyph.x1)
-        for block in page.text_blocks
-        for line in block.lines
-        if line.baseline_y is not None and line.text.strip()
-        and all(c in LEADER_CHARS or c.isspace() for c in line.text)
-        for glyph in row_glyphs(line)
-        if glyph.char in LEADER_CHARS and glyph.x0 is not None and glyph.x1 is not None
-    ]
 
 
 def _extend_fragmented_title(
@@ -120,7 +107,7 @@ def _extend_fragmented_title(
 
 
 def _measure_leader_row(
-    entry: TocEntryLine, detached: list[tuple[float, float, float]], page: PdfPage,
+    entry: TocEntryLine, page: PdfPage, peers: list[TocEntryLine],
 ) -> _LeaderRow | None:
     row, token = entry.page_number_line, entry.page_number_token
     if row is None or not token or not row.spans:
@@ -167,16 +154,21 @@ def _measure_leader_row(
         or not any(g.char.isalpha() for g in glyphs[:end + 1])
     ):
         return None
-    title_right = _extend_fragmented_title(
+    extended_title_right = _extend_fragmented_title(
         title_right, min((left for left, _ in dots), default=folio_left),
         row.spans, page, jitter,
     )
     dots.update(
-        (left, right) for baseline, left, right in detached
-        if abs(baseline - folio_span.baseline_y) <= jitter
-        and title_right + jitter < left < right <= folio_left
+        (glyph.x0, glyph.x1)
+        for line in owned_detached_leader_lines(entry, page, peers, title_right=title_right)
+        if line.baseline_y is not None
+        for glyph in row_glyphs(line)
+        if glyph.char in LEADER_CHARS and glyph.x0 is not None and glyph.x1 is not None
+        and extended_title_right + jitter < glyph.x0 < glyph.x1 <= folio_left
     )
-    return _LeaderRow(title_right, folio_left, folio_right, folio_span.size, tuple(sorted(dots)))
+    return _LeaderRow(
+        extended_title_right, folio_left, folio_right, folio_span.size, tuple(sorted(dots))
+    )
 
 
 def _measured_grid_style(
@@ -283,8 +275,7 @@ def check_pdf_toc_leader_consistency(pdf_document: PdfDocument) -> list[AuditFin
         if context.page_type != "table_of_contents":
             continue
         entries = extract_toc_entry_lines(context)
-        detached = _detached_dots(context.page)
-        measured = [_measure_leader_row(entry, detached, context.page) for entry in entries]
+        measured = [_measure_leader_row(entry, context.page, entries) for entry in entries]
         peers = [row for row in measured if row is not None]
         column = median(row.folio_right for row in peers) if len(peers) >= 3 else None
         for index, (entry, row) in enumerate(zip(entries, measured, strict=True)):

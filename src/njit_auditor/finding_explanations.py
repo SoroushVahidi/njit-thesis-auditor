@@ -264,6 +264,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "the page number unless this page type is intentionally numbered."
     ),
     # --- P023 body spacing ---
+    ("P023", "blank_line_above_level_three_heading"): (
+        "Problem: The gap above this level-three heading appears to contain a blank line. "
+        "Remove the extra line above the heading and keep the surrounding body spacing."
+    ),
     ("P023", "possible_body_text_not_double_spaced"): (
         "Problem: Body text on this page does not appear to be double-spaced. "
         "NJIT requires body text to be double-spaced, except for tables, figure "
@@ -441,6 +445,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Problem: A continuation page of a multi-page Table of Contents, List of "
         "Tables, or List of Figures does not include the correct continued heading. "
         "Add the correct continued heading on this continuation page."
+    ),
+    ("P030", "missing_symbols_continued_heading"): (
+        "Problem: The List of Symbols continues on this page without its continued heading. "
+        "Add LIST OF SYMBOLS (Continued) above the symbol entries."
     ),
     # --- P033 title consistency ---
     ("P033", "frontmatter_title_mismatch"): (
