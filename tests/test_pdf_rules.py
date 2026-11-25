@@ -8332,6 +8332,143 @@ def test_p030_finding_details_are_privacy_safe(tmp_path: Path) -> None:
     assert long_body not in warning.message
 
 
+def _write_symbols_page(
+    document: fitz.Document,
+    heading: str = "",
+    *,
+    row_count: int = 17,
+    symbol_x: float = 107,
+    definition_x: float = 246,
+    text_size: float = 11,
+    start_y: float | None = None,
+) -> fitz.Page:
+    page = document.new_page(width=612, height=792)
+    for index, title_line in enumerate(heading.splitlines()):
+        page.insert_text((203, 82 + 15 * index), title_line, fontsize=12)
+    if start_y is None:
+        start_y = 128 if heading else 78
+    for index in range(row_count):
+        y = start_y + index * 34
+        page.insert_text((symbol_x, y), f"k{index}", fontsize=text_size)
+        page.insert_text((definition_x, y), f"Coefficient in the model {index}", fontsize=text_size)
+    page.insert_text((304, 755), "xxxii", fontsize=11)
+    return page
+
+
+def test_p030_symbols_headerless_continuation_targets_first_paired_row(tmp_path: Path) -> None:
+    path = tmp_path / "symbols_headerless.pdf"
+    with fitz.open() as pdf:
+        _write_symbols_page(pdf, "LIST OF SYMBOLS")
+        _write_symbols_page(pdf, "List of Symbols (Continued)")
+        _write_symbols_page(pdf, row_count=6)
+        _write_symbols_page(pdf, "LIST OF ABBREVIATIONS", row_count=6)
+        pdf.save(path)
+
+    document = load_pdf_layout(str(path))
+    (warning,) = check_pdf_toc_continued_headings(document)
+    assert warning.rule_id == "P030" and warning.page == 3
+    assert warning.details["section_type"] == "list_of_symbols"
+    assert warning.details["expected_heading"] == "LIST OF SYMBOLS (Continued)"
+    assert warning.details["observed_heading"] == ""
+    assert warning.details["continuation_index"] == "3"
+    assert warning.details["section_start_page"] == "1"
+    assert warning.details["source_feedback_id"] == "F04"
+    assert "source_q_rule_ids" not in warning.details
+    x0, y0, x1, y1 = map(float, warning.details["bbox"].split(","))
+    assert x0 == 107 < 246 < x1
+    assert y0 < 78 < y1 < 112
+
+
+@pytest.mark.parametrize("marker", [
+    "List of Symbols (Continued)",
+    "List of Symbols Continued",
+    "LISTOFSYMBOLS(CONTINUED)",
+    "LIST OF SYMBOLS\n(Continued)",
+    "LIST OF SYMBOLS\ncontinued.",
+])
+def test_p030_symbols_recognizes_genuine_continuation_markers(tmp_path: Path, marker: str) -> None:
+    path = tmp_path / "symbols_marker.pdf"
+    with fitz.open() as pdf:
+        _write_symbols_page(pdf, "LIST OF SYMBOLS")
+        _write_symbols_page(pdf, marker)
+        pdf.save(path)
+    assert not check_pdf_toc_continued_headings(load_pdf_layout(str(path)))
+
+
+def test_p030_symbols_bare_repeated_heading_targets_heading(tmp_path: Path) -> None:
+    path = tmp_path / "symbols_bare_heading.pdf"
+    with fitz.open() as pdf:
+        _write_symbols_page(pdf, "LIST OF SYMBOLS", row_count=4)
+        _write_symbols_page(pdf, "LIST OF SYMBOLS", row_count=3)
+        pdf.save(path)
+    (finding,) = check_pdf_toc_continued_headings(load_pdf_layout(str(path)))
+    assert finding.details["observed_heading"] == "LIST OF SYMBOLS"
+    x0, y0, x1, y1 = map(float, finding.details["bbox"].split(","))
+    assert x0 == 203 < x1 and y0 < 82 < y1 < 100
+
+
+@pytest.mark.parametrize("case", [
+    "standalone", "orphan-marker", "sparse", "unrelated", "competing-column",
+    "changed-columns", "font-change", "interposed", "unfilled-predecessor", "missing-geometry",
+    "lower-page-table",
+])
+def test_p030_symbols_abstains_without_continuation_ownership(tmp_path: Path, case: str) -> None:
+    path = tmp_path / "symbols_ambiguity.pdf"
+    with fitz.open() as pdf:
+        if case != "standalone":
+            first = "LIST OF SYMBOLS (Continued)" if case == "orphan-marker" else "LIST OF SYMBOLS"
+            _write_symbols_page(pdf, first, row_count=4 if case == "unfilled-predecessor" else 17)
+        if case == "interposed":
+            pdf.new_page(width=612, height=792)
+        page = _write_symbols_page(
+            pdf, "CHAPTER 1" if case == "unrelated" else "",
+            row_count=2 if case == "sparse" else 5,
+            definition_x=292 if case == "changed-columns" else 246,
+            text_size=16 if case == "font-change" else 11,
+            start_y=476 if case == "lower-page-table" else None,
+        )
+        if case == "competing-column":
+            for y in (78, 112, 146, 180):
+                page.insert_text((432, y), "Alternative definition", fontsize=11)
+        pdf.save(path)
+    document = load_pdf_layout(str(path))
+    if case == "missing-geometry":
+        document.pages[-1].text_blocks[0].lines[0].bbox.x1 = -1
+    assert not check_pdf_toc_continued_headings(document)
+
+
+def test_p030_symbols_distant_marker_does_not_complete_heading(tmp_path: Path) -> None:
+    path = tmp_path / "symbols_distant_marker.pdf"
+    with fitz.open() as pdf:
+        _write_symbols_page(pdf, "LIST OF SYMBOLS")
+        page = _write_symbols_page(pdf, "LIST OF SYMBOLS", row_count=6)
+        page.insert_text((440, 97), "(Continued)", fontsize=12)
+        pdf.save(path)
+    (finding,) = check_pdf_toc_continued_headings(load_pdf_layout(str(path)))
+    assert finding.page == 2 and finding.details["observed_heading"] == "LIST OF SYMBOLS"
+
+
+def test_p030_symbols_retains_anchored_type_size_across_pages(tmp_path: Path) -> None:
+    path = tmp_path / "symbols_style_drift.pdf"
+    with fitz.open() as pdf:
+        _write_symbols_page(pdf, "LIST OF SYMBOLS", text_size=11)
+        _write_symbols_page(pdf, row_count=19, text_size=13)
+        _write_symbols_page(pdf, row_count=6, text_size=15)
+        pdf.save(path)
+    assert [f.page for f in check_pdf_toc_continued_headings(load_pdf_layout(str(path)))] == [2]
+
+
+def test_p030_symbols_does_not_bridge_filtered_pdf_pages(tmp_path: Path) -> None:
+    path = tmp_path / "symbols_page_gap.pdf"
+    with fitz.open() as pdf:
+        _write_symbols_page(pdf, "LIST OF SYMBOLS")
+        _write_symbols_page(pdf, row_count=6)
+        pdf.save(path)
+    document = load_pdf_layout(str(path))
+    document.pages[1].original_page_number = 3
+    assert not check_pdf_toc_continued_headings(document)
+
+
 # ---------------------------------------------------------------------------
 # P031: LoT/LoF column headers
 # ---------------------------------------------------------------------------
