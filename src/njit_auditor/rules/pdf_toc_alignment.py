@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
+from copy import copy
 from dataclasses import dataclass
 from statistics import median
 
@@ -206,6 +207,57 @@ def _has_list_leader_folio(entry: TocEntryLine) -> bool:
         )
         and folio.bbox.x0 - max(span.bbox.x1 for span in title) >= folio.size
     )
+
+
+def _overprints_title(dot: PdfTextSpan, spans: list[PdfTextSpan]) -> bool:
+    text = dot.text.strip()
+    if not text or dot.baseline_y is None or any(c not in ".…·" and not c.isspace() for c in text):
+        return False
+    # A run wholly inside another span on the same line cannot connect
+    # that title to its folio. Leave touching and unmeasured runs alone.
+    return any(
+        title.baseline_y is not None
+        and abs(title.baseline_y - dot.baseline_y) <= 0.5
+        and title.bbox.x0 < dot.bbox.x0 < dot.bbox.x1 < title.bbox.x1
+        and any(c.isalpha() for c in title.text)
+        for title in spans
+    )
+
+
+def _row_without_overprinted_dots(line: PdfTextLine) -> PdfTextLine:
+    spans = [span for span in line.spans if not _overprints_title(span, line.spans)]
+    if len(spans) == len(line.spans):
+        return line
+    return line.model_copy(update={"spans": spans, "text": join_content_span_texts(spans)})
+
+
+def leader_evidence_entry(entry: TocEntryLine) -> TocEntryLine:
+    """Exclude dot-only title overprints when checking leader consistency."""
+    if not entry.has_leader_dots:
+        return entry
+    line = _row_without_overprinted_dots(entry.line)
+    folio_row = entry.page_number_line
+    if folio_row is entry.line:
+        folio_row = line
+    elif folio_row is not None:
+        folio_row = _row_without_overprinted_dots(folio_row)
+    if line is entry.line and folio_row is entry.page_number_line:
+        return entry
+
+    adjusted = copy(entry)
+    adjusted.line = line
+    adjusted.page_number_line = folio_row
+    if line is not entry.line:
+        text = _row_text(line)
+        # Keep the existing folio eligibility if wrapping stripped its
+        # token from display text. Ownership is checked separately.
+        if not has_trailing_page_number_token(entry):
+            text = _strip_trailing_page_token(text, entry.page_number_token)
+        adjusted.cleaned_text = text
+    adjusted.has_leader_dots = _has_leader_dot_pattern(adjusted.cleaned_text) or (
+        folio_row is not None and _has_leader_dot_pattern(_row_text(folio_row))
+    )
+    return adjusted
 
 
 def is_isolated_terminal_grid_leader_dot(
@@ -1894,8 +1946,10 @@ def _add_entry_consistency_findings(
             ),
         )
 
-    dotted_count = sum(1 for entry in entries if entry.has_leader_dots)
-    dot_majority = dotted_count >= max(3, int(len(entries) * 0.6))
+    leader_sources = {leader_evidence_entry(entry): entry for entry in entries}
+    leader_entries = list(leader_sources)
+    dotted_count = sum(1 for entry in leader_entries if entry.has_leader_dots)
+    dot_majority = dotted_count >= max(3, int(len(leader_entries) * 0.6))
     if (
         context.page_type != "table_of_contents"
         and dot_majority
@@ -1904,25 +1958,30 @@ def _add_entry_consistency_findings(
         # TOC-wide leader-style consistency belongs to the focused P075/Q052
         # rule. Keep P018's list-page coverage without asking twice for TOC.
         leader_page_edges = [
-            entry.page_number_right_x for entry in entries
+            entry.page_number_right_x for entry in leader_entries
             if entry.has_leader_dots and entry.page_number_right_x is not None
         ]
         expected_page_edge = median(leader_page_edges) if len(leader_page_edges) >= 3 else None
         missing_dots_entries = [
             entry
-            for entry in entries
+            for entry in leader_entries
             if expected_page_edge is not None
             and entry.page_number_right_x is not None
             and abs(entry.page_number_right_x - expected_page_edge) <= RIGHT_EDGE_TOLERANCE_PT
             and _has_list_leader_folio(entry)
-            and not entry_has_visible_dot_leader(entry, context.page, entries)
+            and not entry_has_visible_dot_leader(entry, context.page, leader_entries)
         ]
         if missing_dots_entries:
             previously_eligible = [
-                entry for entry in missing_dots_entries if has_trailing_page_number_token(entry)
+                entry for entry in missing_dots_entries
+                if not leader_sources[entry].has_leader_dots
+                and has_trailing_page_number_token(leader_sources[entry])
             ]
+            leader_positions = {
+                entry: entry_positions[original] for entry, original in leader_sources.items()
+            }
             worst_entry = _select_worst_leader_dots_entry(
-                entries, previously_eligible or missing_dots_entries, entry_positions
+                leader_entries, previously_eligible or missing_dots_entries, leader_positions
             )
             page_issue_findings["inconsistent_leader_dots"] = AuditFinding(
                 rule_id="P018",
@@ -1935,7 +1994,7 @@ def _add_entry_consistency_findings(
                         "page_type": context.page_type,
                         "issue_type": "inconsistent_leader_dots",
                         "affected_entry_count": str(len(missing_dots_entries)),
-                        "worst_entry_index": str(entry_positions[worst_entry]),
+                        "worst_entry_index": str(leader_positions[worst_entry]),
                         "confidence": "medium",
                         "source_q_rule_id": "Q052",
                         **({} if previously_eligible else {"_preserve_prior_finding_ids": "true"}),

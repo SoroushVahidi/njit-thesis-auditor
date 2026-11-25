@@ -20,7 +20,9 @@ from dataclasses import asdict
 from pathlib import Path
 
 import fitz
+import pytest
 
+from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
@@ -31,7 +33,7 @@ from njit_auditor.pdf_models import (
 )
 from njit_auditor.report_outputs import audit_findings_to_json_dict
 from njit_auditor.report_view import build_report_view
-from njit_auditor.rules.pdf_toc_alignment import TocEntryLine
+from njit_auditor.rules.pdf_toc_alignment import TocEntryLine, check_pdf_toc_alignment
 from njit_auditor.rules.pdf_toc_leader_consistency import (
     _anchor_details,
     check_pdf_toc_leader_consistency,
@@ -536,3 +538,46 @@ def test_mixed_leaders_finding_text_confirms_q052() -> None:
     assert p075, "Expected a P075 finding"
     assert p075[0].details.get("source_q_rule_id") == "Q052"
     assert "Q052" not in p075[0].message
+
+
+@pytest.mark.parametrize(("heading", "prefix", "rule", "issue", "index_field"), [
+    ("TABLE OF CONTENTS", "", "P075", "toc_missing_leader_style", "entry_index"),
+    ("LIST OF TABLES", "Table ", "P018", "inconsistent_leader_dots", "worst_entry_index"),
+    ("LIST OF FIGURES", "Figure ", "P018", "inconsistent_leader_dots", "worst_entry_index"),
+])
+@pytest.mark.parametrize(("mode", "expected"), [
+    ("overprint", True), ("no_dots", True), ("compact", False),
+    ("detached", False), ("overprint_and_detached", False), ("sparse", False),
+])
+def test_dot_only_title_overprint_is_not_leader_evidence(
+    tmp_path: Path, heading: str, prefix: str, rule: str, issue: str, index_field: str,
+    mode: str, expected: bool,
+) -> None:
+    source = tmp_path / "leaders.pdf"
+    with fitz.open() as pdf:
+        page = pdf.new_page()
+        page.insert_text((160, 71), heading, fontsize=14, fontname="hebo")
+        for index, y in enumerate((122, 146, 175, 209, 237), start=1):
+            if mode == "sparse" and index not in (1, 3):
+                continue
+            title = f"{prefix}{index} Synthetic measurement method and control"
+            page.insert_text((103, y), title + (" ...." if index != 3 else ""), fontsize=10.5)
+            if index == 3:
+                if mode in {"overprint", "overprint_and_detached", "sparse"}:
+                    page.insert_text((160, y), ". . . .", fontsize=11, fontname="tiro")
+                if mode in {"detached", "overprint_and_detached"}:
+                    page.insert_text((400, y), ". . . .", fontsize=11, fontname="tiro")
+                if mode == "compact":
+                    right = 103 + fitz.get_text_length(title, fontsize=10.5)
+                    page.insert_text((right + 0.1, y), ". . . .", fontsize=11, fontname="tiro")
+            page.insert_text((507, y), str(20 + index), fontsize=10.5)
+        pdf.save(source)
+    doc = load_pdf_layout(str(source))
+    findings = check_pdf_toc_alignment(doc) + check_pdf_toc_leader_consistency(doc)
+    assert not any(f.details.get("issue_type") == "missing_page_number" for f in findings)
+    warnings = [f for f in findings if f.details.get("issue_type") == issue]
+    assert [(f.rule_id, f.page, f.details[index_field]) for f in warnings] == (
+        [(rule, 1, "2")] if expected else []
+    )
+    if mode == "overprint":
+        assert warnings[0].details["_preserve_prior_finding_ids"] == "true"

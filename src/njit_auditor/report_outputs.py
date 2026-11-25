@@ -1007,10 +1007,6 @@ def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFindi
     representative-finding choices are unchanged; only display order changes.
     """
     def sort_key(finding: AuditFinding) -> tuple[int, bool, int]:
-        page_start_finding = (finding.rule_id, finding.details.get("issue_type")) in {
-            ("P016", "blank_line_above_continuing_body_text"),
-            ("P023", "blank_line_before_opening_level_three_heading"),
-        }
         page = finding.page
         if finding.rule_id == "P046" and page is not None:
             # Raw JSON indexes back finding IDs. Keep the list-wide warning's
@@ -1020,6 +1016,10 @@ def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFindi
                 start_page = int(start)
                 if 0 < start_page < page:
                     page = start_page
+        page_start_finding = (finding.rule_id, finding.details.get("issue_type")) in {
+            ("P016", "blank_line_above_continuing_body_text"),
+            ("P023", "blank_line_before_opening_level_three_heading"),
+        }
         priority = int(page_start_finding)
         if finding.details.get("_preserve_prior_finding_ids") == "true":
             priority = 2
