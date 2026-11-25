@@ -56,8 +56,13 @@ def setup(tmp_path, monkeypatch):
 
 
 def request(app):
+    # The connection stays open after the final request body frame. A
+    # response listening for disconnect must be able to wait and be cancelled.
+    incoming = asyncio.Queue()
+    incoming.put_nowait({"type": "http.request", "body": b"", "more_body": False})
+
     async def receive():
-        return {"type": "http.request", "body": b"", "more_body": False}
+        return await incoming.get()
 
     return Request(
         {
@@ -612,19 +617,27 @@ def test_range_delivery_keeps_desktop_workspace_leased(setup, cancel_send):
         assert _delete_job(job_id) == "pending"
         assert path.exists()
         bodies = []
+        sending_body = asyncio.Event()
+        client_read = asyncio.Event()
 
         async def send(message):
             assert message["type"] != "http.response.pathsend"
             if message["type"] == "http.response.body":
                 if cancel_send:
-                    raise asyncio.CancelledError
+                    sending_body.set()
+                    await client_read.wait()
                 bodies.append(message["body"])
 
+        delivery = asyncio.create_task(response(req.scope, req.receive, send))
         if cancel_send:
-            with pytest.raises(asyncio.CancelledError):
-                await response(req.scope, req.receive, send)
+            try:
+                await asyncio.wait_for(sending_body.wait(), timeout=5)
+            finally:
+                delivery.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await asyncio.wait_for(delivery, timeout=5)
         else:
-            await response(req.scope, req.receive, send)
+            await asyncio.wait_for(delivery, timeout=5)
             assert b"".join(bodies) == b"%PDF-1"
         assert not path.exists()
 
