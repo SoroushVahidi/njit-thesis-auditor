@@ -302,6 +302,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "to use the same double-spaced line pitch as the surrounding prose. "
         "Multi-line titles must be single-spaced within the title."
     ),
+    ("P023", "blank_line_above_level_three_heading"): (
+        "The level-three heading on page {page} appears to have a blank line above it."
+    ),
     # --- P016 paragraph/line spacing gaps ---
     ("P016", "excessive_line_gap"): (
         "Unusually large spacing (about {largest_gap_pt}pt) was detected between "
@@ -816,6 +819,9 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P023", "multiline_body_heading_not_single_spaced"): (
         "Single-space the wrapped lines within this heading. Keep the normal "
         "spacing between the heading and the body paragraph."
+    ),
+    ("P023", "blank_line_above_level_three_heading"): (
+        "Remove the blank line above this level-three heading. Keep the normal body spacing."
     ),
     # P078 has two issue types; the rule-level remediation covers both, so a
     # pronoun finding told students to replace "paper"/"article". Give each
