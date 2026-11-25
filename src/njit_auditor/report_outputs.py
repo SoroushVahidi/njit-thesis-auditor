@@ -3291,7 +3291,7 @@ def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[di
     return dict(sorted(grouped.items()))
 
 
-def _p012_document_stats_for_markdown(
+def _p012_document_summary_stats(
     p012_count_by_page: dict[int, int] | None,
 ) -> Any:
     """Return document-level P012 stats when presentation summary mode applies."""
@@ -3584,6 +3584,9 @@ def _problem_number_map(
         visible_indexes.append(index)
 
     def page_order(index: int) -> tuple[bool, int]:
+        # The roll-up keeps its raw page and ID, but its card is document-wide.
+        if index == p012_display_state.summary_anchor_index:
+            return True, 0
         page = serialized_findings[index].get("page")
         return page is None, page or 0
 
@@ -3691,7 +3694,7 @@ def individual_finding_comment_and_fix(
             p012_rolled_up_comment,
         )
 
-        doc_stats = _p012_document_stats_for_markdown(p012_count_by_page)
+        doc_stats = _p012_document_summary_stats(p012_count_by_page)
         if doc_stats is not None:
             comment = p012_document_rolled_up_comment(doc_stats)
             fix = p012_document_suggested_fix()
@@ -4014,7 +4017,7 @@ def _problem_location_text(
             p012_location_label,
         )
 
-        doc_stats = _p012_document_stats_for_markdown(p012_count_by_page)
+        doc_stats = _p012_document_summary_stats(p012_count_by_page)
         if doc_stats is not None:
             return p012_document_location_label(doc_stats)
         annotation_count = 1
