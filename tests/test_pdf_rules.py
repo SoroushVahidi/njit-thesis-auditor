@@ -14058,8 +14058,7 @@ def test_p046_too_few_entries_no_findings(tmp_path: Path) -> None:
     assert not any(f.rule_id == "P046" for f in findings)
 
 
-def test_p046_entry_index_omitted_when_worst_entry_on_later_page(tmp_path: Path) -> None:
-    """Entry index must only be set when the worst offender is on the reported page."""
+def test_p046_lot_location_follows_outlier_to_continuation(tmp_path: Path) -> None:
     pdf_path = tmp_path / "p046_multi_page.pdf"
     doc = fitz.open()
     page1 = doc.new_page(width=612, height=792)
@@ -14085,9 +14084,17 @@ def test_p046_entry_index_omitted_when_worst_entry_on_later_page(tmp_path: Path)
     finding = next(
         f for f in findings if f.details.get("issue_type") == "lot_entry_number_column_misaligned"
     )
-    assert finding.details.get("page_number") == "1"
+    assert finding.page == 2
+    assert finding.details.get("page_number") == "2"
+    assert finding.details.get("list_start_page") == "1"
     assert finding.details.get("affected_entry_count") == "1"
-    assert "entry_index" not in finding.details
+    assert finding.details.get("entry_index") == "1"
+    bbox, = parse_highlight_bboxes_from_details(finding.details)
+    with fitz.open(pdf_path) as source:
+        row, = source[1].search_for("Table 4 Synthetic sample distribution overview entry text.")
+        assert bbox[0] == pytest.approx(row.x0, abs=0.06)
+        assert (bbox[1], bbox[3]) == pytest.approx((row.y0, row.y1), abs=0.06)
+        assert bbox[2] >= row.x1 - 0.06
 
 
 def test_p046_finding_metadata_no_private_content(tmp_path: Path) -> None:
