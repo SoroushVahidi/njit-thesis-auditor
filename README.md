@@ -32,6 +32,12 @@ source .venv/bin/activate
 python -m pip install -e ".[dev]"
 ```
 
+Python distributions built with `python -m build` include the web and offline
+templates, the runtime Rule Reference and wording, and the desktop icon and PDF
+font. Install the wheel to use the CLI or web UI outside a checkout. The
+distributions exclude private inputs, feedback records, and checkout-only rule
+provenance.
+
 ## Web UI
 
 ```bash

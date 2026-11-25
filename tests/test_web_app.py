@@ -4072,7 +4072,7 @@ def test_complete_student_pdf_download_is_cached_and_preserves_upload(
     assert first.headers["content-type"] == "application/pdf"
     assert "attachment" in first.headers["content-disposition"].lower()
     assert "thesis_NJIT_Formatting_Audit.pdf" in first.headers["content-disposition"]
-    output = jdir / "student-report.pdf"
+    (output,) = jdir.glob("student-report-*.pdf")
     metadata = json.loads((jdir / "student-report-metadata.json").read_text(encoding="utf-8"))
     assert metadata["total_visible_findings"] == 2
     assert metadata["highlighted_findings"] == 2
@@ -4270,7 +4270,8 @@ def test_complete_student_pdf_concurrent_requests_return_complete_files(
             assert document.page_count > 5
             assert "Problem #1" in " ".join(page.get_text() for page in list(document)[5:])
     jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
-    with fitz.open(jdir / "student-report.pdf") as cached:
+    (output,) = jdir.glob("student-report-*.pdf")
+    with fitz.open(output) as cached:
         assert cached.page_count > 5
 
 
@@ -4358,8 +4359,8 @@ def test_complete_student_pdf_pending_failed_and_job_isolation(
         assert len(list(second_pdf[0].annots() or [])) == 0
         assert len(list(second_pdf[2].annots() or [])) == 1
     runtime = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"])
-    assert (runtime / first_id / "student-report.pdf").exists()
-    assert (runtime / second_id / "student-report.pdf").exists()
+    assert len(list((runtime / first_id).glob("student-report-*.pdf"))) == 1
+    assert len(list((runtime / second_id).glob("student-report-*.pdf"))) == 1
 
 
 def test_complete_student_pdf_safe_filename(

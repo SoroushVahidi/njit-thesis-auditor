@@ -13,6 +13,8 @@ from pathlib import Path
 
 import fitz
 
+from njit_auditor.pdf_publication import atomic_pdf_output
+
 _HIGHLIGHT_STROKE_RGB = (1.0, 0.55, 0.0)
 _HIGHLIGHT_FILL_RGB = (1.0, 1.0, 0.0)
 _HIGHLIGHT_OPACITY = 0.35
@@ -418,6 +420,7 @@ def _draw_boxes_for_page(
     return drawn, skipped
 
 
+@atomic_pdf_output
 def build_highlighted_pdf(
     source_pdf: Path,
     output_pdf: Path,
@@ -465,6 +468,7 @@ def build_highlighted_pdf(
     )
 
 
+@atomic_pdf_output
 def build_highlighted_single_page_pdf(
     source_pdf: Path,
     output_pdf: Path,
@@ -501,6 +505,7 @@ def build_highlighted_single_page_pdf(
     )
 
 
+@atomic_pdf_output
 def build_single_page_pdf(
     source_pdf: Path,
     output_pdf: Path,

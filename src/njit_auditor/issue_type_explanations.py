@@ -9,12 +9,14 @@ from collections.abc import Mapping
 from njit_auditor.caption_continuation_preview import caption_continuation_explanation
 from njit_auditor.ester_warning_wording import student_warning_label
 from njit_auditor.p018_guidance import P018_WRAPPED_TITLE_FIX
+from njit_auditor.toc_order_evidence import P062_ISSUE, describe_p062_pair
 
 # ---------------------------------------------------------------------------
 # Explicit humanized labels for known issue types
 # ---------------------------------------------------------------------------
 
 _ISSUE_TYPE_LABELS: dict[str, str] = {
+    P062_ISSUE: "Table of Contents section numbers out of order",
     # Annotation
     "pdf_annotation_detected": "PDF annotation detected",
     # Font
@@ -175,6 +177,7 @@ _ISSUE_TYPE_LABELS: dict[str, str] = {
     "lot_mixed_numbering_format": "List of Tables mixed numbering format",
     "lof_mixed_numbering_format": "List of Figures mixed numbering format",
     # Captions
+    "excessive_caption_line_spacing": "Wide internal caption spacing",
     "unexpected_terminal_period": "Unexpected terminal period in caption",
     "missing_terminal_punctuation": "Missing terminal punctuation in caption",
     "possible_sentence_case_issue": "Possible sentence case issue",
@@ -643,6 +646,11 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ("P017", "missing_terminal_punctuation"): (
         "This means a figure or table caption is missing terminal punctuation. "
         "Add a period, question mark, or exclamation point as appropriate."
+    ),
+    ("P017", "excessive_caption_line_spacing"): (
+        "The distances between lines within this wrapped figure description or table title "
+        "appear greater than typical single spacing. Apply single line spacing to the "
+        "highlighted lines."
     ),
     ("P017", "possible_sentence_case_issue"): (
         "This means a caption appears to use Title Case where sentence case may "
@@ -1451,6 +1459,9 @@ def explain_issue_type(
     counts) to make the explanation specific instead of generic.
     """
     safe_details = details or {}
+    if rule_id == "P062" and issue_type == P062_ISSUE:
+        if pair := describe_p062_pair(safe_details):
+            return pair
     if rule_id == "P017" and issue_type == "missing_terminal_punctuation":
         continuation = caption_continuation_explanation(safe_details)
         if continuation:

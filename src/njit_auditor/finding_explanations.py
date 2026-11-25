@@ -20,6 +20,7 @@ from njit_auditor.toc_list_student_preview import (
     sanitize_toc_list_entry_preview,
     spacing_entries_phrase,
 )
+from njit_auditor.toc_order_evidence import P062_ISSUE, describe_p062_pair
 
 # ---------------------------------------------------------------------------
 # Action kind / label helpers
@@ -609,6 +610,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "A figure or table caption on this page appears to be missing terminal "
         "punctuation. Add a period, question mark, or exclamation point as "
         "appropriate for the caption style."
+    ),
+    ("P017", "excessive_caption_line_spacing"): (
+        "The highlighted caption lines appear widely spaced. Apply single line spacing "
+        "within the figure description or table title, then check the exported PDF."
     ),
     ("P017", "possible_sentence_case_issue"): (
         "A caption on this page appears to use Title Case where sentence case may "
@@ -2008,6 +2013,9 @@ def _build_explanation_text(
     page: int | None,
 ) -> str:
     effective_issue_type = _resolve_issue_type(rule_id, issue_type, details)
+    if rule_id == "P062" and effective_issue_type == P062_ISSUE:
+        if pair := describe_p062_pair(details):
+            return pair
     if rule_id == "P017" and effective_issue_type == "missing_terminal_punctuation":
         continuation = caption_continuation_explanation(details)
         if continuation:

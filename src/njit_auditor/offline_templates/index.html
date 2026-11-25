@@ -13,9 +13,9 @@
   <form action="/audits" method="post" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <label for="file">Select PDF</label>
-    <input type="file" id="file" name="file" accept=".pdf" required>
-    <p class="file-hint">PDF · maximum {{ max_upload_mb }} MB · processed on this computer</p>
-    <p class="file-hint">Audits stop after two minutes. You can cancel a running audit.</p>
+    <input type="file" id="file" name="file" accept=".pdf" required aria-describedby="file-hint audit-time-hint">
+    <p id="file-hint" class="file-hint">PDF · maximum {{ max_upload_mb }} MB · processed on this computer</p>
+    <p id="audit-time-hint" class="file-hint">Audits stop after two minutes. You can cancel a running audit.</p>
     <button type="submit">Start audit</button>
   </form>
 </section>

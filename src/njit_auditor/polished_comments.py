@@ -13,6 +13,7 @@ from njit_auditor.issue_type_explanations import humanize_issue_type
 from njit_auditor.p018_guidance import P018_WRAPPED_TITLE_FIX
 from njit_auditor.report_outputs import derive_source_issue_type
 from njit_auditor.resource_paths import resource_path
+from njit_auditor.toc_order_evidence import P062_ISSUE, describe_p062_pair
 
 REVIEW_PREFIX = "Review needed:"
 VERIFY_SUFFIX = "Automated finding — please verify against NJIT guidelines manually."
@@ -462,6 +463,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Likely problem: A {caption_type} caption on page {page} appears to "
         "be missing terminal punctuation where NJIT expects a period, question "
         "mark, or exclamation point. Add appropriate ending punctuation."
+    ),
+    ("P017", "excessive_caption_line_spacing"): (
+        "The wrapped caption on page {page} appears to have wide internal line spacing."
     ),
     ("P017", "possible_sentence_case_issue"): (
         "Likely problem: A {caption_type} caption on page {page} appears to use "
@@ -2074,6 +2078,9 @@ def build_polished_comment(
         k: v for k, v in (details or {}).items() if k not in _BLOCKED_DETAIL_KEYS
     }
     issue = issue_type or safe_details.get("issue_type", "")
+    if rule_id == "P062" and issue == P062_ISSUE:
+        if pair := describe_p062_pair(safe_details):
+            return _finish_comment(pair, rule_id=rule_id, issue_type=issue, specific=True)
     if rule_id in _SOURCE_RULE_IDS and not issue:
         issue = derive_source_issue_type(rule_id, safe_details)
     if (

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Admin Login — NJIT Thesis Auditor{% endblock %}
 {% block content %}
-<main class="card" style="max-width:32rem">
+<div class="card" style="max-width:32rem">
   <h1>Administrator login</h1>
   {% if error %}<div class="alert-error" role="alert">{{ error }}</div>{% endif %}
   {% if login_csrf %}
@@ -14,5 +14,5 @@
     <button type="submit">Log in</button>
   </form>
   {% endif %}
-</main>
+</div>
 {% endblock %}

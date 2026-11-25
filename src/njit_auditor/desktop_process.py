@@ -4,11 +4,24 @@ from __future__ import annotations
 
 import os
 import signal
+import stat
 import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import Any
+
+
+def is_link_or_junction(path: Path) -> bool:
+    """Detect links and Windows reparse points, including on Python 3.10/3.11."""
+    if path.is_symlink():
+        return True
+    try:
+        attributes = getattr(path.lstat(), "st_file_attributes", 0)
+    except FileNotFoundError:
+        return False
+    return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400))
 
 
 def prepare_containment() -> None:

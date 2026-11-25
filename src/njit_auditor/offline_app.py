@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 import os
 import secrets
@@ -24,6 +25,8 @@ from starlette.routing import Route
 
 from njit_auditor import web_app
 from njit_auditor.desktop_executor import DesktopExecutor
+from njit_auditor.desktop_exports import PdfExportExecutor
+from njit_auditor.desktop_process import is_link_or_junction
 from njit_auditor.request_body_limit import (
     BODY_TOO_LARGE,
     INVALID_BODY,
@@ -31,7 +34,7 @@ from njit_auditor.request_body_limit import (
     RequestBodyLimitMiddleware,
     read_csrf_token,
 )
-from njit_auditor.resource_paths import resource_path
+from njit_auditor.resource_paths import package_path, resource_path
 
 SESSION_SECONDS = 8 * 60 * 60
 IDLE_SECONDS = 30 * 60
@@ -99,17 +102,6 @@ def local_data_root() -> Path:
     return base / "njit-thesis-auditor"
 
 
-def is_link_or_junction(path: Path) -> bool:
-    """Detect links and Windows reparse points, including on Python 3.10/3.11."""
-    if path.is_symlink():
-        return True
-    try:
-        attributes = getattr(path.lstat(), "st_file_attributes", 0)
-    except FileNotFoundError:
-        return False
-    return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400))
-
-
 def remove_local_storage_child(path: Path) -> None:
     """Remove one entry without traversing a directory link or junction."""
     if is_link_or_junction(path):
@@ -144,7 +136,9 @@ def _delete_job(job_id: str) -> str:
     global _cleanup_failed
     with web_app._jobs_lock:
         job = web_app._jobs.get(job_id)
-        if job is not None and job.state in ("pending", "running"):
+        if web_app._export_leases.get(job_id) or (
+            job is not None and job.state in ("pending", "running")
+        ):
             with _delete_lock:
                 _delete_after_finish.add(job_id)
             return "pending"
@@ -187,14 +181,17 @@ def create_offline_app(
     launch_ticket: str,
     on_quit: Callable[[], None] | None = None,
     executor: DesktopExecutor | None = None,
+    export_executor: PdfExportExecutor | None = None,
 ) -> FastAPI:
     """Build an offline app with a separate route table and per-launch session."""
     web_app.RUNTIME_DIR = data_root / "audits"
     web_app._after_audit_task = _after_audit
     manager = executor if executor is not None else DesktopExecutor()
+    exports = export_executor if export_executor is not None else PdfExportExecutor()
 
     def request_quit() -> bool:
-        if not manager.close():
+        exports_stopped = exports.close()
+        if not manager.close() or not exports_stopped:
             return False
         if on_quit is not None:
             on_quit()
@@ -224,7 +221,9 @@ def create_offline_app(
                 if time.monotonic() - last_activity < IDLE_SECONDS:
                     continue
                 with web_app._jobs_lock:
-                    busy = any(j.state in ("pending", "running") for j in web_app._jobs.values())
+                    busy = bool(web_app._export_leases) or any(
+                        j.state in ("pending", "running") for j in web_app._jobs.values()
+                    )
                 if not busy and on_quit is not None:
                     request_quit()
                     return
@@ -242,8 +241,9 @@ def create_offline_app(
                 expiry_timer.cancel()
                 idle_stop.set()
                 idle_thread.join(timeout=1)
-            manager.close()
-            delete_all_local_audits()
+            await asyncio.to_thread(exports.close)
+            await asyncio.to_thread(manager.close)
+            await asyncio.to_thread(delete_all_local_audits)
 
     offline = FastAPI(
         title="NJIT Thesis Auditor Offline",
@@ -259,18 +259,24 @@ def create_offline_app(
             "auto_configure": False,
         },
     )
+    # The fixed eight-page example needs no job/cache lifecycle. Prepare it once
+    # before serving, so this remaining PDF route does no PyMuPDF work on the loop.
+    from njit_auditor.synthetic_sample import sample_pdf
+
+    offline.state.synthetic_sample_pdf = sample_pdf()
     offline.state.offline_mode = True
     offline.state.audit_executor = manager.run
     offline.state.prepare_audit = manager.register
     offline.state.desktop_executor = manager
+    offline.state.pdf_export_executor = exports
     offline.state.request_quit = request_quit
     offline.state.csrf_token = csrf
     offline.state.data_root = data_root
 
     templates = Jinja2Templates(
         directory=[
-            str(resource_path("src", "njit_auditor", "offline_templates")),
-            str(resource_path("src", "njit_auditor", "templates")),
+            str(package_path("offline_templates")),
+            str(package_path("templates")),
         ]
     )
     templates.env.globals.update(web_app._templates.env.globals)
@@ -280,7 +286,8 @@ def create_offline_app(
         "or quit. Downloaded reports saved elsewhere are yours to manage."
     )
     templates.env.globals["offline_cleanup_failed"] = (
-        lambda: _cleanup_failed or manager.cleanup_failed.is_set()
+        lambda: (_cleanup_failed or manager.cleanup_failed.is_set()
+                 or exports.cleanup_failed.is_set())
     )
     offline.state.templates = templates
 
@@ -391,16 +398,19 @@ def create_offline_app(
 
     @offline.post("/audits/{job_id}/cancel")
     async def cancel_audit(job_id: str):
-        manager.cancel(job_id)
+        await asyncio.to_thread(exports.cancel, job_id)
+        await asyncio.to_thread(manager.cancel, job_id)
         return RedirectResponse(f"/audits/{job_id}", status_code=303)
 
     @offline.post("/audits/{job_id}/delete")
     async def delete_audit(job_id: str):
+        await asyncio.to_thread(exports.cancel, job_id)
         status = _delete_job(job_id)
         return RedirectResponse(f"/?deletion={status}", status_code=303)
 
     @offline.post("/local-data/delete-all")
     async def delete_all():
+        await asyncio.to_thread(exports.cancel)
         result = delete_all_local_audits()
         if not result.failed and not result.pending:
             manager.cleanup_failed.clear()
@@ -409,7 +419,7 @@ def create_offline_app(
 
     @offline.post("/quit")
     async def quit_app(request: Request):
-        if not request_quit():
+        if not await asyncio.to_thread(request_quit):
             return web_app._index_notice(
                 request, "Could not stop the audit yet. Try Quit again.", status_code=503
             )

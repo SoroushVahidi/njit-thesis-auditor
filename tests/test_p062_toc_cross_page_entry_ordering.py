@@ -5,8 +5,17 @@ from __future__ import annotations
 from pathlib import Path
 
 import fitz
+import pytest
 
 from njit_auditor.pdf_layout import load_pdf_layout
+from njit_auditor.pdf_models import BBox, format_bbox_detail
+from njit_auditor.rules import pdf_toc_cross_page_entry_ordering as p062
+from njit_auditor.rules.pdf_toc_alignment import (
+    TocEntryLine,
+    TocPageContext,
+    detect_toc_like_pages,
+    extract_toc_entry_lines,
+)
 from njit_auditor.rules.pdf_toc_cross_page_entry_ordering import (
     check_pdf_toc_cross_page_entry_ordering,
 )
@@ -209,6 +218,14 @@ def test_p062_finding_metadata_privacy_safe(tmp_path: Path) -> None:
         "first_inversion_index",
         "triage_tier",
         "source_q_rule_id",
+        "representative_inversion_index",
+        "suggested_fix",
+        "highlight_bboxes",
+        *(
+            f"{role}_entry_{field}"
+            for role in ("preceding", "following")
+            for field in ("number", "page", "index", "toc_folio", "destination_folio", "bbox")
+        ),
     }
     for key in finding.details:
         assert key in allowed_keys, f"Unexpected metadata key: {key!r}"
@@ -217,6 +234,7 @@ def test_p062_finding_metadata_privacy_safe(tmp_path: Path) -> None:
     assert finding.details.get("triage_tier") == "medium"
     assert finding.details.get("source_q_rule_id") == "Q056"
     assert finding.details.get("section_type") == "table_of_contents"
+    assert not any("Results Study" in value for value in finding.details.values())
 
 
 def test_p062_import_and_wiring(tmp_path: Path) -> None:
@@ -323,3 +341,210 @@ def test_p062_subsection_cross_page_inversions_warns(tmp_path: Path) -> None:
     assert len(findings) == 1
     assert findings[0].details.get("issue_type") == "toc_cross_page_entry_numbers_not_nondecreasing"
     assert int(findings[0].details.get("inversion_count", "0")) >= 2
+
+
+def _reproduction(
+    path: Path, *, wrapper: bool = False, wrapped: bool = False, ambiguous_footer: bool = False
+) -> None:
+    """Reuse W73's synthetic section sequence, with independently placed folios."""
+    with fitz.open() as doc:
+        if wrapper:
+            page = doc.new_page(width=612, height=792)
+            page.insert_text((72, 72), "Digital Commons @ NJIT", fontsize=14)
+            page.insert_text((72, 102), "Theses and Dissertations", fontsize=12)
+            page.insert_text((72, 130), "Recommended Citation", fontsize=11)
+        for i, (numbers, folio) in enumerate(
+            zip(((1, 2, 3), (4, 7, 6), (5, 8, 9)), ("vi", "vii", "viii"), strict=True)
+        ):
+            page = doc.new_page(width=612, height=792)
+            page.insert_text((190, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold")
+            if i:
+                page.insert_text((240, 113), "(Continued)", fontsize=12)
+            page.insert_text((300, 753), folio, fontsize=12)
+            if ambiguous_footer and i == 2:
+                page.insert_text((298, 725), "ix", fontsize=12)
+            for j, number in enumerate(numbers):
+                x = 72 if number != 6 else 94
+                y = 152 + i * 8 + j * 25
+                text = f"{number}.1 Synthetic sequence entry for local verification"
+                page.insert_text((x, y), text, fontsize=12)
+                if wrapped and number == 6:
+                    y += 14
+                    page.insert_text((x + 18, y), "with wrapped title words", fontsize=12)
+                page.insert_text((500, y), str(33 + j), fontsize=12)
+        doc.save(path)
+
+
+def _source_box(path: Path, page: int, prefix: str) -> str:
+    page_model = load_pdf_layout(str(path)).pages[page - 1]
+    span, = [
+        span for block in page_model.text_blocks for line in block.lines for span in line.spans
+        if span.text.startswith(prefix + " ")
+    ]
+    return format_bbox_detail(span.bbox)
+
+
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_p062_reproduction_selects_cross_page_pair_on_later_pages(
+    tmp_path: Path, wrapped: bool
+) -> None:
+    path = tmp_path / "p062_later_pair.pdf"
+    _reproduction(path, wrapped=wrapped)
+    finding, = _p062_findings(path)
+    details = finding.details
+    assert finding.page == 3
+    assert details["first_inversion_index"] == "4"
+    assert details["representative_inversion_index"] == "5"
+    assert details["inversion_count"] == "2"
+    assert details["preceding_entry_number"] == "6.1"
+    assert details["following_entry_number"] == "5.1"
+    contexts = {c.page.page_number: c for c in detect_toc_like_pages(load_pdf_layout(str(path)))}
+    for role, page, section in (("preceding", 2, "6.1"), ("following", 3, "5.1")):
+        entries = extract_toc_entry_lines(contexts[page])
+        assert entries[int(details[f"{role}_entry_index"])].cleaned_text.startswith(section + " ")
+    assert details["preceding_entry_page"] == "2" and details["following_entry_page"] == "3"
+    assert details["preceding_entry_toc_folio"] == "vii"
+    assert details["following_entry_toc_folio"] == "viii"
+    assert details["preceding_entry_destination_folio"] == "35"
+    assert details["following_entry_destination_folio"] == "33"
+    assert details["preceding_entry_bbox"] == _source_box(path, 2, "6.1")
+    assert details["following_entry_bbox"] == _source_box(path, 3, "5.1")
+    assert details["highlight_bboxes"] == details["following_entry_bbox"]
+    assert "Check sections 6.1 and 5.1 against manuscript headings" in details["suggested_fix"]
+
+
+def test_p062_same_page_pair_remains_in_scope_with_a_multi_page_run(tmp_path: Path) -> None:
+    path = tmp_path / "p062_local_pair.pdf"
+    _make_cross_page_toc_pdf(path, [
+        [(f"{n}.1 Owned numbered section", "15") for n in group]
+        for group in ((1, 2, 3), (5, 4, 7, 6), (8, 9, 10))
+    ])
+    finding, = _p062_findings(path)
+    details = finding.details
+    assert finding.page == 2
+    assert details["first_inversion_index"] == details["representative_inversion_index"] == "3"
+    assert (details["preceding_entry_number"], details["following_entry_number"]) == ("5.1", "4.1")
+    assert details["preceding_entry_page"] == details["following_entry_page"] == "2"
+    assert details["highlight_bboxes"].split(" | ") == [
+        _source_box(path, 2, "5.1"), _source_box(path, 2, "4.1")
+    ]
+    assert details["inversion_count"] == "2"
+
+
+def test_p062_numbers_only_with_equal_destination_folios_and_nested_appendix(
+    tmp_path: Path
+) -> None:
+    path = tmp_path / "p062_number_kinds.pdf"
+    _make_cross_page_toc_pdf(path, [
+        [("Acknowledgments", "xii"), ("1 Chapter Introduction", "1"),
+         ("1.1 Section Overview", "1"), ("1.1.1 Subsection Details", "1")],
+        [("1.2 Second Section", "1"), ("1.10 Later Section", "1"), ("2 Next Chapter", "10"),
+         ("APPENDIX A Study Materials", "20"), ("A.1 Appendix Subsection", "20")],
+    ])
+    assert _p062_findings(path) == []
+
+
+def test_p062_ambiguous_footer_is_not_replaced_by_the_entry_destination(tmp_path: Path) -> None:
+    path = tmp_path / "p062_folios.pdf"
+    _reproduction(path, ambiguous_footer=True)
+    finding, = _p062_findings(path)
+    assert finding.details["following_entry_destination_folio"] == "33"
+    assert "following_entry_toc_folio" not in finding.details
+    assert "physical PDF page 3" in finding.message
+
+
+@pytest.mark.parametrize("ambiguous_span", [False, True])
+def test_p062_conservatively_omits_unreliable_geometry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ambiguous_span: bool
+) -> None:
+    path = tmp_path / "p062_unreliable.pdf"
+    _reproduction(path)
+    implementation = p062.extract_toc_entry_lines
+
+    def extract(context: TocPageContext) -> list[TocEntryLine]:
+        entries = implementation(context)
+        if context.page.page_number == 3:
+            target, = [entry for entry in entries if entry.cleaned_text.startswith("5.1 ")]
+            if ambiguous_span:
+                # The modified span is not on any source row.
+                target.line.spans[0] = target.line.spans[0].model_copy(
+                    update={"bbox": BBox(x0=72, y0=110, x1=100, y1=120)}
+                )
+            else:
+                target.line.spans = []
+        return entries
+
+    monkeypatch.setattr(p062, "extract_toc_entry_lines", extract)
+    finding, = _p062_findings(path)
+    assert finding.page == 3
+    assert finding.details["preceding_entry_bbox"] == _source_box(path, 2, "6.1")
+    assert "following_entry_bbox" not in finding.details
+    assert "highlight_bboxes" not in finding.details
+
+
+@pytest.mark.parametrize("wrapper", [False, True])
+def test_p062_report_routes_preserve_cross_page_geometry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, wrapper: bool
+) -> None:
+    from fastapi.testclient import TestClient
+
+    from njit_auditor import web_app
+
+    path = tmp_path / "p062_report.pdf"
+    _reproduction(path, wrapper=wrapper, wrapped=True)
+    earlier = 3 if wrapper else 2
+    later = earlier + 1
+    monkeypatch.setattr(web_app, "RUNTIME_DIR", tmp_path / "audits")
+    with TestClient(web_app.app) as client:
+        submission = client.post(
+            "/audits", files={"file": (path.name, path.read_bytes(), "application/pdf")},
+            follow_redirects=False,
+        )
+        assert submission.status_code == 303
+        url = submission.headers["location"]
+        assert client.get(url + "/status").json()["state"] == "complete"
+        rows = client.get(url + "/download/json").json()["findings"]
+        row, = [f for f in rows if f["rule_id"] == "P062"]
+        assert row["page"] == later
+        detail = row["details"]
+        assert detail["preceding_entry_page"] == str(earlier)
+        assert detail["following_entry_page"] == str(later)
+        assert detail["manuscript_page_number"] == "3"
+        assert detail["following_entry_toc_folio"] == "viii"
+        advice = "Check sections 6.1 and 5.1 against manuscript headings"
+        pair = f"Section 6.1 on physical PDF page {earlier} (printed TOC folio vii)"
+        for route in ("", "/download/markdown", "/download/text"):
+            response = client.get(url + route)
+            assert response.status_code == 200
+            assert pair in response.text and advice in response.text
+        job = web_app._get_job(url.rsplit("/", 1)[-1])
+        assert job is not None
+        card, = [c for c in job.findings if c["rule_id"] == "P062"]
+        assert card["page"] == later and card["has_highlight"]
+        finder = {"rule_id": "P062", "finding_id": card["finding_id"]}
+        marks: dict[int, tuple[float, ...]] = {}
+        for kind, number in (("preceding", earlier), ("following", later)):
+            response = client.get(url + "/highlighted-page.pdf", params={**finder, "page": number})
+            assert response.status_code == 200
+            with fitz.open(stream=response.content) as focused:
+                mark, = [tuple(a.rect) for a in focused[0].annots()]
+            expected = detail[f"{kind}_entry_bbox"].split(",")
+            assert all(abs(actual - float(ref)) < 2 for actual, ref in zip(
+                mark, expected, strict=True
+            ))
+            marks[number] = mark
+        isolated = client.get(url + "/pdf/highlighted", params=finder)
+        complete = client.get(url + "/download/student-report.pdf")
+        assert isolated.status_code == complete.status_code == 200
+        with fitz.open(stream=isolated.content) as annotated:
+            for page in annotated:
+                expected_marks = [marks[page.number + 1]] if page.number + 1 in marks else []
+                assert [tuple(a.rect) for a in page.annots()] == expected_marks
+        with fitz.open(stream=complete.content) as combined:
+            for page, mark in marks.items():
+                assert mark in [tuple(a.rect) for a in combined[page - 1].annots()]
+                assert f"#{card['problem_number']}" in combined[page - 1].get_text()
+            comments = " ".join(
+                " ".join(page.get_text().split()) for page in combined if page.number >= later
+            )
+            assert pair in comments and advice in comments

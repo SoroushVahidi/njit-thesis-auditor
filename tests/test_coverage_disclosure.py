@@ -205,7 +205,7 @@ def client(tmp_path: Path) -> tuple[TestClient, Any]:
     return TestClient(app, raise_server_exceptions=False), wa
 
 
-def test_results_page_shows_coverage_after_summary(
+def test_results_page_shows_findings_before_summary_and_coverage(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
     c, wa = client
@@ -214,7 +214,7 @@ def test_results_page_shows_coverage_after_summary(
     assert 'id="section-coverage"' in html
     assert 'href="#section-coverage"' in html
     assert html.index('id="section-summary"') < html.index('id="section-coverage"')
-    assert html.index('id="section-coverage"') < html.index('id="section-findings"')
+    assert html.index('id="section-findings"') < html.index('id="section-summary"')
     for area in COVERAGE_AREAS:
         assert f"coverage-item--{area.status}" in html
     assert "<details class=\"collapsible coverage-details\">" in html

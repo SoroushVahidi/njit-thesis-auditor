@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -12,11 +11,13 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import urllib.parse
 from _thread import LockType
 from collections.abc import Callable, Mapping
 from contextlib import asynccontextmanager
+from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -27,6 +28,7 @@ from weakref import WeakValueDictionary
 from fastapi import BackgroundTasks, FastAPI, File, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from starlette.types import Receive, Scope, Send
 
 from njit_auditor.audit_runner import (
     AuditError,
@@ -38,6 +40,7 @@ from njit_auditor.coverage_disclosure import (
     COVERAGE_HEADING,
     COVERAGE_INTRO,
 )
+from njit_auditor.desktop_process import is_link_or_junction
 from njit_auditor.highlight_targeting import parse_highlight_bboxes_from_details
 from njit_auditor.incomplete_audit import (
     FAILED_CHECK_COUNT_KEY,
@@ -59,6 +62,7 @@ from njit_auditor.pdf_highlight import (
     get_pdf_page_sizes,
     is_drawable_bbox,
 )
+from njit_auditor.pdf_publication import complete_pdf, file_digest, pdf_signature
 from njit_auditor.report_outputs import (
     _high_volume_pattern_note,
     _websafe_rule_text,
@@ -79,12 +83,14 @@ from njit_auditor.report_view import (
     sort_findings,
     sort_grouped_problems,
 )
-from njit_auditor.resource_paths import resource_path
+from njit_auditor.resource_paths import package_path, resource_path
 from njit_auditor.student_cards import CONFIDENCE_NOTE, student_card_fields, student_fix
 from njit_auditor.student_pdf_report import (
     build_combined_student_pdf_report,
+    build_comments_pdf_report,
     render_student_report_text,
 )
+from njit_auditor.toc_order_evidence import P062_ISSUE
 from njit_auditor.upload_handling import (
     UploadValidationError,
     sanitize_upload_filename,
@@ -233,6 +239,8 @@ class JobState:
 
 _jobs: dict[str, JobState] = {}
 _jobs_lock = threading.Lock()
+# Active desktop export leases prevent retention/deletion from erasing live inputs.
+_export_leases: dict[str, int] = {}
 _student_pdf_locks: WeakValueDictionary[str, LockType] = WeakValueDictionary()
 
 
@@ -294,7 +302,7 @@ def _is_deletable_workspace(path: Path) -> bool:
     never a deletion target.
     """
     try:
-        if path.is_symlink() or not path.is_dir():
+        if is_link_or_junction(path) or not path.is_dir():
             return False
         root = RUNTIME_DIR.resolve()
         resolved = path.resolve()
@@ -316,6 +324,9 @@ def _delete_job_workspace(job_id: str) -> bool:
 
     Returns False only when a deletable workspace could not be removed.
     """
+    with _jobs_lock:
+        if _export_leases.get(job_id):
+            return False
     return _remove_workspace(_job_dir(job_id))
 
 
@@ -339,7 +350,7 @@ def cleanup_expired_jobs(now: datetime | None = None) -> int:
     expired_ids: list[str] = []
     with _jobs_lock:
         for job_id, job in list(_jobs.items()):
-            if job.state in ("pending", "running"):
+            if job.state in ("pending", "running") or _export_leases.get(job_id):
                 continue
             created = _parse_job_timestamp(job.created_at)
             if (now - created).total_seconds() > JOB_TTL_SECONDS:
@@ -506,7 +517,7 @@ app = FastAPI(
     redoc_url=None,
     lifespan=_lifespan,
 )
-_templates = Jinja2Templates(directory=str(resource_path("src", "njit_auditor", "templates")))
+_templates = Jinja2Templates(directory=str(package_path("templates")))
 
 
 def _retention_notice() -> str:
@@ -1348,7 +1359,25 @@ def _build_rule_catalog() -> dict[str, Any]:
     """Load P-rules from canonical source and classify for the rules page."""
     try:
         raw = json.loads(_RULES_JSON_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, ValueError):
+        raw = []
+    text_fields = (
+        "title", "question", "section", "severity", "checkability", "rule_definition",
+        "remediation", "implementation_status", "phase", "notes", "rule_type",
+    )
+    if not isinstance(raw, list) or any(
+        not isinstance(rule, dict)
+        or not isinstance(rule.get("id"), str)
+        or not rule["id"].strip()
+        or any(rule.get(field) is not None and not isinstance(rule[field], str)
+               for field in text_fields)
+        or (
+            rule.get("input_required") is not None
+            and (not isinstance(rule["input_required"], list)
+                 or not all(isinstance(item, str) for item in rule["input_required"]))
+        )
+        for rule in raw
+    ):
         raw = []
 
     student_rules: list[dict[str, Any]] = []
@@ -1500,18 +1529,27 @@ def _technical_reason(rule: dict[str, Any]) -> str:
     return _rule_technical_classification(rule) or "Technical entry"
 
 
+class _RuleCatalogUnavailable(Exception):
+    """Keep failed catalog reads out of the public lookup cache."""
+
+
 @lru_cache(maxsize=1)
-def _public_rule_lookup() -> dict[str, dict[str, Any]]:
-    """Return public PDF rules keyed by rule ID."""
-    catalog = _build_rule_catalog()
-    rules = catalog.get("student_rules", [])
-    if not isinstance(rules, list):
-        return {}
-    return {
+def _cached_public_rule_lookup() -> dict[str, dict[str, Any]]:
+    rules = {
         str(rule.get("id", "")): rule
-        for rule in rules
-        if isinstance(rule, dict) and str(rule.get("id", "")).strip()
+        for rule in _build_rule_catalog()["student_rules"]
     }
+    if not rules:
+        raise _RuleCatalogUnavailable
+    return rules
+
+
+def _public_rule_lookup() -> dict[str, dict[str, Any]]:
+    """Return public PDF rules keyed by rule ID, retrying after a failed read."""
+    try:
+        return _cached_public_rule_lookup()
+    except _RuleCatalogUnavailable:
+        return {}
 
 
 def _coerce_page_number(raw_page: Any) -> int | None:
@@ -2374,12 +2412,13 @@ async def reject_shortcut_audit() -> RedirectResponse:
 
 
 @app.get("/sample.pdf")
-async def download_synthetic_sample() -> Response:
+async def download_synthetic_sample(request: Request) -> Response:
     """Offer a local synthetic file to download and upload; never start an audit."""
     from njit_auditor.synthetic_sample import sample_pdf
 
+    prepared = getattr(request.app.state, "synthetic_sample_pdf", None)
     return Response(
-        sample_pdf(),
+        prepared if prepared is not None else sample_pdf(),
         media_type="application/pdf",
         headers={"Content-Disposition": 'attachment; filename="synthetic-example.pdf"'},
     )
@@ -2711,10 +2750,86 @@ async def download_text(job_id: str) -> FileResponse | JSONResponse:
     )
 
 
+def _release_pdf_response(job_id: str) -> None:
+    with _jobs_lock:
+        count = _export_leases[job_id] - 1
+        if count:
+            _export_leases[job_id] = count
+        else:
+            del _export_leases[job_id]
+    if _after_audit_task is not None:
+        _after_audit_task(job_id)
+
+
+class _LeasedPdfResponse(FileResponse):
+    """Keep the job's files alive through all streaming and disconnect paths."""
+
+    def __init__(self, original: FileResponse, job_id: str) -> None:
+        super().__init__(
+            original.path, status_code=original.status_code,
+            headers=dict(original.headers), media_type=original.media_type,
+        )
+        self.job_id = job_id
+        self.export_cleanup = original.background
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        try:
+            # Keep file I/O within the response lifetime even on servers
+            # that support delegating a path to their transport.
+            extensions = {k: v for k, v in scope.get("extensions", {}).items()
+                          if k != "http.response.pathsend"}
+            await super().__call__({**scope, "extensions": extensions}, receive, send)
+        finally:
+            try:
+                if self.export_cleanup is not None:
+                    await self.export_cleanup()
+            finally:
+                _release_pdf_response(self.job_id)
+
+
+async def _dispatch_pdf_export(
+    request: Request, job_id: str, kind: str, params: dict[str, Any],
+) -> FileResponse | HTMLResponse:
+    cleanup_expired_jobs()
+    with _jobs_lock:
+        if job_id not in _jobs:
+            return _index_notice(request, _expired_job_notice(), status_code=404)
+        _export_leases[job_id] = _export_leases.get(job_id, 0) + 1
+    transferred = False
+    try:
+        manager = getattr(request.app.state, "pdf_export_executor", None)
+        if manager is not None:
+            response = await manager.response(request, job_id, kind, params)
+        elif kind == "student":
+            response = _prepare_student_pdf(request, job_id)
+        else:
+            with _student_pdf_lock(job_id):
+                if kind == "comments":
+                    response = _prepare_comments_pdf(request, job_id)
+                elif kind == "highlighted":
+                    response = _prepare_highlighted_pdf(request, job_id, **params)
+                else:
+                    response = _prepare_highlighted_page_pdf(request, job_id, **params)
+        if isinstance(response, FileResponse):
+            leased = _LeasedPdfResponse(response, job_id)
+            transferred = True
+            return leased
+        return response
+    finally:
+        if not transferred:
+            _release_pdf_response(job_id)
+
+
 @app.get("/audits/{job_id}/download/student-report.pdf", response_model=None)
 async def download_student_pdf_report(request: Request, job_id: str) -> FileResponse | HTMLResponse:
+    return await _dispatch_pdf_export(request, job_id, "student", {})
+
+
+def _prepare_student_pdf(
+    request: Request, job_id: str, *, output_dir: Path | None = None,
+    raw_findings: list[dict[str, Any]] | None = None,
+) -> FileResponse | HTMLResponse:
     """Download the complete thesis followed by numbered formatting problems."""
-    cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None or job.state != "complete":
         return _index_notice(request, _expired_job_notice(), status_code=404)
@@ -2724,86 +2839,105 @@ async def download_student_pdf_report(request: Request, job_id: str) -> FileResp
         )
     jdir = _job_dir(job_id)
     source = _job_pdf_path(jdir)
-    output = jdir / "student-report.pdf"
-    stamp = jdir / "student-report.sha256"
-    if not all(_is_under_runtime(path) for path in (source, output, stamp)) or not source.exists():
+    if not _is_deletable_workspace(jdir) or is_link_or_junction(source) or not source.is_file():
         return _index_notice(request, _expired_job_notice(), status_code=404)
-    raw = _report_json_findings_for_highlight(job)
-    signature = hashlib.sha256(
-        json.dumps(
-            [
-                job.findings,
-                raw,
-                job.file_name,
-                job.manuscript_page_labels,
-                source.stat().st_mtime_ns,
-            ],
-            sort_keys=True,
-            default=str,
-        ).encode("utf-8")
-    ).hexdigest()
-    with _student_pdf_lock(job_id):
-        if (
-            not output.exists()
-            or not stamp.exists()
-            or stamp.read_text(encoding="ascii") != signature
-        ):
-            boxes_by_problem: dict[int, list[HighlightBox]] = {}
-            for finding in job.findings:
-                number = int(finding.get("problem_number") or 0)
-                page = _coerce_page_number(finding.get("page"))
-                if not number or page is None:
-                    continue
-                rule = str(finding.get("rule_id", ""))
-                raw_index = parse_finding_id(str(finding.get("finding_id", "")))
-                if rule == "P011":
-                    matched = [
-                        f
-                        for f in raw
-                        if _coerce_page_number(f.get("page")) == page
-                        and str(f.get("rule_id", "")) == rule
-                    ]
-                elif raw_index is not None and raw_index < len(raw):
-                    matched = [raw[raw_index]]
-                else:
-                    matched = [
-                        f
-                        for f in raw
-                        if _coerce_page_number(f.get("page")) == page
-                        and str(f.get("rule_id", "")) == rule
-                        and _finding_issue_type(f) == str(finding.get("issue_type", ""))
-                    ][:1]
-                boxes_by_problem[number] = _highlight_boxes_by_page(matched).get(page, [])
-            try:
-                result = build_combined_student_pdf_report(
-                    source,
-                    output,
-                    job.findings,
-                    boxes_by_problem=boxes_by_problem,
-                    file_name=job.file_name,
-                    manuscript_page_labels=job.manuscript_page_labels,
-                    failed_check_count=job.failed_check_count,
-                )
-                metadata_path = jdir / "student-report-metadata.json"
-                temporary_metadata = jdir / f"student-report-{secrets.token_hex(8)}.json.tmp"
-                temporary_metadata.write_text(
-                    json.dumps(asdict(result), indent=2), encoding="utf-8"
-                )
-                os.replace(temporary_metadata, metadata_path)
-                temporary_stamp = jdir / f"student-report-{secrets.token_hex(8)}.sha256.tmp"
-                temporary_stamp.write_text(signature, encoding="ascii")
-                os.replace(temporary_stamp, stamp)
-            except Exception as exc:  # noqa: BLE001
-                # Paths, job IDs, and input-derived text can occur in exception messages.
-                _logger.warning("Combined student PDF generation failed (%s).", type(exc).__name__)
-                return _index_notice(
-                    request,
-                    "The complete PDF report could not be prepared. Please try again.",
-                    status_code=500,
-                )
+    jdir = output_dir or jdir
+    if not _is_under_runtime(jdir):
+        return _index_notice(request, _expired_job_notice(), status_code=404)
+    try:
+        output = _prepare_combined_cache(job, source, jdir, raw_findings)
+    except Exception as exc:  # noqa: BLE001
+        # Paths, job IDs, and input-derived text can occur in exception messages.
+        _logger.warning("Combined student PDF generation failed (%s).", type(exc).__name__)
+        return _index_notice(
+            request,
+            "The complete PDF report could not be prepared. Please try again.",
+            status_code=500,
+        )
     safe_name = sanitize_upload_filename(job.file_name or "thesis.pdf")
     download_name = f"{Path(safe_name).stem}_NJIT_Formatting_Audit.pdf"
     return FileResponse(path=str(output), media_type="application/pdf", filename=download_name)
+
+
+def _prepare_combined_cache(
+    job: JobState, source: Path, jdir: Path, raw_findings: list[dict[str, Any]] | None,
+) -> Path:
+    raw = _report_json_findings_for_highlight(job) if raw_findings is None else raw_findings
+    inputs = [
+        job.findings, raw, job.file_name, job.manuscript_page_labels, job.failed_check_count,
+    ]
+    with _student_pdf_lock(job.job_id):
+        signature = pdf_signature(source, inputs)
+        output = jdir / f"student-report-{signature}.pdf"
+        stamp = output.with_suffix(".sha256")
+        metadata_path = jdir / "student-report-metadata.json"
+        if not all(_is_under_runtime(path) for path in (output, stamp, metadata_path)):
+            raise ValueError("Invalid export path")
+        try:
+            if _valid_export_stamp(output, stamp, signature):
+                return output
+        except (OSError, ValueError):
+            pass
+        boxes_by_problem: dict[int, list[HighlightBox]] = {}
+        other_pages_by_problem: dict[int, dict[int, list[HighlightBox]]] = {}
+        for finding in job.findings:
+            number = int(finding.get("problem_number") or 0)
+            page = _coerce_page_number(finding.get("page"))
+            if not number or page is None:
+                continue
+            rule = str(finding.get("rule_id", ""))
+            raw_index = parse_finding_id(str(finding.get("finding_id", "")))
+            if rule == "P011":
+                matched = [
+                    f
+                    for f in raw
+                    if _coerce_page_number(f.get("page")) == page
+                    and str(f.get("rule_id", "")) == rule
+                ]
+            elif raw_index is not None and raw_index < len(raw):
+                matched = [raw[raw_index]]
+            else:
+                matched = [
+                    f
+                    for f in raw
+                    if _coerce_page_number(f.get("page")) == page
+                    and str(f.get("rule_id", "")) == rule
+                    and _finding_issue_type(f) == str(finding.get("issue_type", ""))
+                ][:1]
+            page_boxes = _highlight_boxes_by_page(matched)
+            boxes_by_problem[number] = page_boxes.pop(page, [])
+            if page_boxes:
+                other_pages_by_problem[number] = page_boxes
+        with tempfile.TemporaryDirectory(prefix=".pdf-combined-", dir=jdir) as name:
+            stage = Path(name)
+            generated = stage / "report.pdf"
+            result = build_combined_student_pdf_report(
+                source, generated, job.findings, boxes_by_problem=boxes_by_problem,
+                other_pages_by_problem=other_pages_by_problem,
+                file_name=job.file_name,
+                manuscript_page_labels=job.manuscript_page_labels,
+                failed_check_count=job.failed_check_count,
+            )
+            if (
+                not complete_pdf(generated, pages=result.thesis_pages + result.report_pages)
+                or pdf_signature(source, inputs) != signature
+            ):
+                raise ValueError("Invalid or stale export")
+            metadata = stage / "metadata.json"
+            metadata.write_text(json.dumps(asdict(result), indent=2), encoding="utf-8")
+            signature_file = stage / "signature"
+            signature_file.write_text(f"{signature} {file_digest(generated)}", encoding="ascii")
+            # A sidecar failure leaves every previously published PDF intact.
+            os.replace(metadata, metadata_path)
+            os.replace(signature_file, stamp)
+            os.replace(generated, output)
+            return output
+
+
+def _valid_export_stamp(output: Path, stamp: Path, signature: str) -> bool:
+    if output.is_symlink() or stamp.is_symlink() or not output.is_file() or not stamp.is_file():
+        return False
+    return stamp.read_text(encoding="ascii") == f"{signature} {file_digest(output)}"
 
 
 def _safe_pdf_disposition_filename(file_name: str) -> str:
@@ -2884,13 +3018,16 @@ def _report_json_findings_for_highlight(job: JobState) -> list[dict[str, Any]]:
     """Load raw audit findings for highlight box extraction."""
     jdir = _job_dir(job.job_id)
     json_path = jdir / "report.json"
-    if not json_path.exists():
+    if (
+        not _is_deletable_workspace(jdir) or is_link_or_junction(json_path)
+        or not json_path.is_file()
+    ):
         return job.findings
     try:
         payload = json.loads(json_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, ValueError):
         return job.findings
-    raw_findings = payload.get("findings", [])
+    raw_findings = payload.get("findings", []) if isinstance(payload, dict) else None
     if not isinstance(raw_findings, list):
         return job.findings
     enriched: list[dict[str, Any]] = []
@@ -2914,6 +3051,7 @@ def _matching_findings_for_highlight(
     issue_type: str,
     finding_id: str = "",
     finding_index: int | None = None,
+    raw_findings: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Return job findings matching the highlight request's filters.
 
@@ -2922,7 +3060,9 @@ def _matching_findings_for_highlight(
     fallback for old links: a stale/out-of-range id or index still falls
     through to the page/rule/issue_type filter below rather than 404ing.
     """
-    source_findings = _report_json_findings_for_highlight(job)
+    source_findings = (
+        _report_json_findings_for_highlight(job) if raw_findings is None else raw_findings
+    )
     if finding_id:
         raw_index = parse_finding_id(finding_id)
         if raw_index is not None and 0 <= raw_index < len(source_findings):
@@ -2983,39 +3123,103 @@ def _highlight_boxes_by_page(
                 boxes = [HighlightBox.from_tuple(bbox)]
         for box in boxes:
             boxes_by_page.setdefault(page, []).append(box)
+        if rule_id == "P062" and issue_type == P062_ISSUE:
+            preceding_page = _coerce_page_number(details.get("preceding_entry_page"))
+            following_page = _coerce_page_number(details.get("following_entry_page"))
+            if following_page == page and preceding_page is not None and 0 < preceding_page < page:
+                preceding_boxes = parse_highlight_bboxes_from_details({
+                    "bbox": details.get("preceding_entry_bbox", ""),
+                })
+                for target in preceding_boxes:
+                    boxes_by_page.setdefault(preceding_page, []).append(
+                        HighlightBox.from_tuple(target)
+                    )
     return boxes_by_page
 
 
-def _highlight_cache_path(
-    jdir: Path,
-    *,
-    page: int | None,
-    rule_id: str,
-    issue_type: str,
-    finding_id: str = "",
-    finding_index: int | None = None,
-) -> Path:
-    """Return a stable, filesystem-safe cache path for a highlighted PDF copy."""
-    identity = finding_id or str(finding_index)
-    key = f"{page}|{rule_id}|{issue_type}|{identity}"
-    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
-    return jdir / f"highlighted-{digest}.pdf"
+def _highlight_geometry_key(boxes: list[HighlightBox]) -> list[list[float | str]]:
+    return [[*box, box.kind] for box in boxes]
 
 
-def _highlight_page_cache_path(
-    jdir: Path,
-    *,
-    page: int | None,
-    rule_id: str,
-    issue_type: str,
-    finding_id: str = "",
-    finding_index: int | None = None,
-) -> Path:
-    """Return a stable cache path for a one-page highlighted PDF artifact."""
-    identity = finding_id or str(finding_index)
-    key = f"page|{page}|{rule_id}|{issue_type}|{identity}"
-    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
-    return jdir / f"highlighted-page-{digest}.pdf"
+@app.get("/audits/{job_id}/download/comments.pdf", response_model=None)
+async def download_comments_pdf(request: Request, job_id: str) -> FileResponse | HTMLResponse:
+    return await _dispatch_pdf_export(request, job_id, "comments", {})
+
+
+def _prepare_comments_pdf(
+    request: Request, job_id: str, *, output_dir: Path | None = None,
+    raw_findings: list[dict[str, Any]] | None = None,
+) -> FileResponse | HTMLResponse:
+    """Build comments from the same student findings in either export process."""
+    job = _get_job(job_id)
+    if job is None or job.state != "complete" or job.audit_type != "pdf":
+        return _index_notice(request, _expired_job_notice(), status_code=404)
+    jdir = _job_dir(job_id)
+    if not _is_deletable_workspace(jdir):
+        return _index_notice(request, _expired_job_notice(), status_code=404)
+    destination = output_dir or jdir
+    if not _is_under_runtime(destination):
+        return _index_notice(request, _expired_job_notice(), status_code=404)
+    findings = deepcopy(job.findings)
+    labels = job.manuscript_page_labels.copy()
+    failed_check_count = job.failed_check_count
+    inputs = [findings, labels, failed_check_count]
+
+    def render(path: Path) -> bool:
+        build_comments_pdf_report(
+            path, findings, manuscript_page_labels=labels, failed_check_count=failed_check_count,
+        )
+        return True
+
+    try:
+        path = _prepare_pdf_cache(destination, "comments", inputs, render)
+        if path is None:
+            raise ValueError("Invalid comments export")
+    except Exception as exc:  # noqa: BLE001
+        _logger.warning("Comments PDF generation failed (%s).", type(exc).__name__)
+        return _index_notice(
+            request, "The Comments PDF could not be prepared. Please try again.", status_code=500
+        )
+    return FileResponse(path, media_type="application/pdf", filename="NJIT_Comments.pdf")
+
+
+def _prepare_pdf_cache(
+    jdir: Path, filename_prefix: str, inputs: object, render: Callable[[Path], bool],
+    *, source: Path | None = None, pages: int | None = None,
+) -> Path | None:
+    signature = pdf_signature(source, inputs)
+    output = jdir / f"{filename_prefix}-{signature}.pdf"
+    stamp = output.with_suffix(".sha256")
+    if not _is_under_runtime(output) or not _is_under_runtime(stamp):
+        return None
+    try:
+        if _valid_export_stamp(output, stamp, signature):
+            return output
+    except (OSError, ValueError):
+        pass
+    with tempfile.TemporaryDirectory(prefix=".pdf-export-", dir=output.parent) as name:
+        stage = Path(name)
+        generated = stage / "output.pdf"
+        if (
+            not render(generated)
+            or not complete_pdf(generated, pages=pages)
+            or pdf_signature(source, inputs) != signature
+        ):
+            return None
+        signature_file = stage / "signature"
+        signature_file.write_text(f"{signature} {file_digest(generated)}", encoding="ascii")
+        os.replace(signature_file, stamp)
+        os.replace(generated, output)
+    return output
+
+
+def _prepare_highlight_cache(
+    jdir: Path, source: Path, kind: str, geometry: object,
+    render: Callable[[Path], bool], *, pages: int | None = None,
+) -> Path | None:
+    return _prepare_pdf_cache(
+        jdir, f"highlighted-{kind}", [kind, geometry], render, source=source, pages=pages
+    )
 
 
 @app.get("/audits/{job_id}/pdf/highlighted", response_model=None)
@@ -3028,6 +3232,24 @@ async def serve_job_pdf_highlighted(
     finding_id: str = "",
     finding_index: int | None = None,
 ) -> FileResponse | HTMLResponse:
+    return await _dispatch_pdf_export(request, job_id, "highlighted", {
+        "page": page, "rule_id": rule_id.strip(), "issue_type": issue_type.strip(),
+        "finding_id": finding_id.strip(), "finding_index": finding_index,
+    })
+
+
+def _prepare_highlighted_pdf(
+    request: Request,
+    job_id: str,
+    page: int | None = None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_id: str = "",
+    finding_index: int | None = None,
+    *,
+    output_dir: Path | None = None,
+    raw_findings: list[dict[str, Any]] | None = None,
+) -> FileResponse | HTMLResponse:
     """Serve the uploaded PDF inline with a highlight for a specific finding.
 
     Falls back to the plain (unhighlighted) PDF when the matched finding(s)
@@ -3039,7 +3261,6 @@ async def serve_job_pdf_highlighted(
     following/rendering it inline, which broke this student-facing route in
     production.
     """
-    cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None or job.state != "complete":
         return _index_notice(request, _expired_job_notice(), status_code=404)
@@ -3050,7 +3271,10 @@ async def serve_job_pdf_highlighted(
 
     jdir = _job_dir(job_id)
     pdf_path = _job_pdf_path(jdir)
-    if not _is_under_runtime(pdf_path) or not pdf_path.exists():
+    if not _is_deletable_workspace(jdir) or is_link_or_junction(pdf_path) or not pdf_path.is_file():
+        return _index_notice(request, _expired_job_notice(), status_code=404)
+    jdir = output_dir or jdir
+    if not _is_under_runtime(jdir):
         return _index_notice(request, _expired_job_notice(), status_code=404)
 
     headers = {
@@ -3073,32 +3297,19 @@ async def serve_job_pdf_highlighted(
             issue_type=issue_type.strip(),
             finding_id=finding_id.strip(),
             finding_index=finding_index,
+            raw_findings=raw_findings,
         )
         boxes_by_page = _highlight_boxes_by_page(matches)
         if not boxes_by_page:
             return plain_response
 
-        cache_path = _highlight_cache_path(
-            jdir,
-            page=page,
-            rule_id=rule_id,
-            issue_type=issue_type,
-            finding_id=finding_id.strip(),
-            finding_index=finding_index,
+        geometry = {key: _highlight_geometry_key(boxes) for key, boxes in boxes_by_page.items()}
+        cache_path = _prepare_highlight_cache(
+            jdir, pdf_path, "document", geometry,
+            lambda target: build_highlighted_pdf(pdf_path, target, boxes_by_page).has_highlight,
+            pages=job.pdf_page_count or None,
         )
-        if not _is_under_runtime(cache_path):
-            return plain_response
-
-        if not cache_path.exists():
-            result = build_highlighted_pdf(pdf_path, cache_path, boxes_by_page)
-            if not result.has_highlight:
-                _logger.warning(
-                    "Highlight request matched %d finding(s) but drew no "
-                    "visible annotation (skipped=%d); falling back to plain PDF.",
-                    len(matches),
-                    result.skipped_count,
-                )
-        if not cache_path.exists():
+        if cache_path is None:
             return plain_response
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
@@ -3120,6 +3331,24 @@ async def serve_job_highlighted_page_pdf(
     finding_id: str = "",
     finding_index: int | None = None,
 ) -> FileResponse | HTMLResponse:
+    return await _dispatch_pdf_export(request, job_id, "page", {
+        "page": page, "rule_id": rule_id.strip(), "issue_type": issue_type.strip(),
+        "finding_id": finding_id.strip(), "finding_index": finding_index,
+    })
+
+
+def _prepare_highlighted_page_pdf(
+    request: Request,
+    job_id: str,
+    page: int | None = None,
+    rule_id: str = "",
+    issue_type: str = "",
+    finding_id: str = "",
+    finding_index: int | None = None,
+    *,
+    output_dir: Path | None = None,
+    raw_findings: list[dict[str, Any]] | None = None,
+) -> FileResponse | HTMLResponse:
     """Serve a one-page highlighted PDF for per-finding report links.
 
     Errors return an HTML notice, never JSON: mobile browsers (notably
@@ -3127,7 +3356,6 @@ async def serve_job_highlighted_page_pdf(
     following/rendering it inline, which broke this student-facing route in
     production.
     """
-    cleanup_expired_jobs()
     job = _get_job(job_id)
     if job is None or job.state != "complete":
         return _index_notice(request, _expired_job_notice(), status_code=404)
@@ -3142,32 +3370,29 @@ async def serve_job_highlighted_page_pdf(
 
     jdir = _job_dir(job_id)
     pdf_path = _job_pdf_path(jdir)
-    if not _is_under_runtime(pdf_path) or not pdf_path.exists():
+    if not _is_deletable_workspace(jdir) or is_link_or_junction(pdf_path) or not pdf_path.is_file():
+        return _index_notice(request, _expired_job_notice(), status_code=404)
+    jdir = output_dir or jdir
+    if not _is_under_runtime(jdir):
         return _index_notice(request, _expired_job_notice(), status_code=404)
 
     headers = {
         "Content-Disposition": 'inline; filename="highlighted-page.pdf"'
     }
 
-    cache_path = _highlight_page_cache_path(
-        jdir,
-        page=page,
-        rule_id=rule_id,
-        issue_type=issue_type,
-        finding_id=finding_id.strip(),
-        finding_index=finding_index,
-    )
-
     def _extract_plain_single_page() -> FileResponse | HTMLResponse:
-        """Best-effort plain single-page extract, used when highlight-aware
-        generation fails for any reason -- this route must always try to
-        hand back a usable PDF rather than a bare error."""
-        if cache_path.exists() and _is_under_runtime(cache_path):
-            return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
-        if _is_under_runtime(cache_path) and build_single_page_pdf(
-            pdf_path, cache_path, source_page_number=page
-        ):
-            return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
+        # A transient renderer failure must not poison the highlighted cache.
+        try:
+            plain = _prepare_highlight_cache(
+                jdir, pdf_path, "plain-page", page,
+                lambda target: build_single_page_pdf(
+                    pdf_path, target, source_page_number=page,
+                ), pages=1,
+            )
+            if plain is not None:
+                return FileResponse(path=str(plain), media_type="application/pdf", headers=headers)
+        except Exception:
+            pass
         return _index_notice(
             request, f"Page {page} could not be extracted from this audit PDF.", status_code=404
         )
@@ -3180,40 +3405,28 @@ async def serve_job_highlighted_page_pdf(
             issue_type=issue_type.strip(),
             finding_id=finding_id.strip(),
             finding_index=finding_index,
+            raw_findings=raw_findings,
         )
         boxes_by_page = _highlight_boxes_by_page(matches)
         page_boxes = boxes_by_page.get(page) or []
 
-        if not _is_under_runtime(cache_path):
+        if not page_boxes:
             return _extract_plain_single_page()
-
-        if not cache_path.exists():
-            if page_boxes:
-                result = build_highlighted_single_page_pdf(
-                    pdf_path,
-                    cache_path,
-                    source_page_number=page,
-                    boxes=page_boxes,
-                )
-                if not result.has_highlight:
-                    _logger.warning(
-                        "Page-focused highlight on page=%s matched %d finding(s) "
-                        "but drew no visible annotation (skipped=%d); serving single page only.",
-                        page,
-                        len(matches),
-                        result.skipped_count,
-                    )
-            if not cache_path.exists() and not build_single_page_pdf(
-                pdf_path, cache_path, source_page_number=page
-            ):
-                return _index_notice(
-                    request,
-                    f"Page {page} could not be extracted from this audit PDF.",
-                    status_code=404,
-                )
+        cache_path = _prepare_highlight_cache(
+            jdir, pdf_path, "page", [page, _highlight_geometry_key(page_boxes)],
+            lambda target: build_highlighted_single_page_pdf(
+                pdf_path, target, source_page_number=page, boxes=page_boxes,
+            ).has_highlight, pages=1,
+        )
+        if cache_path is None:
+            # Desktop supervisor distinguishes this retryable fallback from an
+            # ordinary page-only export with no available highlight geometry.
+            request.state.retry_export = True
+            return _extract_plain_single_page()
 
         return FileResponse(path=str(cache_path), media_type="application/pdf", headers=headers)
     except Exception as exc:  # noqa: BLE001
+        request.state.retry_export = True
         _logger.warning(
             "Page-focused highlighted PDF generation failed (%s); "
             "attempting single-page extract.",
@@ -3235,6 +3448,15 @@ async def about_page(request: Request) -> HTMLResponse:
 @app.get("/rules", response_class=HTMLResponse)
 async def rules_page(request: Request) -> HTMLResponse:
     catalog = _build_rule_catalog()
+    if not catalog["total_student"]:
+        recovery = (
+            "Quit and replace the app with a complete copy, then try again."
+            if getattr(request.app.state, "offline_mode", False)
+            else "Please try again later."
+        )
+        return _index_notice(
+            request, f"The Rule Reference is unavailable. {recovery}", status_code=503
+        )
     return _render(request, "rules.html", catalog)
 
 
