@@ -1967,8 +1967,46 @@ def _trusted_folio_column(entries: list[TocEntryLine]) -> float | None:
     return None
 
 
+def _bracketed_figure_folio(
+    previous: TocEntryLine, entry: TocEntryLine, following: TocEntryLine,
+    token: str, reference_edge: float,
+) -> bool:
+    """Check concurrent evidence from the neighboring Figure labels and folios."""
+    if not token.isdecimal():
+        return False
+    labels = [
+        match[1].rsplit(".", 1)
+        for item in (previous, entry, following)
+        if (match := SECTION_NUMBER_PREFIX_RE.match(item.cleaned_text)) and "." in match[1]
+    ]
+    if len(labels) != 3:
+        return False
+    (previous_prefix, previous_id), (prefix, figure_id), (following_prefix, following_id) = labels
+    if not (
+        previous_prefix == prefix == following_prefix
+        and int(previous_id) + 1 == int(figure_id) == int(following_id) - 1
+    ):
+        return False
+    folios: list[int] = []
+    for neighbor in (previous, following):
+        row = neighbor.page_number_line
+        span = _right_edge_page_number_span(row) if row is not None else None
+        if (
+            span is None
+            or abs(neighbor.indent_x - entry.indent_x) > INDENT_CLUSTER_TOLERANCE_PT
+            or abs(span.bbox.x1 - reference_edge) > RIGHT_EDGE_TOLERANCE_PT
+        ):
+            return False
+        folio = _clean_text(span.text)
+        if folio != neighbor.page_number_token or not folio.isdecimal():
+            return False
+        folios.append(int(folio))
+    return folios[0] < int(token) < folios[1]
+
+
 def _recover_displaced_standalone_folios(
     entries: list[TocEntryLine], rows: list[PdfTextLine], reference_edge: float,
+    *, page_type: str,
 ) -> dict[TocEntryLine, PdfTextLine]:
     """Recover a displaced folio on its own line after a completed wrapped title.
 
@@ -1979,7 +2017,7 @@ def _recover_displaced_standalone_folios(
     recovered: dict[TocEntryLine, PdfTextLine] = {}
     entry_starts = {entry.line.bbox.y0 for entry in entries}
     owned_boxes = [entry.page_number_line.bbox for entry in entries if entry.page_number_line]
-    for entry in entries:
+    for index, entry in enumerate(entries):
         if (
             entry.page_number_token is not None
             or not entry.is_wrapped
@@ -2003,10 +2041,7 @@ def _recover_displaced_standalone_folios(
         tail = _row_text(last)
         token = _row_text(number)
         if (
-            len(tail) < 2
-            or not tail.endswith(".")
-            or not tail[-2].isalpha()
-            or not _STANDALONE_FOLIO_RE.fullmatch(token)
+            not _STANDALONE_FOLIO_RE.fullmatch(token)
             # A lone Roman-looking letter at the title indent can be text.
             or (len(token) == 1 and token.isalpha())
             or abs(number.bbox.x1 - reference_edge) <= RIGHT_EDGE_TOLERANCE_PT
@@ -2021,6 +2056,18 @@ def _recover_displaced_standalone_folios(
             or not _has_entry_identifier(_row_text(following))
             or following.bbox.y0 not in entry_starts
             or number.bbox in owned_boxes
+        ):
+            continue
+        has_terminal_period = len(tail) >= 2 and tail.endswith(".") and tail[-2].isalpha()
+        if not has_terminal_period and not (
+            page_type == "list_of_figures"
+            and re.search(r"[^\W\d_]{2,}$", tail)
+            and len(number.spans) == 1
+            and 0 < index < len(entries) - 1
+            and entries[index + 1].line.bbox.y0 == following.bbox.y0
+            and _bracketed_figure_folio(
+                entries[index - 1], entry, entries[index + 1], token, reference_edge,
+            )
         ):
             continue
         _apply_auxiliary_page_number(entry, number)
@@ -2076,7 +2123,9 @@ def _add_entry_consistency_findings(
     presence_positions = {entry: idx for idx, entry in enumerate(presence_entries)}
     reference_edge = _trusted_folio_column(presence_entries)
     recovered = (
-        _recover_displaced_standalone_folios(presence_entries, rows, reference_edge)
+        _recover_displaced_standalone_folios(
+            presence_entries, rows, reference_edge, page_type=context.page_type,
+        )
         if reference_edge is not None else {}
     )
     if recovered:
