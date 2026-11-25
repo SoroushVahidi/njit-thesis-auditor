@@ -301,7 +301,11 @@ def test_failed_new_generation_preserves_cached_download_and_success_retries(set
     web_app._get_job(job_id).findings[0]["polished_comment"] = "Updated synthetic explanation."
     manager.deadline, manager._command = 0.2, hanging
     with Path(first.path).open("rb") as downloading:
-        assert asyncio.run(manager.response(request(app), job_id, "student", {})).status_code == 503
+        failure = asyncio.run(manager.response(request(app), job_id, "student", {}))
+        assert failure.status_code == 503
+        assert b"PDF export failed." in failure.body
+        assert b"Audit result no longer available." not in failure.body
+        assert f'href="/audits/{job_id}">Return to audit results</a>'.encode() in failure.body
         assert downloading.read() == previous
     assert Path(first.path).read_bytes() == previous
     manager.deadline, manager._command = 15, worker_command

@@ -2078,15 +2078,36 @@ def _index_error(request: Request, error: str, status_code: int = 400) -> HTMLRe
     )
 
 
-def _index_notice(request: Request, notice: str, status_code: int = 404) -> HTMLResponse:
+def _index_notice(
+    request: Request,
+    notice: str,
+    status_code: int = 404,
+    *,
+    title: str = "",
+    audit_url: str = "",
+) -> HTMLResponse:
     return _render(
         request,
         "index.html",
         {
             "notice": notice,
+            "notice_title": title,
+            "notice_audit_url": audit_url,
             "max_upload_mb": MAX_UPLOAD_MB,
         },
         status_code=status_code,
+    )
+
+
+def _pdf_export_failure_notice(
+    request: Request, message: str, job_id: str, *, status_code: int
+) -> HTMLResponse:
+    return _index_notice(
+        request,
+        message,
+        status_code=status_code,
+        title="PDF export failed.",
+        audit_url=f"/audits/{job_id}",
     )
 
 
@@ -2849,9 +2870,10 @@ def _prepare_student_pdf(
     except Exception as exc:  # noqa: BLE001
         # Paths, job IDs, and input-derived text can occur in exception messages.
         _logger.warning("Combined student PDF generation failed (%s).", type(exc).__name__)
-        return _index_notice(
+        return _pdf_export_failure_notice(
             request,
             "The complete PDF report could not be prepared. Please try again.",
+            job_id,
             status_code=500,
         )
     safe_name = sanitize_upload_filename(job.file_name or "thesis.pdf")
@@ -3177,8 +3199,11 @@ def _prepare_comments_pdf(
             raise ValueError("Invalid comments export")
     except Exception as exc:  # noqa: BLE001
         _logger.warning("Comments PDF generation failed (%s).", type(exc).__name__)
-        return _index_notice(
-            request, "The Comments PDF could not be prepared. Please try again.", status_code=500
+        return _pdf_export_failure_notice(
+            request,
+            "The Comments PDF could not be prepared. Please try again.",
+            job_id,
+            status_code=500,
         )
     return FileResponse(path, media_type="application/pdf", filename="NJIT_Comments.pdf")
 

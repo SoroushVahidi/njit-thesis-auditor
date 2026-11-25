@@ -4275,16 +4275,24 @@ def test_complete_student_pdf_concurrent_requests_return_complete_files(
         assert cached.page_count > 5
 
 
-def test_complete_student_pdf_generation_failure_allows_retry(
-    client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("filename", "renderer", "report_label"),
+    [
+        ("student-report.pdf", "build_combined_student_pdf_report", "complete PDF report"),
+        ("comments.pdf", "build_comments_pdf_report", "Comments PDF"),
+    ],
+)
+def test_student_pdf_generation_failure_allows_retry(
+    client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    filename: str, renderer: str, report_label: str,
 ) -> None:
     c, wa = client
     job_id = _inject_complete_job_with_findings(
         wa, tmp_path, findings=[_p012_annotation_finding_with_bbox(page=2)],
         file_name="synthetic.pdf", audit_type="pdf",
     )
-    url = f"/audits/{job_id}/download/student-report.pdf"
-    original = wa.build_combined_student_pdf_report
+    url = f"/audits/{job_id}/download/{filename}"
+    original = getattr(wa, renderer)
     calls = []
 
     def fail_once(*args, **kwargs):
@@ -4293,9 +4301,18 @@ def test_complete_student_pdf_generation_failure_allows_retry(
             raise PermissionError("Synthetic transient write failure")
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(wa, "build_combined_student_pdf_report", fail_once)
-    assert c.get(url).status_code == 500
-    assert c.get(url).status_code == 200
+    monkeypatch.setattr(wa, renderer, fail_once)
+    failure = c.get(url)
+    assert failure.status_code == 500
+    assert "PDF export failed." in failure.text
+    assert "Audit result no longer available." not in failure.text
+    assert f"The {report_label} could not be prepared. Please try again." in failure.text
+    assert f'href="/audits/{job_id}">Return to audit results</a>' in failure.text
+    assert "Synthetic transient write failure" not in failure.text
+    assert c.get(f"/audits/{job_id}").status_code == 200
+    retry = c.get(url)
+    assert retry.status_code == 200
+    assert retry.content.startswith(b"%PDF-")
     assert len(calls) == 2
 
 
@@ -4303,7 +4320,10 @@ def test_complete_student_pdf_missing_and_non_pdf_jobs(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
     c, wa = client
-    assert c.get("/audits/expired/download/student-report.pdf").status_code == 404
+    missing = c.get("/audits/expired/download/student-report.pdf")
+    assert missing.status_code == 404
+    assert "Audit result no longer available." in missing.text
+    assert "Return to audit results" not in missing.text
     job_id = _inject_complete_job_with_findings(
         wa, tmp_path, findings=[], file_name="source.tex", audit_type="tex"
     )

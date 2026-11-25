@@ -2,7 +2,13 @@
 {% block content %}
 <h1>NJIT Thesis Auditor — Offline</h1>
 <p class="subtitle">Select a PDF. Audit it on this computer, even without internet access.</p>
-{% if notice %}<div class="alert-warn" role="alert">{{ notice }}</div>{% endif %}
+{% if notice %}
+<div class="alert-warn" role="alert">
+  {% if notice_title %}<strong>{{ notice_title }}</strong><br>{% endif %}
+  {{ notice }}
+  {% if notice_audit_url %}<br><a href="{{ notice_audit_url }}">Return to audit results</a>{% endif %}
+</div>
+{% endif %}
 {% if error %}<div class="alert-error" role="alert"><strong>{{ error_title or "Could not start audit." }}</strong><br>{{ error }}</div>{% endif %}
 {% if deletion_status == "pending" %}<div class="alert-warn" role="status">An audit is still running. Its local files are queued for deletion as soon as it finishes.</div>{% endif %}
 {% if deletion_status == "deleted" %}<div class="alert-info" role="status">Local audit data was deleted.</div>{% endif %}

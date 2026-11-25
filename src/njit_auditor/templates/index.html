@@ -166,8 +166,9 @@
 
 {% if notice %}
 <div class="alert-warn" role="alert">
-  <strong>Audit result no longer available.</strong><br>
+  <strong>{{ notice_title or "Audit result no longer available." }}</strong><br>
   {{ notice }}
+  {% if notice_audit_url %}<br><a href="{{ notice_audit_url }}">Return to audit results</a>{% endif %}
 </div>
 {% endif %}
 {% if error %}

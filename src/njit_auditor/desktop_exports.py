@@ -509,8 +509,15 @@ class PdfExportExecutor:
                             + '"'
                         },
                     )
-            return web_app._index_notice(
-                request, "The PDF report could not be prepared. Please try again.", status_code=503
+            if job is None:
+                return web_app._index_notice(
+                    request, web_app._expired_job_notice(), status_code=503
+                )
+            return web_app._pdf_export_failure_notice(
+                request,
+                "The PDF report could not be prepared. Please try again.",
+                job_id,
+                status_code=503,
             )
         finally:
             if operation is not None and not handed_off:
