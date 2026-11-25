@@ -6,6 +6,7 @@ import re
 from collections.abc import Iterator
 from copy import copy
 from dataclasses import dataclass
+from itertools import pairwise
 from statistics import median
 
 from njit_auditor.digital_commons_wrapper import (
@@ -2076,10 +2077,20 @@ def _recover_displaced_standalone_folios(
     return recovered
 
 
-def _has_interior_folio_span(entry: TocEntryLine) -> bool:
-    """Identify a numeric span followed by title text on the same visual row."""
+def _has_interior_folio_span(
+    entry: TocEntryLine, next_row: PdfTextLine | None,
+) -> bool:
+    """Identify a false folio inside a confidently single-row title."""
     row = entry.page_number_line
-    if row is None or has_trailing_page_number_token(entry):
+    if entry.is_wrapped or row is None or has_trailing_page_number_token(entry):
+        return False
+    # The first interior numeral can stop reconstruction before the actual
+    # folio on a hanging row. Keep the presence verdict if there may be a wrap.
+    if (
+        next_row is not None
+        and 0 <= next_row.bbox.y0 - row.bbox.y0 <= LOGICAL_WRAP_Y_GAP_PT
+        and next_row.bbox.x0 >= entry.indent_x + LOGICAL_WRAP_MIN_INDENT_PT
+    ):
         return False
     span = _right_column_page_number_span(row)
     return bool(
@@ -2130,10 +2141,14 @@ def _add_entry_consistency_findings(
     )
     if recovered:
         entries_with_page_num.extend(recovered)
+    next_rows = {row.bbox.y0: following for row, following in pairwise(rows)}
     entries_missing_page_num = [
         entry
         for entry in presence_entries
-        if (entry.page_number_right_x is None or _has_interior_folio_span(entry))
+        if (
+            entry.page_number_right_x is None
+            or _has_interior_folio_span(entry, next_rows.get(entry.line.bbox.y0))
+        )
         and not is_toc_structural_column_label(entry.cleaned_text)
         # Wrap continuations (no section/Figure/Table prefix) are not
         # independent entries; do not treat them as "missing page number".

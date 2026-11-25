@@ -64,3 +64,24 @@ def test_p018_does_not_count_visible_interior_title_number(
             path, tmp_path / "focused.pdf", source_page_number=card.page, boxes=[card.bbox],
         )
         assert result.drawn_count == 1 and result.pages_highlighted == [1]
+
+
+def test_p018_does_not_presume_missing_folio_after_interior_number_on_wrapped_title(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "interior-and-hanging-terminal-number.pdf"
+    with pymupdf.open() as doc:
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((225, 80), "LIST OF FIGURES", fontname="Times-Bold", fontsize=14)
+        for index in range(4):
+            y = 120 + index * 36
+            page.insert_text((108, y), f"3.{index + 1} Synthetic measurement")
+            page.insert_text((290, y), "100")
+            page.insert_text((325, y), "units per interval with")
+            page.insert_text((149, y + 14), "the rest of the described process.")
+            page.insert_text((529, y + 14), str(30 + index))
+        doc.save(path)
+    assert not [
+        f for f in run_pdf_audit_full(path)
+        if f.rule_id == "P018" and f.details["issue_type"] == "missing_page_number"
+    ]
