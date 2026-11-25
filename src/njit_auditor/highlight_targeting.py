@@ -6,7 +6,12 @@ import re
 from collections.abc import Mapping, Sequence
 from itertools import zip_longest
 
-from njit_auditor.pdf_highlight import HighlightBox, is_drawable_bbox
+from njit_auditor.pdf_highlight import (
+    NO_RIGHT_PADDING_KIND,
+    RECT_ANNOT_PADDING_PT,
+    HighlightBox,
+    is_drawable_bbox,
+)
 from njit_auditor.pdf_models import BBox, PdfTextLine, format_bbox_detail
 
 _BBOX_PARTS = 4
@@ -231,6 +236,15 @@ def parse_highlight_bboxes_from_details(
     if line_bbox is None:
         line_bbox = _parse_bbox_text(str(details.get("rect", "")).strip())
     if line_bbox is not None:
+        if rule_id == "P054":
+            try:
+                leader_x = float(details.get("highlight_right_limit", ""))
+            except ValueError:
+                leader_x = None
+            if leader_x is not None and line_bbox[2] <= leader_x <= (
+                line_bbox[2] + RECT_ANNOT_PADDING_PT
+            ):
+                return [HighlightBox.from_tuple(line_bbox, kind=NO_RIGHT_PADDING_KIND)]
         boxes.append(line_bbox)
     for key in _EXTRA_BBOX_KEYS:
         if key in {"token_bbox", "word_bbox"}:
@@ -288,10 +302,7 @@ def resolve_primary_highlight_bbox(
         rule_id=rule_id,
         issue_type=issue_type,
     )
-    if not boxes:
-        return None
-    if len(boxes) == 1:
-        return boxes[0]
+    # Report models carry plain geometry. Rendering kinds stay on draw targets.
     return _union_boxes(boxes)
 
 

@@ -132,19 +132,19 @@ def check_pdf_lot_lof_entry_number_alignment(
         x0_max = max(x0s)
         x0_range = x0_max - x0_min
         expected_x0 = median(x0s)
-        worst_delta = max(abs(x0 - expected_x0) for x0 in x0s)
-
-        if worst_delta <= X0_RANGE_THRESHOLD_PT:
-            continue
-
-        page_num = first_page_by_section.get(section, 0)
-        label = _SECTION_LABELS[section]
-
         affected = [
             (page_number, per_page_index, x0, bbox, preview)
             for page_number, per_page_index, x0, bbox, preview in located_entries
             if abs(x0 - expected_x0) > X0_RANGE_THRESHOLD_PT
         ]
+        if not affected:
+            continue
+
+        page_num, entry_index, _, bbox, preview = max(
+            affected, key=lambda item: abs(item[2] - x0_min)
+        )
+        first_page = first_page_by_section[section]
+        label = _SECTION_LABELS[section]
         details = {
             "page_number": str(page_num),
             "issue_type": _ISSUE_TYPE[section],
@@ -156,20 +156,14 @@ def check_pdf_lot_lof_entry_number_alignment(
             "allowed_x0_range_points": f"{X0_RANGE_THRESHOLD_PT:.1f}",
             "triage_tier": "low",
             "source_q_rule_id": _SOURCE_Q_RULE[section],
+            "affected_entry_count": str(len(affected)),
+            "entry_index": str(entry_index),
+            "bbox": format_bbox_detail(bbox),
         }
-        if affected:
-            details["affected_entry_count"] = str(len(affected))
-            worst_page, worst_index, _, worst_bbox, worst_preview = max(
-                affected, key=lambda item: abs(item[2] - x0_min)
-            )
-            # Only attribute an entry index when the worst offender is on the page this
-            # finding is already reported on, so the location label never claims a page
-            # the entry isn't actually on.
-            if worst_page == page_num:
-                details["entry_index"] = str(worst_index)
-                details["bbox"] = format_bbox_detail(worst_bbox)
-                if worst_preview:
-                    details["affected_entry_preview"] = worst_preview
+        if page_num != first_page:
+            details["list_start_page"] = str(first_page)
+        elif preview:
+            details["affected_entry_preview"] = preview
 
         findings.append(
             AuditFinding(

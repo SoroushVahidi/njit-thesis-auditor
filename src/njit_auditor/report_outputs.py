@@ -987,7 +987,7 @@ def _prepare_findings_for_export(
 
 
 def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFinding]:
-    """Return findings ordered by PDF page, earliest first, page-less findings last.
+    """Order JSON rows by PDF page, keeping list-wide P046 identities stable.
 
     The audit pipeline emits findings grouped by detector/rule (each rule sweeps
     the whole document before the next one runs), not by page, so without this
@@ -1006,14 +1006,26 @@ def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFindi
     slot -- it only reorders the page groups themselves, so finding counts and
     representative-finding choices are unchanged; only display order changes.
     """
-    return sorted(
-        findings,
-        key=lambda finding: (
-            finding.details.get("_preserve_prior_finding_ids") == "true",
-            finding.page is None,
-            finding.page or 0,
-        ),
-    )
+    def sort_key(finding: AuditFinding) -> tuple[int, bool, int]:
+        page = finding.page
+        if finding.rule_id == "P046" and page is not None:
+            # Raw JSON indexes back finding IDs. Keep the list-wide warning's
+            # slot while the card and annotation follow its actual evidence page.
+            start = finding.details.get("list_start_page", "")
+            if start.isascii() and start.isdecimal() and len(start) <= len(str(page)):
+                start_page = int(start)
+                if 0 < start_page < page:
+                    page = start_page
+        page_start_finding = (finding.rule_id, finding.details.get("issue_type")) in {
+            ("P016", "blank_line_above_continuing_body_text"),
+            ("P023", "blank_line_before_opening_level_three_heading"),
+        }
+        priority = int(page_start_finding)
+        if finding.details.get("_preserve_prior_finding_ids") == "true":
+            priority = 2
+        return priority, page is None, page or 0
+
+    return sorted(findings, key=sort_key)
 
 
 def build_source_report(
@@ -3571,14 +3583,14 @@ def _problem_number_map(
             continue
         visible_indexes.append(index)
 
-    # Late-appended JSON rows preserve route IDs. Number visible problems
-    # by their physical pages, with raw row order as the same-page tiebreaker.
-    def physical_page(index: int) -> tuple[bool, int]:
-        page = serialized_findings[index]["page"]
+    def page_order(index: int) -> tuple[bool, int]:
+        page = serialized_findings[index].get("page")
         return page is None, page or 0
 
-    visible_indexes.sort(key=physical_page)
-    return {index: number for number, index in enumerate(visible_indexes, start=1)}
+    return {
+        index: number
+        for number, index in enumerate(sorted(visible_indexes, key=page_order), start=1)
+    }
 
 
 def format_source_location(details: dict[str, str]) -> str:
@@ -4143,12 +4155,14 @@ def write_markdown_report(
         p044_section = _format_p044_triage_section(payload["grouped_summary"])
         lines.extend(p044_section)
 
-    visible_problem_findings = [
-        finding
-        for finding in serialized_findings
-        if isinstance(finding.get("problem_number"), int) and finding["problem_number"] > 0
-    ]
-    visible_problem_findings.sort(key=lambda finding: finding["problem_number"])
+    visible_problem_findings = sorted(
+        (
+            finding
+            for finding in serialized_findings
+            if isinstance(finding.get("problem_number"), int) and finding["problem_number"] > 0
+        ),
+        key=lambda finding: finding["problem_number"],
+    )
     from njit_auditor.p011_student_preview import (
         collect_p011_margin_pages_from_serialized,
         init_p011_display_state,

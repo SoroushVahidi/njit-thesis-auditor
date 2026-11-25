@@ -47,6 +47,7 @@ def test_empty_cell_with_equivalent_populated_row_still_warns() -> None:
 
 def _toc_pdf(
     path: Path, case: str, *, size: float, pitch_em: float, wrapped: bool,
+    dot_offset: float = 0.0, competing_row: bool = False,
 ) -> None:
     font = "Times-Roman"
 
@@ -87,7 +88,9 @@ def _toc_pdf(
         baseline = 222
         title_right = last_cell_left + 0.06 * size
         if case in {"one", "bad_dot"}:
-            title_right = last_cell_left - 0.16 * size
+            # With an offset, leave enough space for PyMuPDF to extract the
+            # dot separately while keeping the previous grid cell occupied.
+            title_right = last_cell_left - (0.83 if dot_offset else 0.16) * size
         elif case == "one_missing":
             title_right = last_cell_left - pitch - 0.16 * size
         elif case in {"wide", "wide_one", "multi"}:
@@ -100,7 +103,9 @@ def _toc_pdf(
             baseline += 14
         write(title, title_right - width(title), baseline)
         if case in {"one", "one_missing", "wide_one"}:
-            write(".", last_dot, baseline)
+            write(".", last_dot, baseline + dot_offset)
+        if competing_row:
+            write("Note", last_dot - width("Note") - 16, baseline + 2.5)
         if case == "bad_dot":
             write(".", last_dot + 0.40 * size, baseline)
         if case == "multi":
@@ -166,6 +171,33 @@ def test_toc_short_leader_geometry(
         assert "misaligned_page_number_column" in page_number_issues
     else:
         assert not page_number_issues
+
+
+@pytest.mark.parametrize(
+    ("case", "competing_row", "warns"),
+    [("one", False, False), ("one", True, True), ("one_missing", False, True)],
+)
+def test_offset_terminal_dot_requires_grid_fit_and_exclusive_row_ownership(
+    tmp_path: Path, case: str, competing_row: bool, warns: bool,
+) -> None:
+    path = tmp_path / "offset-single-cell.pdf"
+    _toc_pdf(
+        path, case, size=11, pitch_em=0.95, wrapped=False,
+        dot_offset=1.25, competing_row=competing_row,
+    )
+    layout = load_pdf_layout(str(path))
+    assert any(
+        line.text.strip() == "." and line.baseline_y == pytest.approx(223.25)
+        for block in layout.pages[1].text_blocks for line in block.lines
+    )
+    findings = check_pdf_toc_leader_consistency(layout)
+    if warns:
+        (finding,) = findings
+        assert finding.details["issue_type"] == "toc_missing_leader_style"
+        assert finding.details["entries_without_leader"] == "1"
+    else:
+        assert not findings
+    assert not check_pdf_toc_terminal_period(layout)
 
 
 @pytest.mark.parametrize(("size", "pitch_em"), [(9.5, 0.43), (13, 0.78)])

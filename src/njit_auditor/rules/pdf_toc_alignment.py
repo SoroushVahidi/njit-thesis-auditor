@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from copy import copy
+from dataclasses import dataclass
 from statistics import median
 
 from njit_auditor.digital_commons_wrapper import (
@@ -22,6 +24,7 @@ from njit_auditor.pdf_models import (
 )
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.toc_entry_geometry import (
+    LEADER_CHARS,
     LeaderGap,
     measure_title_leader_gap,
     row_font_size,
@@ -128,6 +131,7 @@ _WRAPPED_CONTINUATION_STOP_RE = re.compile(
 LEADER_GAP_JITTER_EM = 0.10
 LEADER_GRID_MIN_ROWS = 3
 LEADER_GRID_MAX_SPREAD_PT = 1.0
+_BASELINE_ROUNDING_PT = 0.05
 
 
 class TocEntryLine:
@@ -166,6 +170,42 @@ def has_trailing_page_number_token(entry: TocEntryLine) -> bool:
     return bool(
         token
         and re.search(rf"(?:^|\s){re.escape(token)}\s*$", entry.cleaned_text, re.IGNORECASE)
+    )
+
+
+def _has_list_leader_folio(entry: TocEntryLine) -> bool:
+    if has_trailing_page_number_token(entry):
+        return True
+
+    # The wrap merger strips the folio from display text but retains its
+    # visual row. Require the retained row, not a separately paired numeral.
+    row = entry.page_number_line
+    token = entry.page_number_token
+    if not entry.is_wrapped or row is None or not token or not row.spans:
+        return False
+    if (
+        row.bbox.y0 <= entry.line.bbox.y0
+        or entry.line.spans[-len(row.spans):] != row.spans
+    ):
+        return False
+    folio = _right_edge_page_number_span(row)
+    if (
+        folio is None or _clean_text(folio.text).casefold() != token.casefold()
+        or folio.bbox.x1 != entry.page_number_right_x
+        or folio.baseline_y is None or not folio.size
+        or not re.search(rf"\s{re.escape(token)}\s*$", _row_text(row), re.IGNORECASE)
+    ):
+        return False
+    title = [span for span in row.spans if span is not folio and span.text.strip()]
+    return bool(
+        title
+        and any(char.isalpha() for span in title for char in span.text)
+        and all(
+            span.baseline_y is not None
+            and abs(span.baseline_y - folio.baseline_y) <= SAME_BASELINE_Y_TOLERANCE_PT
+            for span in title
+        )
+        and folio.bbox.x0 - max(span.bbox.x1 for span in title) >= folio.size
     )
 
 
@@ -269,6 +309,135 @@ def is_isolated_terminal_grid_leader_dot(
     return matching_grid_rows >= LEADER_GRID_MIN_ROWS
 
 
+@dataclass(frozen=True)
+class _DetachedLeaderGap:
+    title_right: float
+    folio_left: float
+    title: PdfTextSpan
+    folio: PdfTextSpan
+
+    @property
+    def offset_limit(self) -> float:
+        # Allow a small typesetting offset relative to both anchors' sizes.
+        # Cap at half the visual-row grouping band even for large fonts.
+        return min(
+            0.15 * min(self.title.size or 0, self.folio.size or 0),
+            SAME_BASELINE_Y_TOLERANCE_PT / 2,
+        )
+
+    def contains(self, line: PdfTextLine) -> bool:
+        box = line.bbox
+        if not self.title_right < box.x0 < box.x1 <= self.folio_left:
+            return False
+        title_y, folio_y = self.title.baseline_y, self.folio.baseline_y
+        dot_y = line.baseline_y
+        if dot_y is None:
+            # Legacy layouts can lack a fragment origin. Use the final
+            # title and folio boxes, with the same horizontal bounds.
+            return all(
+                span.bbox.y0 - 2 <= box.y0 < box.y1 <= span.bbox.y1 + 2
+                for span in (self.title, self.folio)
+            )
+        if title_y is None or folio_y is None:
+            return False
+        if abs(dot_y - folio_y) <= _BASELINE_ROUNDING_PT:
+            # Different ascenders can give the same-baseline dots much
+            # taller or shorter boxes than the title and folio.
+            return True
+        return (
+            max(abs(dot_y - y) for y in (title_y, folio_y)) <= self.offset_limit
+            and all(
+                span.bbox.y0 < dot_y < span.bbox.y1
+                and box.y0 < y < box.y1
+                for span, y in ((self.title, title_y), (self.folio, folio_y))
+            )
+        )
+
+
+def _detached_leader_gap(
+    entry: TocEntryLine, title_right: float | None = None,
+) -> _DetachedLeaderGap | None:
+    row, token = entry.page_number_line, entry.page_number_token
+    if row is None or not token or not row.spans or entry.page_number_right_x is None:
+        return None
+    folio_span = max(row.spans, key=lambda span: span.bbox.x1)
+    glyphs = [glyph for glyph in row_glyphs(row) if not glyph.char.isspace()]
+    if len(glyphs) <= len(token) or not re.search(
+        rf"[\s.…·]{re.escape(token)}\s*$", row.text, re.IGNORECASE
+    ):
+        return None
+    tail = glyphs[-len(token):]
+    if "".join(glyph.char for glyph in tail).casefold() != token.casefold():
+        return None
+    if title_right is None:
+        title_right = glyphs[-len(token) - 1].x1
+    folio_left, folio_right = tail[0].x0, tail[-1].x1
+    jitter = LEADER_GAP_JITTER_EM * row_font_size(glyphs)
+    if (
+        title_right is None or folio_left is None or folio_right is None
+        or not entry.indent_x < title_right < folio_left < folio_right
+        or abs(folio_right - entry.page_number_right_x) > jitter
+    ):
+        return None
+    for span in sorted(row.spans, key=lambda span: span.bbox.x0, reverse=True):
+        if not span.bbox.x0 < title_right <= span.bbox.x1:
+            continue
+        if span.baseline_y is not None and folio_span.baseline_y is not None:
+            # The final title and folio must already belong to one row.
+            if abs(span.baseline_y - folio_span.baseline_y) > jitter:
+                continue
+        return _DetachedLeaderGap(title_right, folio_left, span, folio_span)
+    return None
+
+
+def _has_competing_baseline(
+    fragment: PdfTextLine, gap: _DetachedLeaderGap, source_lines: list[PdfTextLine],
+) -> bool:
+    dot_y, title_y, folio_y = fragment.baseline_y, gap.title.baseline_y, gap.folio.baseline_y
+    if dot_y is None or title_y is None or folio_y is None:
+        return False
+    if abs(dot_y - folio_y) <= _BASELINE_ROUNDING_PT:
+        return False
+    # Inspect source lines too. Close rows can merge during reconstruction,
+    # and a neighboring title may have no folio or insufficient glyph bounds.
+    return any(
+        line.baseline_y is not None
+        and abs(line.baseline_y - dot_y) <= gap.offset_limit
+        and min(abs(line.baseline_y - y) for y in (title_y, folio_y)) > _BASELINE_ROUNDING_PT
+        and line.bbox.x0 < fragment.bbox.x0
+        and any(char.isalnum() for char in line.text)
+        for line in source_lines
+    )
+
+
+def owned_detached_leader_lines(
+    entry: TocEntryLine, page: PdfPage, peers: list[TocEntryLine],
+    *, title_right: float | None = None,
+) -> Iterator[PdfTextLine]:
+    """Yield dot-only source fragments with one verified title-to-folio owner."""
+    gap = _detached_leader_gap(entry, title_right)
+    if gap is None:
+        return
+    peer_gaps: list[_DetachedLeaderGap] | None = None
+    source_lines = [line for block in page.text_blocks for line in block.lines]
+    for line in source_lines:
+        if (
+            not 0 <= line.bbox.y0 < line.bbox.y1 <= page.height
+            or not gap.contains(line)
+            or not line.text.strip()
+            or any(char not in LEADER_CHARS and not char.isspace() for char in line.text)
+            or _has_competing_baseline(line, gap, source_lines)
+        ):
+            continue
+        if peer_gaps is None:
+            peer_gaps = [
+                other for peer in peers
+                if peer is not entry and (other := _detached_leader_gap(peer)) is not None
+            ]
+        if not any(other.contains(line) for other in peer_gaps):
+            yield line
+
+
 def entry_has_visible_dot_leader(
     entry: TocEntryLine, page: PdfPage, peers: list[TocEntryLine]
 ) -> bool:
@@ -277,27 +446,25 @@ def entry_has_visible_dot_leader(
         return True
     if re.search(r"(?:\s[.·…]){2,}\s+\S+\s*$", entry.cleaned_text):
         return True
-    if entry.page_number_right_x is None:
-        return False
-    for block in page.text_blocks:
-        for line in block.lines:
-            compact = re.sub(r"\s+", "", line.text)
-            # A long title can leave room for only two leader dots before
-            # the fixed page-number column (Pennock's chapter-6 TOC row).
-            if not re.fullmatch(r"[.·…]{2,}", compact):
-                continue
-            if line.spans and all(_overprints_title(span, entry.line.spans) for span in line.spans):
-                continue
-            if (
-                # A wrapped entry's merged bbox spans both title rows;
-                # detached dots align with its final row, not bbox center.
-                line.bbox.y0 >= entry.line.bbox.y0 - 2
-                and line.bbox.y1 <= entry.line.bbox.y1 + 2
-                and line.bbox.x0 > entry.indent_x + 10
-                and line.bbox.x1 < entry.page_number_right_x - 2
-            ):
-                return True
-    return False
+    # Preserve the legacy bbox path for old rows with no source spans.
+    # Measured rows still require the title-to-folio ownership check.
+    if (
+        entry.page_number_line is None
+        and not entry.line.spans
+        and entry.page_number_right_x is not None
+    ):
+        return any(
+            line.baseline_y is None
+            and re.fullmatch(r"[.·…]{2,}", re.sub(r"\s+", "", line.text))
+            and entry.line.bbox.y0 - 2 <= line.bbox.y0 < line.bbox.y1 <= entry.line.bbox.y1 + 2
+            and entry.indent_x + 10 < line.bbox.x0 < line.bbox.x1 < entry.page_number_right_x - 2
+            for block in page.text_blocks for line in block.lines
+        )
+    # A long title can leave room for only two dots before the folio.
+    return any(
+        sum(char in LEADER_CHARS for char in line.text) >= 2
+        for line in owned_detached_leader_lines(entry, page, peers)
+    )
 
 
 def _details_with_affected_entry_preview(
@@ -1801,12 +1968,14 @@ def _add_entry_consistency_findings(
             if expected_page_edge is not None
             and entry.page_number_right_x is not None
             and abs(entry.page_number_right_x - expected_page_edge) <= RIGHT_EDGE_TOLERANCE_PT
-            and has_trailing_page_number_token(entry)
+            and _has_list_leader_folio(entry)
             and not entry_has_visible_dot_leader(entry, context.page, leader_entries)
         ]
         if missing_dots_entries:
             previously_eligible = [
-                entry for entry in missing_dots_entries if not leader_sources[entry].has_leader_dots
+                entry for entry in missing_dots_entries
+                if not leader_sources[entry].has_leader_dots
+                and has_trailing_page_number_token(leader_sources[entry])
             ]
             leader_positions = {
                 entry: entry_positions[original] for entry, original in leader_sources.items()
