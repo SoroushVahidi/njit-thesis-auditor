@@ -2098,6 +2098,15 @@ def build_polished_comment(
         continuation = caption_continuation_explanation(safe_details)
         if continuation:
             return _finish_comment(continuation, rule_id=rule_id, issue_type=issue, specific=True)
+        if (
+            safe_details.get("caption_context") == "list_of_figures"
+            or safe_details.get("source_q_rule_id") == "Q075"
+        ):
+            body = (
+                f"Likely problem: A List of Figures description on page {_safe_page_label(page)} "
+                "appears to be missing terminal punctuation."
+            )
+            return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P017" and issue == "unexpected_terminal_period":
         subject = (

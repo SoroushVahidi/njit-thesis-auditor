@@ -507,6 +507,9 @@ def _caption_finding(
             if caption.context == "list_of_tables"
             else "Remove the final period from this table title."
         )
+    if issue_type == "missing_terminal_punctuation" and caption.context == "list_of_figures":
+        details["caption_context"] = caption.context
+        details["suggested_fix"] = "End this List of Figures description with a period."
     if caption.bbox is not None:
         details["bbox"] = format_bbox_detail(caption.bbox)
     if end_lines and issue_type in {"missing_terminal_punctuation", "unexpected_terminal_period"}:

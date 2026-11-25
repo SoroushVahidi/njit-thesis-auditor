@@ -280,6 +280,7 @@ def test_continuation_geometry_is_rendered_only_on_its_source_page(tmp_path: Pat
         assert "physical PDF page 2 (document page 11)" in clean
         assert "the highlight target is that line only" in clean
         assert "Crossing a page boundary alone is not a formatting violation" in clean
+        assert "on physical PDF page 2." in clean
 
     check_context((wa.RUNTIME_DIR / job_id / "report.txt").read_text())
     with TestClient(app) as client:
@@ -314,6 +315,10 @@ def test_continuation_geometry_is_rendered_only_on_its_source_page(tmp_path: Pat
             assert not list(pdf[0].annots() or [])
             assert len(list(pdf[1].annots() or [])) == 1
             check_context(" ".join(p.get_text() for p in list(pdf)[2:]))
+        comments = client.get(base + "/download/comments.pdf")
+        assert comments.status_code == 200
+        with fitz.open(stream=comments.content, filetype="pdf") as pdf:
+            check_context(" ".join(p.get_text() for p in pdf))
     assert upload.read_bytes() == before
 
 
@@ -811,3 +816,29 @@ def test_caption_spacing_cards_exports_and_highlight_routes(
             for box in p017["details"]["highlight_bboxes"].split(" | "):
                 y0 = float(box.split(",")[1])
                 assert any(abs(rect[1] - y0) < 2 for rect in targets)
+
+
+def test_list_of_figures_punctuation_keeps_its_own_subject_and_advice(tmp_path: Path) -> None:
+    from njit_auditor.polished_comments import (
+        build_polished_comment,
+        resolve_suggested_fix_for_display,
+    )
+
+    path = tmp_path / "list-of-figures.pdf"
+    with fitz.open() as doc:
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((226, 73), "LIST OF FIGURES", fontsize=14, fontname="tibo")
+        page.insert_text((108, 140), "Figure 2.1 Calibration response", fontname="tiro")
+        doc.save(path)
+
+    finding, = _punctuation(path)
+    assert finding.details["caption_context"] == "list_of_figures"
+    assert "List of Figures" in finding.message
+    for details in (finding.details, {"source_q_rule_id": "Q075"}):
+        assert "List of Figures description on page 1" in build_polished_comment(
+            rule_id="P017", page=1, issue_type=finding.details["issue_type"], details=details,
+        )
+    advice = "End this List of Figures description with a period."
+    assert resolve_suggested_fix_for_display(
+        "P017", finding.details["issue_type"], existing=finding.details["suggested_fix"],
+    ) == advice
