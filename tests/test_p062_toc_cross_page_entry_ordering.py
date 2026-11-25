@@ -22,6 +22,7 @@ from njit_auditor.rules.pdf_toc_cross_page_entry_ordering import (
 from njit_auditor.rules.pdf_toc_entry_number_ordering import (
     check_pdf_toc_entry_number_ordering,
 )
+from njit_auditor.toc_order_evidence import P062_ISSUE
 
 
 def _make_cross_page_toc_pdf(
@@ -135,7 +136,7 @@ def test_p062_two_page_toc_two_inversions_warns(tmp_path: Path) -> None:
     ])
     findings = _p062_findings(pdf_path)
     assert len(findings) == 1
-    assert findings[0].details.get("issue_type") == "toc_cross_page_entry_numbers_not_nondecreasing"
+    assert findings[0].details.get("issue_type") == P062_ISSUE
     assert findings[0].details.get("section_type") == "table_of_contents"
     assert int(findings[0].details.get("page_count", "0")) == 3
     assert int(findings[0].details.get("inversion_count", "0")) >= 2
