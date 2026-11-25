@@ -2029,6 +2029,23 @@ def _recover_displaced_standalone_folios(
     return recovered
 
 
+def _has_interior_folio_span(entry: TocEntryLine) -> bool:
+    """Identify a numeric span followed by title text on the same visual row."""
+    row = entry.page_number_line
+    if row is None or has_trailing_page_number_token(entry):
+        return False
+    span = _right_column_page_number_span(row)
+    return bool(
+        span is not None
+        and _clean_text(span.text) == entry.page_number_token
+        and span.bbox.x1 == entry.page_number_right_x
+        and any(
+            following.bbox.x0 >= span.bbox.x1 and any(ch.isalnum() for ch in following.text)
+            for following in row.spans
+        )
+    )
+
+
 def _add_entry_consistency_findings(
     context: TocPageContext,
     entries: list[TocEntryLine],
@@ -2067,7 +2084,7 @@ def _add_entry_consistency_findings(
     entries_missing_page_num = [
         entry
         for entry in presence_entries
-        if entry.page_number_right_x is None
+        if (entry.page_number_right_x is None or _has_interior_folio_span(entry))
         and not is_toc_structural_column_label(entry.cleaned_text)
         # Wrap continuations (no section/Figure/Table prefix) are not
         # independent entries; do not treat them as "missing page number".
@@ -2144,6 +2161,11 @@ def _add_entry_consistency_findings(
                     "affected_entry_count": str(len(entries_missing_page_num)),
                     "worst_entry_index": str(presence_positions[worst_entry]),
                     "confidence": "medium",
+                    **(
+                        {} if any(entry.page_number_right_x is None
+                                  for entry in entries_missing_page_num)
+                        else {"_preserve_prior_finding_ids": "true"}
+                    ),
                 },
                 worst_entry,
             ),
