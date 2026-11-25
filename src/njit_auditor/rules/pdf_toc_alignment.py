@@ -1217,6 +1217,38 @@ def _append_logical_row(entry: TocEntryLine, row: PdfTextLine, text: str) -> Non
     entry.is_wrapped = True
 
 
+def _is_first_figure_wrap_with_integer(
+    first: PdfTextLine,
+    follower: PdfTextLine,
+    following: PdfTextLine,
+    column: float,
+) -> bool:
+    """Distinguish an integer in a title from a new figure identifier."""
+    # A comma and coordinating conjunction mark an enumeration within the title.
+    if not re.match(r"^\d+ \S+, (?:and|or)\b", _row_text(follower)):
+        return False
+    if _row_text(first).endswith((".", "?", "!")):
+        return False
+    first_label = SECTION_NUMBER_PREFIX_RE.match(_row_text(first))
+    following_label = SECTION_NUMBER_PREFIX_RE.match(_row_text(following))
+    if first_label is None or following_label is None:
+        return False
+    first_parts = first_label[1].split(".")
+    following_parts = following_label[1].split(".")
+    folio = _right_edge_page_number_span(follower)
+    return (
+        len(first_parts) > 1
+        and first_parts[:-1] == following_parts[:-1]
+        and int(following_parts[-1]) == int(first_parts[-1]) + 1
+        and abs(following.bbox.x0 - first.bbox.x0) <= INDENT_CLUSTER_TOLERANCE_PT
+        and following.bbox.y0 - follower.bbox.y1 <= WRAPPED_ENTRY_Y_GAP_PT
+        and follower.bbox.y0 - first.bbox.y0 <= WRAPPED_ENTRY_Y_GAP_PT
+        and folio is not None
+        and folio.text.strip().isdecimal()
+        and abs(folio.bbox.x1 - column) <= RIGHT_EDGE_TOLERANCE_PT
+    )
+
+
 def extract_toc_logical_entry_lines(
     context: TocPageContext,
     *,
@@ -1236,6 +1268,11 @@ def extract_toc_logical_entry_lines(
     entries = extract_toc_entry_lines(context, require_right_edge=require_right_edge)
     rows = collect_toc_visual_rows(context, require_right_edge=require_right_edge)
     column_edge = _logical_page_column_edge(entries)
+    figure_wrap_column = (
+        _trusted_folio_column(entries)
+        if recover_displaced_leader_folio and context.page_type == "list_of_figures"
+        else None
+    )
     if not entries or not rows:
         return entries
 
@@ -1295,7 +1332,7 @@ def extract_toc_logical_entry_lines(
         final_number: str | None = None
         final_edge: float | None = None
         previous = first
-        for follower in rows[first_index + 1 :]:
+        for row_index, follower in enumerate(rows[first_index + 1 :], first_index + 1):
             gap = follower.bbox.y0 - previous.bbox.y0
             if gap < 0 or gap > LOGICAL_WRAP_Y_GAP_PT:
                 break
@@ -1329,16 +1366,26 @@ def extract_toc_logical_entry_lines(
             if (
                 _is_non_entry_row(text)
                 or follower.bbox.x0 < first.bbox.x0 + LOGICAL_WRAP_MIN_INDENT_PT
-                or _starts_independent_logical_entry(
-                    text,
-                    first_text,
-                    context.page_type,
-                    continues_hanging_row=(
-                        bool(continuation_rows)
-                        and abs(follower.bbox.x0 - previous.bbox.x0)
-                        <= WRAPPED_CONTINUATION_MIN_TOLERANCE_PT
-                        and previous.bbox.x1 >= first.bbox.x1 - RIGHT_EDGE_TOLERANCE_PT
-                    ),
+                or (
+                    _starts_independent_logical_entry(
+                        text,
+                        first_text,
+                        context.page_type,
+                        continues_hanging_row=(
+                            bool(continuation_rows)
+                            and abs(follower.bbox.x0 - previous.bbox.x0)
+                            <= WRAPPED_CONTINUATION_MIN_TOLERANCE_PT
+                            and previous.bbox.x1 >= first.bbox.x1 - RIGHT_EDGE_TOLERANCE_PT
+                        ),
+                    )
+                    and not (
+                        not continuation_rows
+                        and figure_wrap_column is not None
+                        and row_index + 1 < len(rows)
+                        and _is_first_figure_wrap_with_integer(
+                            first, follower, rows[row_index + 1], figure_wrap_column
+                        )
+                    )
                 )
                 or len(continuation_rows) >= LOGICAL_WRAP_MAX_ROWS
             ):
