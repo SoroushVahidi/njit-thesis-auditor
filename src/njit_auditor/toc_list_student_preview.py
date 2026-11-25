@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import re
 
-from njit_auditor.p018_guidance import P018_WRAPPED_TITLE_FIX
+from njit_auditor.p018_guidance import (
+    P018_MISSING_PAGE_NUMBER_FIX,
+    P018_WRAPPED_TITLE_FIX,
+)
 from njit_auditor.pdf_models import BBox
 
 _ENTRY_PREVIEW_MAX = 72
@@ -192,7 +195,7 @@ _P018_SHORT_FIX: dict[str, str] = {
         "Align this entry's page number with the dominant right-hand column on this "
         "list page."
     ),
-    "missing_page_number": "Add the missing trailing page number to this entry.",
+    "missing_page_number": P018_MISSING_PAGE_NUMBER_FIX,
     "inconsistent_leader_dots": (
         "Make the leader-dot spacing before this entry's page number match nearby "
         "entries."

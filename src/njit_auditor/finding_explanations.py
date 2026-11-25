@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from njit_auditor.caption_continuation_preview import caption_continuation_explanation
 from njit_auditor.p018_guidance import (
+    P018_MISSING_PAGE_NUMBER_FIX,
     P018_WRAPPED_TITLE_EXPECTED,
     P018_WRAPPED_TITLE_FIX,
 )
@@ -630,7 +631,7 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P018", "missing_page_number"): (
         "A TOC or list entry on this page appears to be missing its trailing "
-        "page number. Add the correct page number for this entry."
+        "page number. " + P018_MISSING_PAGE_NUMBER_FIX
     ),
     ("P018", "inconsistent_leader_dots"): (
         "Leader dots or spacing before page numbers on this list page are "
@@ -1440,6 +1441,10 @@ _P036_SECTION_LABELS: dict[str, str] = {
 
 
 _P018_EXPECTED_BY_ISSUE_TYPE: dict[str, str] = {
+    "missing_page_number": (
+        "Each entry ends with its page number aligned to the list's page-number column. "
+        + P018_MISSING_PAGE_NUMBER_FIX
+    ),
     "wrapped_title_continuation_misaligned": (
         P018_WRAPPED_TITLE_EXPECTED + " What to check or fix: " + P018_WRAPPED_TITLE_FIX
     ),

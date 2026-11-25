@@ -10,7 +10,10 @@ from njit_auditor.caption_continuation_preview import caption_continuation_expla
 from njit_auditor.ester_warning_wording import student_warning_remediation
 from njit_auditor.float_layout_advice import float_layout_suggested_fix
 from njit_auditor.issue_type_explanations import humanize_issue_type
-from njit_auditor.p018_guidance import P018_WRAPPED_TITLE_FIX
+from njit_auditor.p018_guidance import (
+    P018_MISSING_PAGE_NUMBER_FIX,
+    P018_WRAPPED_TITLE_FIX,
+)
 from njit_auditor.report_outputs import derive_source_issue_type
 from njit_auditor.resource_paths import resource_path
 from njit_auditor.toc_order_evidence import P062_ISSUE, describe_p062_pair
@@ -486,8 +489,8 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P018", "missing_page_number"): (
         "Likely problem: A TOC, List of Tables, or List of Figures entry on "
-        "page {page} appears to be missing its trailing page number. Add the "
-        "correct page number for this entry."
+        "page {page} appears to be missing its trailing page number. "
+        + P018_MISSING_PAGE_NUMBER_FIX
     ),
     ("P018", "inconsistent_leader_dots"): (
         "Likely problem: Leader dots or spacing before page numbers on page "
@@ -922,7 +925,7 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "Align this entry's page number with the dominant right-hand column "
         "on this list page."
     ),
-    ("P018", "missing_page_number"): "Add the missing trailing page number to this entry.",
+    ("P018", "missing_page_number"): P018_MISSING_PAGE_NUMBER_FIX,
     ("P018", "inconsistent_leader_dots"): (
         "Make the leader-dot spacing before this entry's page number match "
         "nearby entries."

@@ -2,6 +2,7 @@
 import pytest
 from test_standalone_folio_ownership import _doc, _line, _p018, _peer
 
+from njit_auditor.p018_guidance import P018_MISSING_PAGE_NUMBER_FIX
 from njit_auditor.pdf_models import format_bbox_detail
 from njit_auditor.rules.pdf_toc_alignment import (
     detect_toc_like_pages,
@@ -59,4 +60,4 @@ def test_excluded_final_rows_keep_missing_folio_advice(options, heading):
     assert finding.details["bbox"] == format_bbox_detail(
         (first.x0, first.y0, max(first.x1, tail.x1), tail.y1)
     )
-    assert p018_short_suggested_fix(MISSING).startswith("Add")
+    assert p018_short_suggested_fix(MISSING) == P018_MISSING_PAGE_NUMBER_FIX

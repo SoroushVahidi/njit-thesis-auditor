@@ -59,7 +59,7 @@ def test_p018_does_not_count_visible_interior_title_number(
         ]
         assert card.finding_id == f"f{index}"
         assert card.page == 2 and card.bbox == box and card.has_highlight
-        assert "missing trailing page number" in card.suggested_fix
+        assert "add the correct number if absent" in card.suggested_fix
         result = build_highlighted_single_page_pdf(
             path, tmp_path / "focused.pdf", source_page_number=card.page, boxes=[card.bbox],
         )

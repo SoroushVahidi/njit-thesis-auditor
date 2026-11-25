@@ -2,6 +2,7 @@
 import pytest
 from test_standalone_folio_ownership import _doc, _line, _p018, _peer
 
+from njit_auditor.p018_guidance import P018_MISSING_PAGE_NUMBER_FIX
 from njit_auditor.pdf_models import format_bbox_detail
 from njit_auditor.toc_list_student_preview import p018_short_suggested_fix
 
@@ -56,7 +57,7 @@ def test_unconfirmed_standalone_row_does_not_clear_missing_folio(options, headin
     finding, = _p018(document, MISSING)
     assert finding.page == 12
     assert finding.details["affected_entry_count"] == "1"
-    assert p018_short_suggested_fix(MISSING).startswith("Add")
+    assert p018_short_suggested_fix(MISSING) == P018_MISSING_PAGE_NUMBER_FIX
     assert all("destination_folio" not in item.details for item in _p018(document, MISALIGNED))
 
 

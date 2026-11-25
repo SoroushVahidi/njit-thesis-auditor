@@ -2,6 +2,7 @@
 
 import pytest
 
+from njit_auditor.p018_guidance import P018_MISSING_PAGE_NUMBER_FIX
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
@@ -194,7 +195,9 @@ def test_ambiguous_displaced_numerals_leave_missing_finding(scenario):
     doc = _doc(rows)
     (warning,) = _p018(doc, "missing_page_number")
     assert warning.details["affected_entry_preview"].startswith("3.1")
-    assert p018_short_suggested_fix(warning.details["issue_type"]).startswith("Add")
+    assert (
+        p018_short_suggested_fix(warning.details["issue_type"]) == P018_MISSING_PAGE_NUMBER_FIX
+    )
     assert not _p018(doc, "misaligned_page_number_column")
 
 
@@ -240,7 +243,8 @@ def test_aligned_final_row_folio_keeps_same_line_provenance():
     assert not _p018(doc, "misaligned_page_number_column")
 
 
-def test_folio_geometry_in_rotated_pdf_with_wrapper_and_reviewer(tmp_path, monkeypatch):
+@pytest.mark.parametrize("case", ["confirmed", "absent", "unowned_numeral"])
+def test_folio_geometry_in_rotated_pdf_with_wrapper_and_reviewer(tmp_path, monkeypatch, case):
     import secrets
 
     import pymupdf
@@ -254,10 +258,18 @@ def test_folio_geometry_in_rotated_pdf_with_wrapper_and_reviewer(tmp_path, monke
         wrapper.insert_text((108, 130), "Recommended Citation")
         page = pdf.new_page(width=612, height=792)
         page.insert_text((190, 88), "LIST OF FIGURES")
-        for row in _wrapped_rows():
+        rows = _wrapped_rows()
+        if case != "confirmed":
+            rows = rows[:-2]
+            if case == "unowned_numeral":
+                rows.append(_line(223, ("30", 249, 264)))
+        for row in rows:
             for span in row.spans:
                 page.insert_text((span.bbox.x0, span.bbox.y0 + 12), span.text, fontsize=12)
-        (unrotated_folio,) = [pymupdf.Rect(w[:4]) for w in page.get_text("words") if w[4] == "30"]
+        target_token = "30" if case == "confirmed" else "3.1"
+        (unrotated_target,) = [
+            pymupdf.Rect(w[:4]) for w in page.get_text("words") if w[4] == target_token
+        ]
         page.set_rotation(90)
         source = pdf.tobytes()
 
@@ -285,19 +297,30 @@ def test_folio_geometry_in_rotated_pdf_with_wrapper_and_reviewer(tmp_path, monke
         raw = client.get(url + "/download/json").json()["findings"]
         (finding,) = [f for f in raw if f["rule_id"] == "P018"]
         assert finding["page"] == 2
-        assert finding["details"]["destination_folio"] == "30"
-        issue = "misaligned_page_number_column"
+        issue = (
+            "misaligned_page_number_column" if case == "confirmed" else "missing_page_number"
+        )
+        expected_folio = "30" if case == "confirmed" else None
+        assert finding["details"].get("destination_folio") == expected_folio
         assert finding["details"]["issue_type"] == issue
         (card,) = [c for c in job.findings if c["rule_id"] == "P018"]
         assert card["page"] == 2
         assert card["has_highlight"]
-        assert "align" in card["suggested_fix"].lower()
-        assert "missing" not in card["suggested_fix"].lower()
-        assert client.get(url).status_code == 200
+        student = client.get(url)
+        assert student.status_code == 200
+        if case == "confirmed":
+            assert "align" in card["suggested_fix"].lower()
+            assert "missing" not in card["suggested_fix"].lower()
+        else:
+            assert card["suggested_fix"] == P018_MISSING_PAGE_NUMBER_FIX
+            assert P018_MISSING_PAGE_NUMBER_FIX in student.text
         for format_name in ("markdown", "text"):
             export = client.get(url + "/download/" + format_name)
             assert export.status_code == 200
-            assert "page-number column" in export.text
+            if case == "confirmed":
+                assert "page-number column" in export.text
+            else:
+                assert P018_MISSING_PAGE_NUMBER_FIX in export.text
             assert "3.1 A wrapped synthetic description" in export.text
 
         params = {"page": 2, "rule_id": "P018", "finding_id": card["finding_id"]}
@@ -318,6 +341,14 @@ def test_folio_geometry_in_rotated_pdf_with_wrapper_and_reviewer(tmp_path, monke
         assert login.status_code == 303
         reviewer = client.get(url + "/pdf/highlighted", params=params)
         complete = client.get(url + "/download/student-report.pdf")
+        if case != "confirmed":
+            assert P018_MISSING_PAGE_NUMBER_FIX in client.get(url).text
+            comments = client.get(url + "/download/comments.pdf")
+            for response in (comments, complete):
+                assert response.status_code == 200
+                with pymupdf.open(stream=response.content) as exported:
+                    content = " ".join(" ".join(sheet.get_text().split()) for sheet in exported)
+                    assert P018_MISSING_PAGE_NUMBER_FIX in content
 
         for response, index in ((focused, 0), (full, 1), (reviewer, 1), (complete, 1)):
             assert response.status_code == 200
@@ -326,11 +357,15 @@ def test_folio_geometry_in_rotated_pdf_with_wrapper_and_reviewer(tmp_path, monke
                 matched = [
                     mark.rect
                     for mark in pdf[index].annots()
-                    if mark.rect.intersects(unrotated_folio) and mark.rect.x1 < 180
+                    if mark.rect.intersects(unrotated_target)
                 ]
                 (rect,) = matched
-                assert rect.y0 == pytest.approx(unrotated_folio.y0, abs=2)
-                assert rect.y1 == pytest.approx(unrotated_folio.y1, abs=2)
+                assert rect.y0 == pytest.approx(unrotated_target.y0, abs=2)
+                if case == "confirmed":
+                    assert rect.x1 < 180
+                    assert rect.y1 == pytest.approx(unrotated_target.y1, abs=2)
+                else:
+                    assert rect.y1 > unrotated_target.y1
                 if response is not complete:
                     assert sum(len(list(page.annots() or [])) for page in pdf) == 1
                 if index == 1:

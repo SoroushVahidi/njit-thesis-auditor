@@ -8,7 +8,10 @@ from collections.abc import Mapping
 
 from njit_auditor.caption_continuation_preview import caption_continuation_explanation
 from njit_auditor.ester_warning_wording import student_warning_label
-from njit_auditor.p018_guidance import P018_WRAPPED_TITLE_FIX
+from njit_auditor.p018_guidance import (
+    P018_MISSING_PAGE_NUMBER_FIX,
+    P018_WRAPPED_TITLE_FIX,
+)
 from njit_auditor.toc_order_evidence import P062_ISSUE, describe_p062_pair
 
 # ---------------------------------------------------------------------------
@@ -666,7 +669,7 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ),
     ("P018", "missing_page_number"): (
         "This means a TOC or list entry appears to be missing its trailing page "
-        "number. Add the correct page number."
+        "number. " + P018_MISSING_PAGE_NUMBER_FIX
     ),
     ("P018", "inconsistent_leader_dots"): (
         "This means leader dots or spacing before page numbers are inconsistent "
