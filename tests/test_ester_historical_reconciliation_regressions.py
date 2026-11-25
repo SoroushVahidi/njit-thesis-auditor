@@ -107,13 +107,15 @@ def test_p018_embedded_title_number_is_not_missing_list_leader() -> None:
     )
     false_entry = TocEntryLine(fragment, fragment.text, "8", 326.3, 108, False)
     findings = {}
-    _add_entry_consistency_findings(context, [*dotted, false_entry], findings)
+    entries = [*dotted, false_entry]
+    _add_entry_consistency_findings(context, entries, [entry.line for entry in entries], findings)
     assert "inconsistent_leader_dots" not in findings
 
     true_entry = TocEntryLine(fragment, "Figure 4 Synthetic title 42", "42", 540, 108,
                               False)
     findings = {}
-    _add_entry_consistency_findings(context, [*dotted, true_entry], findings)
+    entries = [*dotted, true_entry]
+    _add_entry_consistency_findings(context, entries, [entry.line for entry in entries], findings)
     assert "inconsistent_leader_dots" in findings
 
 

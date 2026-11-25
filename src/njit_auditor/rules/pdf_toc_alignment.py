@@ -6,6 +6,7 @@ import re
 from collections.abc import Iterator
 from copy import copy
 from dataclasses import dataclass
+from itertools import pairwise
 from statistics import median
 
 from njit_auditor.digital_commons_wrapper import (
@@ -63,6 +64,7 @@ SECTION_NUMBER_ONLY_RE = re.compile(r"^\d+(?:\.\d+)*$")
 # Lettered appendix subsections such as "A.1 …" / "B.2.3 …" (require at least one
 # ".digit" segment so a bare letter is not treated as a numbered level).
 LETTERED_SECTION_PREFIX_RE = re.compile(r"^([A-Z](?:\.\d+)+)\.?[\s:]")
+ROMAN_SECTION_PREFIX_RE = re.compile(r"^[IVXLCDM]{2,8}(?:\.\d+)+\.?[\s:]")
 ABBREVIATED_LIST_ENTRY_RE = re.compile(
     r"^(?:fig|tab)\.\s+(?:[A-Z]\.)?\d+(?:\.\d+)*\b", re.IGNORECASE
 )
@@ -804,12 +806,13 @@ def _has_entry_identifier(cleaned_text: str) -> bool:
 def _has_lettered_or_abbreviated_identifier(cleaned_text: str) -> bool:
     return bool(
         LETTERED_SECTION_PREFIX_RE.match(cleaned_text.upper())
+        or ROMAN_SECTION_PREFIX_RE.match(cleaned_text)
         or ABBREVIATED_LIST_ENTRY_RE.match(cleaned_text)
     )
 
 
 def _starts_independent_logical_entry(
-    text: str, parent_text: str, page_type: str
+    text: str, parent_text: str, page_type: str, *, continues_hanging_row: bool = False,
 ) -> bool:
     """Stop at explicit entry starts while retaining numeric title continuations.
 
@@ -826,6 +829,11 @@ def _starts_independent_logical_entry(
         return False
     if page_type == "table_of_contents":
         return True
+    if continues_hanging_row and follower_number.group().strip().rstrip(".").isdecimal():
+        # A lone integer on an already established hanging indent can be
+        # the start of a wrapped measurement. Explicit or dotted entry IDs
+        # still start a new entry.
+        return False
     following_title = text[follower_number.end() :].lstrip()
     if re.match(r"^[A-Z][a-z]{2,}\b", following_title):
         # An entry title can begin after a number even when a List switches
@@ -918,6 +926,7 @@ def _y_tolerance_for_pairing(entry_indent_x: float, numeric_x0: float) -> float:
 def _pair_right_column_number(
     entry: TocEntryLine,
     auxiliary_lines: list[PdfTextLine],
+    candidate_rows: list[TocEntryLine],
     *,
     max_y_gap: float,
     require_below: bool = False,
@@ -940,7 +949,26 @@ def _pair_right_column_number(
         )
         if y_delta_abs > tolerance:
             continue
-        if y_delta_abs < best_delta:
+        # A looser wrapped-row tolerance must not take a number with an
+        # equally close or closer visual title row.
+        if any(
+            other is not entry
+            and (
+                (
+                    other.line.bbox.x1 < aux_line.bbox.x0
+                    and abs(aux_line.bbox.y0 - other.line.bbox.y0) <= y_delta_abs
+                )
+                or (
+                    entry.line.bbox.y0 < other.line.bbox.y0 <= aux_line.bbox.y0
+                    and _has_entry_identifier(other.cleaned_text)
+                )
+            )
+            for other in candidate_rows
+        ):
+            continue
+        if y_delta_abs == best_delta:
+            best_idx = None
+        elif y_delta_abs < best_delta:
             best_delta = y_delta_abs
             best_idx = idx
     if best_idx is None:
@@ -977,8 +1005,6 @@ def _strip_trailing_page_token(text: str, token: str | None) -> str:
 def _merge_wrapped_entries(
     entries: list[TocEntryLine],
     auxiliary_lines: list[PdfTextLine],
-    *,
-    preserve_lettered_boundaries: bool = False,
 ) -> list[TocEntryLine]:
     if not entries:
         return entries
@@ -995,6 +1021,7 @@ def _merge_wrapped_entries(
             matched = _pair_right_column_number(
                 entry,
                 auxiliary_lines,
+                sorted_entries,
                 max_y_gap=WRAPPED_ENTRY_Y_GAP_PT,
                 require_below=True,
                 relax_y_tolerance=True,
@@ -1009,10 +1036,7 @@ def _merge_wrapped_entries(
                     y_gap = nxt.line.bbox.y0 - prev_y
                     if y_gap > WRAPPED_ENTRY_Y_GAP_PT:
                         break
-                    if _has_prefix_entry_shape(nxt.cleaned_text) or (
-                        preserve_lettered_boundaries
-                        and _has_lettered_or_abbreviated_identifier(nxt.cleaned_text)
-                    ):
+                    if _has_entry_identifier(nxt.cleaned_text):
                         break
                     cont = _strip_trailing_page_token(
                         nxt.cleaned_text, nxt.page_number_token
@@ -1044,6 +1068,7 @@ def _merge_wrapped_entries(
                     matched = _pair_right_column_number(
                         entry,
                         auxiliary_lines,
+                        sorted_entries[idx:],
                         max_y_gap=WRAPPED_ENTRY_Y_GAP_PT,
                         require_below=True,
                         relax_y_tolerance=True,
@@ -1115,7 +1140,6 @@ def extract_toc_entry_lines(
     context: TocPageContext,
     *,
     require_right_edge: bool = False,
-    preserve_lettered_boundaries: bool = False,
 ) -> list[TocEntryLine]:
     """Extract likely entry lines below TOC/List heading on a page."""
 
@@ -1155,16 +1179,13 @@ def extract_toc_entry_lines(
         matched = _pair_right_column_number(
             entry,
             unused_auxiliary,
+            entries,
             max_y_gap=PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT,
         )
         if matched is not None:
             _apply_auxiliary_page_number(entry, matched)
 
-    entries = _merge_wrapped_entries(
-        entries,
-        unused_auxiliary,
-        preserve_lettered_boundaries=preserve_lettered_boundaries,
-    )
+    entries = _merge_wrapped_entries(entries, unused_auxiliary)
     entries = _drop_merge_orphans(entries)
     entries.sort(key=lambda entry: (entry.line.bbox.y0, entry.line.bbox.x0))
     return entries
@@ -1197,6 +1218,38 @@ def _append_logical_row(entry: TocEntryLine, row: PdfTextLine, text: str) -> Non
     entry.is_wrapped = True
 
 
+def _is_first_figure_wrap_with_integer(
+    first: PdfTextLine,
+    follower: PdfTextLine,
+    following: PdfTextLine,
+    column: float,
+) -> bool:
+    """Distinguish an integer in a title from a new figure identifier."""
+    # A comma and coordinating conjunction mark an enumeration within the title.
+    if not re.match(r"^\d+ \S+, (?:and|or)\b", _row_text(follower)):
+        return False
+    if _row_text(first).endswith((".", "?", "!")):
+        return False
+    first_label = SECTION_NUMBER_PREFIX_RE.match(_row_text(first))
+    following_label = SECTION_NUMBER_PREFIX_RE.match(_row_text(following))
+    if first_label is None or following_label is None:
+        return False
+    first_parts = first_label[1].split(".")
+    following_parts = following_label[1].split(".")
+    folio = _right_edge_page_number_span(follower)
+    return (
+        len(first_parts) > 1
+        and first_parts[:-1] == following_parts[:-1]
+        and int(following_parts[-1]) == int(first_parts[-1]) + 1
+        and abs(following.bbox.x0 - first.bbox.x0) <= INDENT_CLUSTER_TOLERANCE_PT
+        and following.bbox.y0 - follower.bbox.y1 <= WRAPPED_ENTRY_Y_GAP_PT
+        and follower.bbox.y0 - first.bbox.y0 <= WRAPPED_ENTRY_Y_GAP_PT
+        and folio is not None
+        and folio.text.strip().isdecimal()
+        and abs(folio.bbox.x1 - column) <= RIGHT_EDGE_TOLERANCE_PT
+    )
+
+
 def extract_toc_logical_entry_lines(
     context: TocPageContext,
     *,
@@ -1207,19 +1260,20 @@ def extract_toc_logical_entry_lines(
 
     The ordinary extractor deliberately filters rows that do not resemble a
     standalone entry. A wrapped title can contain exactly such a row, or a
-    numeral inside its first row can be mistaken for the page number. Rejoin
-    only hanging rows with a terminal folio in the page's established column
-    are normally rejoined. P018's missing-number check can also use a final
-    hanging row's own right-side dot leaders when the column estimate is
+    numeral inside its first row can be mistaken for the page number. Normally,
+    it rejoins hanging rows with a terminal folio in the established column.
+    P018's missing-number check can also use a final hanging row's own
+    right-side dot leaders when the column estimate is
     contaminated. Other rules keep the established entry geometry.
     """
-    entries = extract_toc_entry_lines(
-        context,
-        require_right_edge=require_right_edge,
-        preserve_lettered_boundaries=recover_displaced_leader_folio,
-    )
+    entries = extract_toc_entry_lines(context, require_right_edge=require_right_edge)
     rows = collect_toc_visual_rows(context, require_right_edge=require_right_edge)
     column_edge = _logical_page_column_edge(entries)
+    figure_folio_column = (
+        _trusted_folio_column(entries)
+        if recover_displaced_leader_folio and context.page_type == "list_of_figures"
+        else None
+    )
     if not entries or not rows:
         return entries
 
@@ -1279,7 +1333,7 @@ def extract_toc_logical_entry_lines(
         final_number: str | None = None
         final_edge: float | None = None
         previous = first
-        for follower in rows[first_index + 1 :]:
+        for row_index, follower in enumerate(rows[first_index + 1 :], first_index + 1):
             gap = follower.bbox.y0 - previous.bbox.y0
             if gap < 0 or gap > LOGICAL_WRAP_Y_GAP_PT:
                 break
@@ -1289,6 +1343,13 @@ def extract_toc_logical_entry_lines(
                     continuation_rows
                     and gap <= PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT
                     and follower.bbox.x0 >= first.bbox.x0 + RIGHT_COLUMN_MIN_X_OFFSET_PT
+                    and not any(
+                        other is not original
+                        and other.page_number_line is not None
+                        and other.page_number_line.bbox == follower.bbox
+                        and not any(row.bbox.y0 == other.line.bbox.y0 for row in continuation_rows)
+                        for other in entries
+                    )
                     and (
                         (
                             column_edge is None
@@ -1307,12 +1368,25 @@ def extract_toc_logical_entry_lines(
                 _is_non_entry_row(text)
                 or follower.bbox.x0 < first.bbox.x0 + LOGICAL_WRAP_MIN_INDENT_PT
                 or (
-                    context.page_type == "table_of_contents"
-                    and _has_prefix_entry_shape(text)
-                )
-                or (
-                    recover_displaced_leader_folio
-                    and _starts_independent_logical_entry(text, first_text, context.page_type)
+                    _starts_independent_logical_entry(
+                        text,
+                        first_text,
+                        context.page_type,
+                        continues_hanging_row=(
+                            bool(continuation_rows)
+                            and abs(follower.bbox.x0 - previous.bbox.x0)
+                            <= WRAPPED_CONTINUATION_MIN_TOLERANCE_PT
+                            and previous.bbox.x1 >= first.bbox.x1 - RIGHT_EDGE_TOLERANCE_PT
+                        ),
+                    )
+                    and not (
+                        not continuation_rows
+                        and figure_folio_column is not None
+                        and row_index + 1 < len(rows)
+                        and _is_first_figure_wrap_with_integer(
+                            first, follower, rows[row_index + 1], figure_folio_column
+                        )
+                    )
                 )
                 or len(continuation_rows) >= LOGICAL_WRAP_MAX_ROWS
             ):
@@ -1321,6 +1395,17 @@ def extract_toc_logical_entry_lines(
             token, edge = _extract_page_number_token(
                 follower, text, require_right_edge=require_right_edge
             )
+            if token is None and figure_folio_column is not None:
+                # The visible right-edge folio can share its PDF text span
+                # with the closing punctuation of a wrapped figure title.
+                glued = _GLUED_FINAL_PAGE_NUMBER_RE.search(text)
+                if (
+                    glued
+                    and text[:glued.start()].endswith(")")
+                    and abs(follower.bbox.x1 - figure_folio_column) <= RIGHT_EDGE_TOLERANCE_PT
+                ):
+                    final_number, final_edge = glued["num"], follower.bbox.x1
+                    break
             if token is not None and (
                 (
                     column_edge is None
@@ -1853,9 +1938,176 @@ def _add_leader_placement_findings(
         )
 
 
+_STANDALONE_FOLIO_RE = re.compile(
+    r"(?:[0-9]{1,4}|(?=[ivxlcdm])m{0,3}(?:cm|cd|d?c{0,3})"
+    r"(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3}))",
+    re.IGNORECASE,
+)
+
+
+def _trusted_folio_column(entries: list[TocEntryLine]) -> float | None:
+    """Locate a compact majority of independently measured terminal folios."""
+    edges: list[float] = []
+    for entry in entries:
+        row = entry.page_number_line
+        if row is None:
+            continue
+        span = _right_edge_page_number_span(row)
+        if span is not None and _clean_text(span.text) == entry.page_number_token:
+            edges.append(span.bbox.x1)
+    if len(edges) < 3:
+        return None
+    center = median(edges)
+    peers = [edge for edge in edges if abs(edge - center) <= RIGHT_EDGE_TOLERANCE_PT]
+    if (
+        len(peers) >= 3
+        and len(peers) * 2 > len(edges)
+        and max(peers) - min(peers) <= RIGHT_EDGE_TOLERANCE_PT
+    ):
+        return median(peers)
+    return None
+
+
+def _bracketed_figure_folio(
+    previous: TocEntryLine, entry: TocEntryLine, following: TocEntryLine,
+    token: str, reference_edge: float,
+) -> bool:
+    """Check concurrent evidence from the neighboring Figure labels and folios."""
+    if not token.isdecimal():
+        return False
+    labels = [
+        match[1].rsplit(".", 1)
+        for item in (previous, entry, following)
+        if (match := SECTION_NUMBER_PREFIX_RE.match(item.cleaned_text)) and "." in match[1]
+    ]
+    if len(labels) != 3:
+        return False
+    (previous_prefix, previous_id), (prefix, figure_id), (following_prefix, following_id) = labels
+    if not (
+        previous_prefix == prefix == following_prefix
+        and int(previous_id) + 1 == int(figure_id) == int(following_id) - 1
+    ):
+        return False
+    folios: list[int] = []
+    for neighbor in (previous, following):
+        row = neighbor.page_number_line
+        span = _right_edge_page_number_span(row) if row is not None else None
+        if (
+            span is None
+            or abs(neighbor.indent_x - entry.indent_x) > INDENT_CLUSTER_TOLERANCE_PT
+            or abs(span.bbox.x1 - reference_edge) > RIGHT_EDGE_TOLERANCE_PT
+        ):
+            return False
+        folio = _clean_text(span.text)
+        if folio != neighbor.page_number_token or not folio.isdecimal():
+            return False
+        folios.append(int(folio))
+    return folios[0] < int(token) < folios[1]
+
+
+def _recover_displaced_standalone_folios(
+    entries: list[TocEntryLine], rows: list[PdfTextLine], reference_edge: float,
+    *, page_type: str,
+) -> dict[TocEntryLine, PdfTextLine]:
+    """Recover a displaced folio on its own line after a completed wrapped title.
+
+    The numeral must sit at the hanging title's indent and be bracketed by
+    that title and a separate identified entry. This excludes footer numbers,
+    in-title numerals and digits competing with the next entry's baseline.
+    """
+    recovered: dict[TocEntryLine, PdfTextLine] = {}
+    entry_starts = {entry.line.bbox.y0 for entry in entries}
+    owned_boxes = [entry.page_number_line.bbox for entry in entries if entry.page_number_line]
+    for index, entry in enumerate(entries):
+        if (
+            entry.page_number_token is not None
+            or not entry.is_wrapped
+            or not _has_entry_identifier(entry.cleaned_text)
+        ):
+            continue
+        # Look for the last owned title row, rather than the closest arbitrary
+        # text or numeral to the beginning of a wrapped entry.
+        last_index = next(
+            (
+                i for i, row in enumerate(rows)
+                if abs(row.bbox.y1 - entry.line.bbox.y1) < 0.5
+                and row.spans
+                and entry.line.spans[-len(row.spans):] == row.spans
+            ),
+            None,
+        )
+        if last_index is None or last_index + 2 >= len(rows):
+            continue
+        last, number, following = rows[last_index : last_index + 3]
+        tail = _row_text(last)
+        token = _row_text(number)
+        if (
+            not _STANDALONE_FOLIO_RE.fullmatch(token)
+            # A lone Roman-looking letter at the title indent can be text.
+            or (len(token) == 1 and token.isalpha())
+            or abs(number.bbox.x1 - reference_edge) <= RIGHT_EDGE_TOLERANCE_PT
+            or last.bbox.x0 < entry.indent_x + LOGICAL_WRAP_MIN_INDENT_PT
+            or abs(number.bbox.x0 - last.bbox.x0) > INDENT_CLUSTER_TOLERANCE_PT
+            # Adjacent line boxes can overlap at ordinary single spacing.
+            # Distinct visual rows still need separation from both neighbors.
+            or _line_mid_y(number) - _line_mid_y(last) <= PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT
+            or _line_mid_y(following) - _line_mid_y(number) <= PAGE_NUMBER_RELAXED_Y_TOLERANCE_PT
+            or number.bbox.y0 - last.bbox.y1 > WRAPPED_ENTRY_Y_GAP_PT
+            or following.bbox.y0 - number.bbox.y1 > WRAPPED_ENTRY_Y_GAP_PT
+            or not _has_entry_identifier(_row_text(following))
+            or following.bbox.y0 not in entry_starts
+            or number.bbox in owned_boxes
+        ):
+            continue
+        has_terminal_period = len(tail) >= 2 and tail.endswith(".") and tail[-2].isalpha()
+        if not has_terminal_period and not (
+            page_type == "list_of_figures"
+            and re.search(r"[^\W\d_]{2,}$", tail)
+            and len(number.spans) == 1
+            and 0 < index < len(entries) - 1
+            and entries[index + 1].line.bbox.y0 == following.bbox.y0
+            and _bracketed_figure_folio(
+                entries[index - 1], entry, entries[index + 1], token, reference_edge,
+            )
+        ):
+            continue
+        _apply_auxiliary_page_number(entry, number)
+        owned_boxes.append(number.bbox)
+        recovered[entry] = number
+    return recovered
+
+
+def _has_interior_folio_span(
+    entry: TocEntryLine, next_row: PdfTextLine | None,
+) -> bool:
+    """Identify a false folio inside a confidently single-row title."""
+    row = entry.page_number_line
+    if entry.is_wrapped or row is None or has_trailing_page_number_token(entry):
+        return False
+    # The first interior numeral can stop reconstruction before the actual
+    # folio on a hanging row. Keep the presence verdict if there may be a wrap.
+    if (
+        next_row is not None
+        and 0 <= next_row.bbox.y0 - row.bbox.y0 <= LOGICAL_WRAP_Y_GAP_PT
+        and next_row.bbox.x0 >= entry.indent_x + LOGICAL_WRAP_MIN_INDENT_PT
+    ):
+        return False
+    span = _right_column_page_number_span(row)
+    return bool(
+        span is not None
+        and _clean_text(span.text) == entry.page_number_token
+        and span.bbox.x1 == entry.page_number_right_x
+        and any(
+            following.bbox.x0 >= span.bbox.x1 and any(ch.isalnum() for ch in following.text)
+            for following in row.spans
+        )
+    )
+
+
 def _add_entry_consistency_findings(
     context: TocPageContext,
     entries: list[TocEntryLine],
+    rows: list[PdfTextLine],
     page_issue_findings: dict[str, AuditFinding],
 ) -> None:
     """Peer-relative checks: page-number column, presence, leader dots, indent."""
@@ -1880,10 +2132,23 @@ def _add_entry_consistency_findings(
         context, recover_displaced_leader_folio=True
     )
     presence_positions = {entry: idx for idx, entry in enumerate(presence_entries)}
+    reference_edge = _trusted_folio_column(presence_entries)
+    recovered = (
+        _recover_displaced_standalone_folios(
+            presence_entries, rows, reference_edge, page_type=context.page_type,
+        )
+        if reference_edge is not None else {}
+    )
+    if recovered:
+        entries_with_page_num.extend(recovered)
+    next_rows = {row.bbox.y0: following for row, following in pairwise(rows)}
     entries_missing_page_num = [
         entry
         for entry in presence_entries
-        if entry.page_number_right_x is None
+        if (
+            entry.page_number_right_x is None
+            or _has_interior_folio_span(entry, next_rows.get(entry.line.bbox.y0))
+        )
         and not is_toc_structural_column_label(entry.cleaned_text)
         # Wrap continuations (no section/Figure/Table prefix) are not
         # independent entries; do not treat them as "missing page number".
@@ -1892,15 +2157,18 @@ def _add_entry_consistency_findings(
         )
     ]
 
-    if len(entries_with_page_num) >= 3:
+    # Recovery already requires three or more agreeing terminal folio spans.
+    # Those peers may be wrapped entries whose titles extend beyond the
+    # folio column, so the ordinary whole-entry comparison can exclude them.
+    if recovered or len(entries_with_page_num) >= 3:
         right_edges = [
             entry.page_number_right_x
             for entry in entries_with_page_num
             if entry.page_number_right_x is not None
         ]
-        if len(right_edges) < 3:
-            return
-        median_right_edge = median(right_edges)
+        median_right_edge = (
+            reference_edge if recovered and reference_edge is not None else median(right_edges)
+        )
         deltas = [abs(edge - median_right_edge) for edge in right_edges]
         misaligned_count = sum(1 for delta in deltas if delta > RIGHT_EDGE_TOLERANCE_PT)
         if misaligned_count > 0:
@@ -1918,13 +2186,29 @@ def _add_entry_consistency_findings(
                         "page_type": context.page_type,
                         "issue_type": "misaligned_page_number_column",
                         "affected_entry_count": str(misaligned_count),
-                        "worst_entry_index": str(entry_positions[worst_entry]),
+                        "worst_entry_index": str(
+                            presence_positions[worst_entry] if worst_entry in recovered
+                            else entry_positions[worst_entry]
+                        ),
                         "worst_delta_pt": f"{max(deltas):.1f}",
                         "confidence": "high",
                     },
                     worst_entry,
                 ),
             )
+            if recovered:
+                details = page_issue_findings["misaligned_page_number_column"].details
+                if worst_entry in recovered:
+                    details["bbox"] = format_bbox_detail(recovered[worst_entry].bbox)
+                    if worst_entry.page_number_token is not None:
+                        details["destination_folio"] = worst_entry.page_number_token
+                details["highlight_bboxes"] = " | ".join(
+                    format_bbox_detail(
+                        recovered[entry].bbox if entry in recovered else entry.line.bbox
+                    )
+                    for entry, delta in zip(entries_with_page_num, deltas, strict=True)
+                    if delta > RIGHT_EDGE_TOLERANCE_PT
+                )
 
     if entries_missing_page_num:
         worst_entry = entries_missing_page_num[0]
@@ -1941,6 +2225,11 @@ def _add_entry_consistency_findings(
                     "affected_entry_count": str(len(entries_missing_page_num)),
                     "worst_entry_index": str(presence_positions[worst_entry]),
                     "confidence": "medium",
+                    **(
+                        {} if any(entry.page_number_right_x is None
+                                  for entry in entries_missing_page_num)
+                        else {"_preserve_prior_finding_ids": "true"}
+                    ),
                 },
                 worst_entry,
             ),
@@ -2058,7 +2347,7 @@ def check_pdf_toc_alignment(pdf_document: PdfDocument) -> list[AuditFinding]:
 
         entries = extract_toc_logical_entry_lines(context)
         if len(entries) >= 3:
-            _add_entry_consistency_findings(context, entries, page_issue_findings)
+            _add_entry_consistency_findings(context, entries, rows, page_issue_findings)
 
         for issue_type in (
             "misaligned_page_number_column",

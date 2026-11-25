@@ -45,6 +45,25 @@ njit-admin = "njit_auditor.admin_accounts:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+include-package-data = false
+
+[tool.setuptools.package-data]
+njit_auditor = [
+  "offline_templates/index.html",
+  "templates/_macros.html",
+  "templates/_windows_download.html",
+  "templates/about.html",
+  "templates/admin_feedback.html",
+  "templates/admin_login.html",
+  "templates/base.html",
+  "templates/general_feedback.html",
+  "templates/help.html",
+  "templates/index.html",
+  "templates/job.html",
+  "templates/problem_group.html",
+  "templates/reviewer_login.html",
+  "templates/rules.html",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

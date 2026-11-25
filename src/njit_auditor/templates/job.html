@@ -108,6 +108,7 @@
     margin-bottom: 0.35rem;
   }
   .finding-card__rule {
+    margin: 0;
     font-size: 0.95rem;
     overflow-wrap: anywhere;
   }
@@ -127,6 +128,7 @@
     font-weight: 600;
     white-space: nowrap;
   }
+  .finding-card__reference { color: var(--color-muted); font-size: 0.8rem; }
   .finding-card__page {
     font-weight: 600;
   }
@@ -145,8 +147,8 @@
   }
   .finding-card__fix {
     display: block;
-    margin-top: 0.2rem;
-    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    font-size: 0.9rem;
     color: var(--color-text);
     font-weight: 400;
     overflow-wrap: anywhere;
@@ -155,8 +157,18 @@
     margin: 0.35rem 0 0.45rem;
   }
   .finding-card__action {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
     margin-top: 0.35rem;
   }
+  .finding-sort, .filter-bar > div { min-width: 0; max-width: 100%; }
+  .finding-sort__controls { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .finding-sort__controls .btn { min-height: 2.25rem; }
+  .filter-bar select { max-width: 100%; min-height: 2.25rem; }
+  .finding-card__action .btn, .confidence-filter__chip { overflow-wrap: anywhere; }
+  .confidence-filter__chip { min-height: 2.25rem; }
+  .finding-card__action .btn { padding: 0.35rem 0.75rem; font-size: 0.82rem; }
   .finding-card__action .btn {
     min-height: 2.25rem;
     display: inline-flex;
@@ -166,7 +178,7 @@
   .admin-feedback fieldset { border: 0; padding: 0; margin: 0 0 0.7rem; }
   .admin-feedback legend { font-weight: 700; margin-bottom: 0.4rem; }
   .admin-feedback label { display: flex; gap: 0.45rem; align-items: baseline; font-weight: 400; }
-  .admin-feedback textarea { display: block; width: 100%; min-height: 5rem; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 5px; }
+  .admin-feedback textarea { display: block; width: 100%; min-height: 5rem; padding: 0.5rem; border: 1px solid var(--color-control-border); border-radius: 5px; }
   .admin-feedback-history { grid-column: 1 / -1; margin-top: 0.4rem; overflow-wrap: anywhere; }
   .admin-feedback-history p { margin: 0.45rem 0; }
   .margin-checks { margin: 0.45rem 0; padding-left: 1.2rem; font-size: 0.83rem; }
@@ -189,7 +201,6 @@
     .finding-card__note { grid-column: 3 / 5; margin: 0; }
     .finding-card__action { grid-column: 3 / 5; margin: 0; }
     .margin-checks { grid-column: 3 / 5; margin: 0; }
-    .finding-card__action .btn { white-space: nowrap; }
   }
 </style>
 {% if state in ("pending", "running") %}
@@ -265,6 +276,7 @@
         return;
       }
       counter.textContent = "Showing " + rawState.visible + " of " + rawState.total + " findings";
+      document.getElementById("findings-filter-empty").hidden = rawState.visible !== 0;
     }
 
     function applyFilters() {
@@ -368,16 +380,10 @@
 
 {% block content %}
 
-<details class="section">
-  <summary>Technical details</summary>
-  <p>Audit ID: <code>{{ job_id }}</code></p>
-  {% if state == "complete" %}<p>Technical rule statuses: {{ fail_count }} Fail, {{ warn_count }} Warning.</p>{% endif %}
-</details>
-
 {% if state in ("pending", "running") %}
 <div class="status-banner status-banner--pending">
   <div class="status-banner__body">
-    <p class="status-banner__title"><span class="spinner"></span> Processing audit&hellip;</p>
+    <h1 class="status-banner__title" aria-live="polite"><span class="spinner" aria-hidden="true"></span> Processing audit&hellip;</h1>
     {% if offline_mode %}<form action="/audits/{{ job_id }}/cancel" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Cancel audit</button></form>{% endif %}
     <p class="status-banner__meta">{{ file_name }}</p>
   </div>
@@ -390,7 +396,7 @@
 {% elif state == "cancelled" %}
 <div class="status-banner" role="status">
   <div class="status-banner__body">
-    <p class="status-banner__title">Audit canceled</p>
+    <h1 class="status-banner__title">Audit canceled</h1>
     <p class="status-banner__meta">{{ file_name }}</p>
   </div>
 </div>
@@ -403,7 +409,7 @@
 {% elif state == "failed" %}
 <div class="status-banner status-banner--failed">
   <div class="status-banner__body">
-    <p class="status-banner__title">Audit could not complete</p>
+    <h1 class="status-banner__title">Audit could not complete</h1>
     <p class="status-banner__meta">{{ file_name }}</p>
   </div>
 </div>
@@ -419,22 +425,21 @@
 
 {% elif state == "complete" %}
 
-{% if findings %}
+{% set findings_title = "Findings by confidence" if sort_mode in ("confidence_desc", "confidence_asc") else "Findings in page order" %}
 <nav class="jump-links" aria-label="Jump to section">
+  <a href="#section-findings">{{ findings_title }}</a>
+  <a href="#section-downloads">Downloads</a>
   <a href="#section-summary">Summary</a>
-  <a href="#section-review-order">How to use this report</a>
-  <a href="#section-findings">Findings in page order</a>
+  {% if findings %}<a href="#section-review-order">How to use this report</a>{% endif %}
   <a href="#section-coverage">What was checked</a>
   {% if category_summary %}<a href="#section-topics">Findings by topic</a>{% endif %}
-  <a href="#section-downloads">Downloads</a>
   {% if grouped_summary %}<a href="#section-rule-summary" class="jump-links__advanced">Technical rule summary</a>{% endif %}
   {% if report_view and report_view.inventory_findings %}<a href="#section-inventory" class="jump-links__advanced">Page-number candidates (technical)</a>{% endif %}
 </nav>
-{% endif %}
 
 <div class="status-banner status-banner--complete">
   <div class="status-banner__body">
-    <p class="status-banner__title">Audit complete</p>
+    <h1 class="status-banner__title">Audit complete</h1>
     <p class="status-banner__meta">
       {{ file_name }}
       &middot; PDF layout audit
@@ -471,96 +476,28 @@
 </div>
 {% endif %}
 
-<section id="section-summary" class="section" aria-label="Summary">
-  <div class="section-header">
-    <h2>Summary</h2>
-    <span class="section-note">Counts exclude page-number candidates used by the checks &middot; <a href="/help#results">What do these results mean?</a></span>
-  </div>
-  <div class="summary-grid">
-    <div class="summary-card">
-      <div class="summary-card__label">Items to review</div>
-      <div class="summary-card__value">{{ problems_found_count }}</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-card__label">Pages affected</div>
-      <div class="summary-card__value">{{ pages_affected }}</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-card__label">Rules flagged</div>
-      <div class="summary-card__value">{{ rules_flagged }}</div>
-    </div>
-  </div>
-</section>
-
-<section id="section-coverage" class="section" aria-labelledby="coverage-heading">
-  <div class="section-header">
-    <h2 id="coverage-heading">{{ coverage_heading }}</h2>
-  </div>
-  <div class="card card-compact coverage-card">
-    {% for paragraph in coverage_intro %}<p>{{ paragraph }}</p>{% endfor %}
-    <details class="collapsible coverage-details">
-      <summary>Show coverage by checklist section ({{ coverage_areas | length }} sections)</summary>
-      <dl class="coverage-list">
-        {% for area in coverage_areas %}
-        <div class="coverage-item coverage-item--{{ area.status }}">
-          <dt>{{ area.title }} <span class="coverage-status">{{ area.status_label }}</span></dt>
-          {% if area.checked %}<dd><strong>Checked:</strong> {{ area.checked }}</dd>{% endif %}
-          <dd><strong>Check yourself:</strong> {{ area.manual }}</dd>
-        </div>
-        {% endfor %}
-      </dl>
-    </details>
-  </div>
-</section>
-
-{% if findings %}
-<section id="section-review-order" class="section" aria-label="How to use this report">
-  <div class="section-header">
-    <h2>How to use this report</h2>
-    <span class="section-note">Work through these steps with the <a href="/rules">rule reference</a> open</span>
-  </div>
-  <div class="card card-compact">
-    <ol class="review-order-list">
-      <li>Start with <a href="#section-findings">Findings in page order</a>. Open a marked PDF page and compare the detected text with the requirement.</li>
-      {% if category_summary %}<li>Use <a href="#section-topics">Findings by topic</a> to review related findings together.</li>{% endif %}
-      <li>Use <a href="#section-coverage">Checks performed and Check yourself</a> for items the PDF cannot establish.</li>
-    </ol>
-  </div>
-</section>
-{% endif %}
-
-<section id="section-findings" class="section" aria-label="Findings in page order">
+<section id="section-findings" tabindex="-1" class="section" aria-labelledby="findings-heading">
   <div class="section-header">
     <div>
-      <h2>Findings in page order</h2>
-      <span class="section-note">Findings start in PDF page order. Use Sort findings or the filters to narrow the list. {{ confidence_note }}</span>
+      <h2 id="findings-heading">{{ findings_title }}</h2>
+      {% if findings %}<span class="section-note">Use the filters to narrow the list. {{ confidence_note }}</span>{% endif %}
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
-      <span id="filter-count" class="filter-count"></span>
-    </div>
+    {% if findings %}<span id="filter-count" class="filter-count" role="status">Showing {{ findings | length }} of {{ findings | length }} findings</span>{% endif %}
   </div>
 
   {% if findings %}
-  <script>
-    function applySortMode(value) {
-      var url = new URL(window.location.href);
-      if (value && value !== "default") {
-        url.searchParams.set("sort", value);
-      } else {
-        url.searchParams.delete("sort");
-      }
-      window.location.href = url.toString();
-    }
-  </script>
   <div class="filter-bar">
-    <div>
+    <form class="finding-sort" action="/audits/{{ job_id }}#section-findings" method="get">
       <label for="sort-problems">Sort findings</label>
-      <select id="sort-problems" name="sort" onchange="applySortMode(this.value)">
-        <option value="default" {% if sort_mode in ("default", "page_order") or not sort_mode %}selected{% endif %}>Page order</option>
-        <option value="confidence_desc" {% if sort_mode == "confidence_desc" %}selected{% endif %}>High confidence first</option>
-        <option value="confidence_asc" {% if sort_mode == "confidence_asc" %}selected{% endif %}>Low confidence first</option>
-      </select>
-    </div>
+      <div class="finding-sort__controls">
+        <select id="sort-problems" name="sort">
+          <option value="default" {% if sort_mode in ("default", "page_order") or not sort_mode %}selected{% endif %}>Page order</option>
+          <option value="confidence_desc" {% if sort_mode == "confidence_desc" %}selected{% endif %}>High confidence first</option>
+          <option value="confidence_asc" {% if sort_mode == "confidence_asc" %}selected{% endif %}>Low confidence first</option>
+        </select>
+        <button type="submit" class="btn btn-secondary">Apply sort</button>
+      </div>
+    </form>
     <div>
       <label for="filter-rule">Rule</label>
       <select id="filter-rule">
@@ -602,20 +539,21 @@
     </div>
   </div>
 
+  <p id="findings-filter-empty" class="file-hint" hidden>No findings match these filters. Reset filters to see all findings.</p>
   <div id="individual-findings-panel">
     {% if feedback_notice %}<div class="alert-info" role="status">Feedback saved.</div>{% endif %}
     {% if reviewer_beta_enabled and not reviewer_mode and not admin_mode %}<p><a href="/reviewer/login?next=/audits/{{ job_id }}">Reviewer Access</a> lets invited reviewers comment on individual findings.</p>{% endif %}
     <div class="individual-findings-list">
       {% for f in findings %}
-      <article id="{{ f.problem_anchor if f.problem_anchor else '' }}"
+      <article{% if f.problem_anchor %} id="{{ f.problem_anchor }}"{% endif %}
+               tabindex="-1" aria-labelledby="finding-heading-{{ loop.index }}"
                data-rule="{{ f.rule_id }}"
                data-category="{{ f.category }}"
                data-page="{{ f.page if f.page is not none else '' }}"
                data-confidence="{{ f.confidence_level or f.confidence or 'low' }}"
                class="finding-row finding-card">
         <div class="finding-card__header">
-          <div class="finding-card__rule">
-            <strong>
+          <h3 class="finding-card__rule" id="finding-heading-{{ loop.index }}">
               {% if f.public_rule_reference_id %}
               <a href="/rules#{{ f.public_rule_reference_id }}" class="rule-link" aria-label="{{ f.student_topic }}: see rule reference">{{ f.student_topic }}</a>
               {% elif public_rule_reference_href is defined and public_rule_reference_href(f.rule_id, issue_type=f.issue_type) %}
@@ -623,12 +561,12 @@
               {% elif is_p_rule_id(f.rule_id) %}
               <a href="/rules#{{ f.rule_id }}" class="rule-link" aria-label="{{ f.student_topic }}: see rule reference">{{ f.student_topic }}</a>
               {% else %}{{ f.student_topic }}{% endif %}
-            </strong>
-          </div>
+          </h3>
           <div class="finding-card__confidence">{{ confidence_badge(f.confidence_level, f.confidence_label, f.confidence_css_class) }}</div>
         </div>
         <div class="finding-card__meta">
           <span class="finding-card__problem">Finding {{ loop.index }} of {{ findings|length }}</span>
+          {% if f.problem_number %}<span class="finding-card__reference">Report reference {{ f.problem_number }}</span>{% endif %}
           <span class="finding-card__page">
             {% if f.page is not none %}{{ f.page_display_label if f.page_display_label else "Page " ~ f.page }}{% else %}Document-wide{% endif %}
           </span>
@@ -636,7 +574,7 @@
         </div>
         <div class="finding-card__issue">
           {{ f.student_summary }}
-          {% if f.student_fix %}<span class="finding-card__fix">What to check: {{ f.student_fix }}</span>{% endif %}
+          {% if f.student_fix %}<span class="finding-card__fix"><strong>What to check:</strong> {{ f.student_fix }}</span>{% endif %}
         </div>
         {% if f.margin_questions %}
         <ul class="margin-checks" aria-label="Margin questions for this finding">
@@ -660,11 +598,11 @@
           <summary>Technical details</summary>
           {% for label, value in f.technical_details %}<p>{{ label }}: {{ value }}</p>{% endfor %}
           {% if f.source_file %}<p>Source: {{ f.source_file }}{% if f.source_line %}, line {{ f.source_line }}{% endif %}</p>{% endif %}
-          <p>Rule {{ f.rule_id | display_rule_id }} · Report reference {{ f.problem_number if f.problem_number else loop.index }} (matches PDF markers)</p>
+          <p>Rule {{ f.rule_id | display_rule_id }}</p>
         </details>
         <div class="finding-card__action">
-          {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">{{ "Open highlighted PDF" if f.action_kind == "highlight" else "Open original PDF" }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
-          {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.82rem;min-height:0;display:inline-block">All findings on this page</a>{% endif %}
+          {% if f.action_kind in ("highlight", "original_page") %}<a href="{{ pdf_action_url(job_id, page=f.page, action_kind=f.action_kind, rule_id=f.rule_id, issue_type=f.issue_type, finding_id=f.finding_id) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">{{ "Open highlighted PDF" if f.action_kind == "highlight" else "Open original PDF" }}</a>{% elif f.no_highlight_reason %}<span class="file-hint">{{ f.no_highlight_reason }}</span>{% endif %}
+          {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary">All findings on this page</a>{% endif %}
         </div>
         {% if admin_mode or reviewer_mode %}
         {% if admin_mode %}
@@ -697,11 +635,69 @@
   {% endif %}
 </section>
 
+<section id="section-summary" tabindex="-1" class="section" aria-label="Summary">
+  <div class="section-header">
+    <h2>Summary</h2>
+    <span class="section-note">Counts exclude page-number candidates used by the checks &middot; <a href="/help#results">What do these results mean?</a></span>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-card__label">Items to review</div>
+      <div class="summary-card__value">{{ problems_found_count }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__label">Pages affected</div>
+      <div class="summary-card__value">{{ pages_affected }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card__label">Rules flagged</div>
+      <div class="summary-card__value">{{ rules_flagged }}</div>
+    </div>
+  </div>
+</section>
+
+<section id="section-coverage" tabindex="-1" class="section" aria-labelledby="coverage-heading">
+  <div class="section-header">
+    <h2 id="coverage-heading">{{ coverage_heading }}</h2>
+  </div>
+  <div class="card card-compact coverage-card">
+    {% for paragraph in coverage_intro %}<p>{{ paragraph }}</p>{% endfor %}
+    <details class="collapsible coverage-details">
+      <summary>Show coverage by checklist section ({{ coverage_areas | length }} sections)</summary>
+      <dl class="coverage-list">
+        {% for area in coverage_areas %}
+        <div class="coverage-item coverage-item--{{ area.status }}">
+          <dt>{{ area.title }} <span class="coverage-status">{{ area.status_label }}</span></dt>
+          {% if area.checked %}<dd><strong>Checked:</strong> {{ area.checked }}</dd>{% endif %}
+          <dd><strong>Check yourself:</strong> {{ area.manual }}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+    </details>
+  </div>
+</section>
+
+{% if findings %}
+<section id="section-review-order" tabindex="-1" class="section" aria-label="How to use this report">
+  <div class="section-header">
+    <h2>How to use this report</h2>
+    <span class="section-note">Work through these steps with the <a href="/rules">rule reference</a> open</span>
+  </div>
+  <div class="card card-compact">
+    <ol class="review-order-list">
+      <li>Start with <a href="#section-findings">{{ findings_title }}</a>. Open a marked PDF page and compare the detected text with the requirement.</li>
+      {% if category_summary %}<li>Use <a href="#section-topics">Findings by topic</a> to review related findings together.</li>{% endif %}
+      <li>Use <a href="#section-coverage">Checks performed and Check yourself</a> for items the PDF cannot establish.</li>
+    </ol>
+  </div>
+</section>
+{% endif %}
+
 {% if category_summary %}
-<section id="section-topics" class="section" aria-label="Findings by topic">
+<section id="section-topics" tabindex="-1" class="section" aria-label="Findings by topic">
   <div class="section-header">
     <h2>Findings by topic</h2>
-    <span class="section-note">Issue summary — counts by topic, sorted highest first. For page-by-page review, use <a href="#section-findings">Findings in page order</a> above.</span>
+    <span class="section-note">Issue summary — counts by topic, sorted highest first. For page-by-page review, use <a href="#section-findings">{{ findings_title }}</a> above.</span>
   </div>
   <div class="card" style="padding:0.5rem 0.75rem">
     <div class="table-scroll">
@@ -724,13 +720,14 @@
 </section>
 {% endif %}
 
-<section id="section-downloads" class="section export-section" aria-label="Downloads">
+<section id="section-downloads" tabindex="-1" class="section export-section" aria-label="Downloads">
   <h2 style="margin-top:0;">Download reports</h2>
   <p class="file-hint" style="margin-top:0">
     The Complete PDF Report contains your thesis with detected formatting problems highlighted, followed by a page-by-page explanation of every finding. Findings without an exact highlight still appear in the report.
   </p>
   <div class="dl-links">
     <a id="open-pdf-btn" href="/audits/{{ job_id }}/pdf" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">View original PDF &#8599;</a>
+    <a href="/audits/{{ job_id }}/download/comments.pdf" class="btn btn-secondary">Download Comments PDF</a>
     <a href="/audits/{{ job_id }}/download/student-report.pdf" class="btn">Download Complete PDF Report</a>
     <a href="/audits/{{ job_id }}/download/text" class="btn btn-secondary">Download Full Student Report (.txt)</a>
     <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
@@ -744,7 +741,7 @@
 <section class="section">
   <details class="collapsible card card-compact">
     <summary>Markdown report preview</summary>
-    <textarea class="report-box" readonly>{{ md_preview }}</textarea>
+    <textarea class="report-box" aria-label="Markdown report preview" readonly>{{ md_preview }}</textarea>
   </details>
 </section>
 {% endif %}
@@ -758,7 +755,7 @@
 </div>
 
 {% if grouped_summary %}
-<section id="section-rule-summary" class="section" aria-label="Advanced: rule-by-rule technical summary">
+<section id="section-rule-summary" tabindex="-1" class="section" aria-label="Advanced: rule-by-rule technical summary">
   <div class="section-header">
     <h2>Advanced: rule-by-rule technical summary</h2>
     <span class="section-note">For reviewers and maintainers &middot; Click a rule ID for rule reference, or Review to see every finding for that rule.</span>
@@ -791,7 +788,7 @@
 {% endif %}
 
 {% if report_view.grouped_problems %}
-<section id="section-grouped-summary" class="section" aria-label="Advanced: grouped problem summaries">
+<section id="section-grouped-summary" tabindex="-1" class="section" aria-label="Advanced: grouped problem summaries">
   <div class="section-header">
     <h2>Advanced: grouped problem summaries</h2>
     <span class="section-note">For reviewers and maintainers &middot; the same findings above, combined into one card per matching issue with every affected page listed together.</span>
@@ -923,7 +920,7 @@
 {% endif %}
 
 {% if report_view.inventory_findings %}
-<section id="section-inventory" class="section" aria-label="Detected page-number candidates">
+<section id="section-inventory" tabindex="-1" class="section" aria-label="Detected page-number candidates">
   <div class="section-header">
     <h2>Detected page-number candidates</h2>
     <span class="section-note">Not counted as problems</span>
@@ -958,4 +955,11 @@
 {% endif %}
 
 {% endif %}
+
+<details class="section">
+  <summary>Technical details</summary>
+  <p>Audit ID: <code>{{ job_id }}</code></p>
+  {% if state == "complete" %}<p>Technical rule statuses: {{ fail_count }} Fail, {{ warn_count }} Warning.</p>{% endif %}
+</details>
+
 {% endblock %}

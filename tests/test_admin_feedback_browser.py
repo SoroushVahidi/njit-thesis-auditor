@@ -120,7 +120,8 @@ def test_admin_review_browser_mobile_and_no_javascript_delete(tmp_path: Path) ->
                 assert form.locator('input[name="classification"]').count() == 4
                 assert form.get_by_label("Additional comments (optional)").is_visible()
             page.locator("#sort-problems").select_option("confidence_desc")
-            page.wait_for_url("**/audits/*?sort=confidence_desc")
+            page.get_by_role("button", name="Apply sort").click()
+            page.wait_for_url("**/audits/*?sort=confidence_desc#section-findings")
             assert page.locator("form.admin-feedback").first.get_attribute("action").endswith("/f1")
             page.locator('[data-confidence-filter="high"]').click()
             assert page.locator("article.finding-card:visible").count() == 1
@@ -132,7 +133,7 @@ def test_admin_review_browser_mobile_and_no_javascript_delete(tmp_path: Path) ->
             first.locator('input[value="true_positive"]').check()
             first.get_by_label("Additional comments (optional)").fill("First synthetic review")
             first.get_by_role("button", name="Save Feedback").click()
-            assert page.get_by_role("status").inner_text() == "Feedback saved."
+            assert page.get_by_text("Feedback saved.", exact=True).get_attribute("role") == "status"
             first = page.locator('form[action$="/f0"]')
             first.locator('input[value="unclear"]').check()
             first.get_by_label("Additional comments (optional)").fill("Second synthetic review")

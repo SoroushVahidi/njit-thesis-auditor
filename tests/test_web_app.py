@@ -872,8 +872,7 @@ def test_findings_by_topic_table_not_grouped_by_rule_id(
 def test_findings_in_page_order_precedes_findings_by_topic(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Findings in page order is the primary student workflow section and appears
-    before the secondary Findings by topic index."""
+    """The findings-first view places actionable cards above its related guidance."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
@@ -883,7 +882,7 @@ def test_findings_in_page_order_precedes_findings_by_topic(
     idx_review_order = html.index('id="section-review-order"')
     idx_findings = html.index('id="section-findings"')
     idx_topics = html.index('id="section-topics"')
-    assert idx_review_order < idx_findings < idx_topics
+    assert idx_findings < idx_review_order < idx_topics
     assert 'id="section-triage"' not in html
 
 
@@ -4072,7 +4071,7 @@ def test_complete_student_pdf_download_is_cached_and_preserves_upload(
     assert first.headers["content-type"] == "application/pdf"
     assert "attachment" in first.headers["content-disposition"].lower()
     assert "thesis_NJIT_Formatting_Audit.pdf" in first.headers["content-disposition"]
-    output = jdir / "student-report.pdf"
+    (output,) = jdir.glob("student-report-*.pdf")
     metadata = json.loads((jdir / "student-report-metadata.json").read_text(encoding="utf-8"))
     assert metadata["total_visible_findings"] == 2
     assert metadata["highlighted_findings"] == 2
@@ -4270,20 +4269,29 @@ def test_complete_student_pdf_concurrent_requests_return_complete_files(
             assert document.page_count > 5
             assert "Problem #1" in " ".join(page.get_text() for page in list(document)[5:])
     jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
-    with fitz.open(jdir / "student-report.pdf") as cached:
+    (output,) = jdir.glob("student-report-*.pdf")
+    with fitz.open(output) as cached:
         assert cached.page_count > 5
 
 
-def test_complete_student_pdf_generation_failure_allows_retry(
-    client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("filename", "renderer", "report_label"),
+    [
+        ("student-report.pdf", "build_combined_student_pdf_report", "complete PDF report"),
+        ("comments.pdf", "build_comments_pdf_report", "Comments PDF"),
+    ],
+)
+def test_student_pdf_generation_failure_allows_retry(
+    client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    filename: str, renderer: str, report_label: str,
 ) -> None:
     c, wa = client
     job_id = _inject_complete_job_with_findings(
         wa, tmp_path, findings=[_p012_annotation_finding_with_bbox(page=2)],
         file_name="synthetic.pdf", audit_type="pdf",
     )
-    url = f"/audits/{job_id}/download/student-report.pdf"
-    original = wa.build_combined_student_pdf_report
+    url = f"/audits/{job_id}/download/{filename}"
+    original = getattr(wa, renderer)
     calls = []
 
     def fail_once(*args, **kwargs):
@@ -4292,9 +4300,18 @@ def test_complete_student_pdf_generation_failure_allows_retry(
             raise PermissionError("Synthetic transient write failure")
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(wa, "build_combined_student_pdf_report", fail_once)
-    assert c.get(url).status_code == 500
-    assert c.get(url).status_code == 200
+    monkeypatch.setattr(wa, renderer, fail_once)
+    failure = c.get(url)
+    assert failure.status_code == 500
+    assert "PDF export failed." in failure.text
+    assert "Audit result no longer available." not in failure.text
+    assert f"The {report_label} could not be prepared. Please try again." in failure.text
+    assert f'href="/audits/{job_id}">Return to audit results</a>' in failure.text
+    assert "Synthetic transient write failure" not in failure.text
+    assert c.get(f"/audits/{job_id}").status_code == 200
+    retry = c.get(url)
+    assert retry.status_code == 200
+    assert retry.content.startswith(b"%PDF-")
     assert len(calls) == 2
 
 
@@ -4302,7 +4319,10 @@ def test_complete_student_pdf_missing_and_non_pdf_jobs(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
     c, wa = client
-    assert c.get("/audits/expired/download/student-report.pdf").status_code == 404
+    missing = c.get("/audits/expired/download/student-report.pdf")
+    assert missing.status_code == 404
+    assert "Audit result no longer available." in missing.text
+    assert "Return to audit results" not in missing.text
     job_id = _inject_complete_job_with_findings(
         wa, tmp_path, findings=[], file_name="source.tex", audit_type="tex"
     )
@@ -4358,8 +4378,8 @@ def test_complete_student_pdf_pending_failed_and_job_isolation(
         assert len(list(second_pdf[0].annots() or [])) == 0
         assert len(list(second_pdf[2].annots() or [])) == 1
     runtime = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"])
-    assert (runtime / first_id / "student-report.pdf").exists()
-    assert (runtime / second_id / "student-report.pdf").exists()
+    assert len(list((runtime / first_id).glob("student-report-*.pdf"))) == 1
+    assert len(list((runtime / second_id).glob("student-report-*.pdf"))) == 1
 
 
 def test_complete_student_pdf_safe_filename(

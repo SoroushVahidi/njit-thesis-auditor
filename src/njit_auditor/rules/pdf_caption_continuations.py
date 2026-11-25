@@ -1,4 +1,4 @@
-"""Bounded, opt-in reconstruction of figure descriptions across one page break.
+"""Bounded, opt-in reconstruction of figure and table captions.
 
 P017 and P088 use logical captions. Geometry/layout consumers keep the legacy
 page-local parser: no coordinate is moved to a different source page.
@@ -11,8 +11,9 @@ from collections import Counter
 from dataclasses import dataclass
 from statistics import median
 
-from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, text_space_size
 from njit_auditor.rules.pdf_captions import (
+    CAPTION_NUMBER_PREFIX_RE,
     CAPTION_START_RE,
     CaptionLine,
     _has_mixed_number_segment,
@@ -24,6 +25,7 @@ from njit_auditor.rules.pdf_captions import (
     _starts_caption_note,
     _starts_new_caption,
     _starts_with_lowercase_word,
+    _terminal_punctuation,
     detect_caption_lines,
     normalize_caption_candidate_text,
     normalize_caption_text,
@@ -43,6 +45,14 @@ _CONTINUED = re.compile(
     r"^(?:figure|fig\.)\s+(?P<number>\d+(?:\.\d+)*)\s*"
     r"\(continued\)[.:]?(?:\s+(?P<body>.*))?$", re.I,
 )
+_DEPENDENT_LEAD = re.compile(
+    r"^(?:and|or|under|with|without|using|including|"
+    r"as (?:compared|shown|measured|observed))\b"
+)
+_FOOTNOTE = re.compile(r"^(?:[Ff]ootnotes?\b|[†‡*]|\[\d+\]\s+[A-Z])")
+# Loose ownership is never inferred from pitch alone. Use this bound only
+# after the geometry, source sequence, style and textual checks below.
+_MAX_LOOSE_PITCH_IN_FONT_SIZES = 2.5
 
 
 @dataclass(frozen=True)
@@ -61,6 +71,14 @@ class CaptionFragment:
             x1=max(line.bbox.x1 for line in self.lines),
             y1=max(line.bbox.y1 for line in self.lines),
         )
+
+
+@dataclass(frozen=True)
+class PageCaptionEnd:
+    """Lines owned by a P017 body caption and whether its endpoint is known."""
+
+    lines: tuple[PdfTextLine, ...]
+    resolved: bool
 
 
 class LogicalCaption(CaptionLine):
@@ -93,6 +111,11 @@ def _lines(page: PdfPage) -> list[PdfTextLine]:
     )
 
 
+def _font_family(font: str) -> str:
+    font = re.sub(r"^[A-Z]{6}\+", "", font)
+    return re.sub(r"bold|italic|oblique|regular|psmt|ps|mt|[-_, ]", "", font.lower())
+
+
 def _style(line: PdfTextLine) -> tuple[str, float] | None:
     spans = [s for s in line.spans if s.text.strip() and s.font and s.size]
     if not spans:
@@ -101,9 +124,7 @@ def _style(line: PdfTextLine) -> tuple[str, float] | None:
     fonts: Counter[str] = Counter()
     for span in spans:
         if span.size is not None and span.size >= size * 0.85:
-            font = re.sub(r"^[A-Z]{6}\+", "", span.font or "")
-            family = re.sub(r"bold|italic|oblique|regular|psmt|ps|mt|[-_, ]", "", font.lower())
-            fonts[family] += len(span.text.strip())
+            fonts[_font_family(span.font or "")] += len(span.text.strip())
     return (fonts.most_common(1)[0][0], size) if fonts else None
 
 
@@ -116,6 +137,165 @@ def _heading(line: PdfTextLine) -> bool:
     text = line.text.strip()
     spans = [s for s in line.spans if any(c.isalpha() for c in s.text)]
     return bool(_HEADING.match(text) or (spans and all(s.bold for s in spans)))
+
+
+def _horizontal(line: PdfTextLine) -> bool:
+    return line.wmode in (None, 0) and (
+        line.line_dir is None
+        or (abs(line.line_dir[0] - 1) <= 0.01 and abs(line.line_dir[1]) <= 0.01)
+    )
+
+
+def _continues_phrase(previous: str, following: str) -> bool:
+    return (
+        previous.count("(") > previous.count(")") and ")" in following
+    ) or bool(_CONNECTOR.search(previous) and following[0].isalpha())
+
+
+def _caption_boundary(line: PdfTextLine) -> bool:
+    text = normalize_caption_text(line.text)
+    return (
+        _is_page_number_line(text)
+        or _starts_new_caption(text)
+        or bool(CAPTION_NUMBER_PREFIX_RE.fullmatch(text))
+        or _starts_caption_note(text)
+        or bool(_FOOTNOTE.match(text))
+        or not _horizontal(line)
+    )
+
+
+def _loose_pitch(first: PdfTextLine, left: PdfTextLine, right: PdfTextLine) -> float | None:
+    style = _style(left)
+    if style is None or not _same_style(left, right):
+        return None
+    if left.baseline_y is None or right.baseline_y is None:
+        return None
+    if (
+        abs(first.bbox.x0 - right.bbox.x0) > 2
+        or right.bbox.x1 > first.bbox.x1 + style[1]
+    ):
+        return None
+    pitch = right.baseline_y - left.baseline_y
+    return pitch if 0 < pitch <= style[1] * _MAX_LOOSE_PITCH_IN_FONT_SIZES else None
+
+
+def _parallel_rows(first: PdfTextLine, second: PdfTextLine) -> bool:
+    return (
+        first.baseline_y is not None
+        and second.baseline_y is not None
+        and abs(first.baseline_y - second.baseline_y) <= 1
+        and (first.bbox.x1 <= second.bbox.x0 or second.bbox.x1 <= first.bbox.x0)
+    )
+
+
+def locate_page_caption_end(page: PdfPage, start: CaptionLine) -> PageCaptionEnd | None:
+    """Resolve a body-caption endpoint without changing the legacy layout parser.
+
+    A split extraction block has weaker provenance than a tight wrap. To join
+    it, require a measured adjacent row plus an unfinished phrase or two
+    matching-pitch dependent lines. Plausible but unowned lines never supply
+    punctuation.
+    """
+    rows = sorted(
+        ((index, line) for index, block in enumerate(page.text_blocks)
+         for line in block.lines if line.text.strip()),
+        key=lambda row: (row[1].bbox.y0, row[1].bbox.x0),
+    )
+    locations = [i for i, (_, line) in enumerate(rows) if line.bbox == start.bbox]
+    if not locations:
+        return None
+    index = locations[0]
+    first = rows[index][1]
+    if len(locations) != 1 or not _horizontal(first):
+        return PageCaptionEnd((first,), False)
+
+    owned = [first]
+    last_loose_pitch: float | None = None
+    width, _ = text_space_size(page)
+    while index + 1 < len(rows):
+        block, previous = rows[index]
+        next_block, following = rows[index + 1]
+        if _caption_boundary(following):
+            break
+        next_row = rows[index + 2][1] if index + 2 < len(rows) else None
+        if (
+            next_row is not None
+            and next_block != block == rows[index + 2][0]
+            and following.bbox.y0 < previous.bbox.y1
+            and following.bbox.x0 > first.bbox.x0 + 2
+            and _is_caption_continuation_line(previous, next_row)
+        ):
+            # An interleaved glyph run can split a visual row across blocks.
+            # Leave its endpoint to the existing grouping instead of moving
+            # a punctuation highlight to the preceding line.
+            return None
+        competing_row = next_row is not None and _parallel_rows(following, next_row)
+        text = normalize_caption_text(following.text)
+        previous_text = normalize_caption_text(previous.text)
+        phrase = _continues_phrase(previous_text, text)
+
+        if block == next_block and _is_caption_continuation_line(previous, following):
+            # A short line, with ample room before the opposite margin, does
+            # not mechanically wrap to a new capitalized sentence. Elsewhere
+            # retain the original block grouping, including proper nouns,
+            # mathematical symbols and short runs in another font.
+            width_at_margin = width - 2 * previous.bbox.x0
+            if (
+                not phrase
+                and text[0].isupper()
+                and len(text.split()) >= 3
+                and previous.bbox.width < 0.65 * width_at_margin
+            ):
+                break
+            if competing_row:
+                return PageCaptionEnd(tuple(owned), False)
+            last_loose_pitch = None
+        else:
+            if _heading(following) or (
+                not phrase and (
+                    not _starts_with_lowercase_word(text) or _terminal_punctuation(previous_text)
+                )
+            ):
+                break
+            pitch = _loose_pitch(first, previous, following)
+            if pitch is None:
+                break
+            if (
+                competing_row
+                or next_block not in (block, block + 1)
+                or following.bbox.y0 < previous.bbox.y1
+            ):
+                return PageCaptionEnd(tuple(owned), False)
+
+            # A single dependent-looking line can also be an unrelated block.
+            # Require corroboration before borrowing its punctuation.
+            rhythm = last_loose_pitch is not None and abs(last_loose_pitch - pitch) <= 1
+            tail_can_supply_punctuation = False
+            if not rhythm and next_row is not None:
+                tail_block = rows[index + 2][0]
+                tail_pitch = _loose_pitch(first, following, next_row)
+                if (
+                    tail_block in (next_block, next_block + 1)
+                    and next_row.bbox.y0 >= following.bbox.y1
+                    and tail_pitch is not None
+                    and not _caption_boundary(next_row)
+                    and not _heading(next_row)
+                ):
+                    tail_text = normalize_caption_text(next_row.text)
+                    rhythm = abs(tail_pitch - pitch) <= 1 and bool(
+                        _DEPENDENT_LEAD.match(tail_text)
+                    )
+                    tail_can_supply_punctuation = (
+                        _starts_with_lowercase_word(tail_text) and _terminal_punctuation(tail_text)
+                    )
+            if not phrase and not (_DEPENDENT_LEAD.match(text) and rhythm):
+                if _terminal_punctuation(text) or tail_can_supply_punctuation:
+                    return PageCaptionEnd(tuple(owned), False)
+                break
+            last_loose_pitch = pitch
+        owned.append(following)
+        index += 1
+    return PageCaptionEnd(tuple(owned), True)
 
 
 def _block_run(page: PdfPage, first: PdfTextLine) -> tuple[PdfTextLine, ...]:

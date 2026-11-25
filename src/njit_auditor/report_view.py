@@ -73,7 +73,10 @@ from njit_auditor.p012_student_preview import (
     p012_rolled_up_explanation,
     p012_rolled_up_suggested_fix,
 )
-from njit_auditor.p018_guidance import P018_WRAPPED_TITLE_FIX
+from njit_auditor.p018_guidance import (
+    P018_MISSING_PAGE_NUMBER_FIX,
+    P018_WRAPPED_TITLE_FIX,
+)
 from njit_auditor.p026_student_preview import (
     P026PatternPresentationStats,
     collect_p026_pattern_pages_from_serialized,
@@ -2416,8 +2419,8 @@ _P018_ENTRY_TEMPLATES: dict[str, str] = {
     ),
     "missing_page_number": (
         "Likely problem: On page {page}{count_clause}, a TOC, List of Tables, or List "
-        "of Figures entry appears to be missing its trailing page number. Add the "
-        "missing page number for this entry."
+        "of Figures entry appears to be missing its trailing page number. "
+        + P018_MISSING_PAGE_NUMBER_FIX
     ),
     "inconsistent_leader_dots": (
         "Likely problem: On page {page}{count_clause}, leader dots or spacing before "
@@ -2467,9 +2470,7 @@ _P018_SUGGESTED_FIXES: dict[str, str] = {
         "Align the affected entry's page number with the dominant right-hand column "
         "used by nearby entries on this list page."
     ),
-    "missing_page_number": (
-        "Add the missing trailing page number to the affected entry."
-    ),
+    "missing_page_number": P018_MISSING_PAGE_NUMBER_FIX,
     "inconsistent_leader_dots": (
         "Make the leader-dot spacing before the page number match the style used by "
         "nearby entries on this list page."

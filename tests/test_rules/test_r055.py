@@ -169,9 +169,12 @@ def _draw_list(
     label_x: int = 108,
     label_y: int = 670,
     page_label: str = "Page",
+    continuation_subtitle: bool = False,
 ) -> None:
     canvas.setFont("Times-Bold", 12)
     canvas.drawCentredString(324, 710, heading)
+    if continuation_subtitle:
+        canvas.drawCentredString(324, 690, "(Continued)")
     if label:
         canvas.drawString(label_x, label_y, label)
     if page_label:
@@ -233,6 +236,29 @@ def test_p055_requires_reliable_table_column_heading(
     assert prefix.details["issue_type"] == "lot_entry_missing_table_prefix"
     assert prefix.details["bbox"]
     assert prefix.details["entry_id"].startswith("list-entry-")
+
+
+@pytest.mark.parametrize("label_y", [670, 620])
+def test_p055_table_column_ownership_on_split_continuation_heading(
+    tmp_path: Path, label_y: int,
+) -> None:
+    path = tmp_path / "continued-list.pdf"
+    canvas = Canvas(str(path), pagesize=(612, 792))
+    _draw_list(canvas, "LIST OF TABLES", "Table", [("2.1 Initial Results", "35")])
+    _draw_list(
+        canvas, "LIST OF TABLES", "Table",
+        [("2.2 Continued Results", "36"), ("Figure 2.3 Wrong List", "37")],
+        label_y=label_y, continuation_subtitle=True,
+    )
+    canvas.save()
+
+    findings = [f for f in run_pdf_audit_full(path) if f.rule_id == "P055"]
+    issues = {(f.page, f.details["issue_type"]) for f in findings}
+    expected = {(2, "lot_entry_is_figure")}
+    if label_y == 620:
+        expected.add((2, "lot_entry_missing_table_prefix"))
+    assert issues == expected
+    assert all(f.details.get("bbox") for f in findings)
 
 
 def test_p055_lot_exemption_leaves_other_checks_active(tmp_path: Path) -> None:

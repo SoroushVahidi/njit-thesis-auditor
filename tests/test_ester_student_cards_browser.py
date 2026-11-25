@@ -100,7 +100,8 @@ def test_synthetic_cards_filter_sort_and_fit_screen(
             page.locator("#filter-reset").click()
             assert page.locator("#individual-findings-panel .finding-card:visible").count() == 2
             page.locator("#sort-problems").select_option("confidence_desc")
-            page.wait_for_load_state("domcontentloaded")
+            page.get_by_role("button", name="Apply sort").click()
+            page.wait_for_url("**?sort=confidence_desc#section-findings")
             assert page.locator(".finding-card__problem").first.inner_text() == "Finding 1 of 2"
             assert page.locator(".finding-card__problem").last.inner_text() == "Finding 2 of 2"
             assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")

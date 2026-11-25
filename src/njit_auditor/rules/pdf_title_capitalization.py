@@ -451,7 +451,10 @@ def _corrected_preview(
 
 
 def check_apa_title_case_phrase(
-    text: str, *, skip_hyphenated_fragments: bool = False
+    text: str,
+    *,
+    skip_hyphenated_fragments: bool = False,
+    preserve_initial_lowercase_terms: bool = False,
 ) -> list[dict[str, str]]:
     """
     Check NJIT/APA title case for a phrase.
@@ -463,7 +466,8 @@ def check_apa_title_case_phrase(
     digits or special characters. When requested, also skips alphabetic
     fragments following a hyphen, which can be produced when a PDF extractor
     drops a non-Latin prefix from a scientific term. Only flags clear
-    under-capitalization.
+    under-capitalization. With preserve_initial_lowercase_terms enabled,
+    words with a lowercase initial and an internal capital are left intact.
     Does not flag over-capitalization (e.g. 'The' in the middle).
     """
     words_with_info = _words_with_sep_info(text)
@@ -517,6 +521,10 @@ def check_apa_title_case_phrase(
         )
 
         if should_be_capitalized and word[0].islower():
+            # A product name or technical term can have a required lowercase
+            # initial. Capitalization alone cannot disprove that spelling.
+            if preserve_initial_lowercase_terms and any(char.isupper() for char in word[1:]):
+                continue
             if is_first:
                 reason = "first_word_requires_capital"
                 confidence = "high"

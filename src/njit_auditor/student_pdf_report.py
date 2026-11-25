@@ -9,16 +9,22 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from html import escape
+from itertools import groupby
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 import fitz
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from njit_auditor.coverage_disclosure import (
@@ -34,6 +40,7 @@ from njit_auditor.issue_type_explanations import (
     issue_type_title,
 )
 from njit_auditor.pdf_highlight import (
+    BoxesByPage,
     HighlightBox,
     build_highlighted_pdf,
     clip_box_to_page,
@@ -194,9 +201,6 @@ def _styles() -> dict[str, ParagraphStyle]:
         Path("/usr/local/share/fonts/DejaVuSans.ttf"),
     ):
         if candidate.exists():
-            from reportlab.pdfbase import pdfmetrics
-            from reportlab.pdfbase.ttfonts import TTFont
-
             if "StudentDejaVu" not in pdfmetrics.getRegisteredFontNames():
                 pdfmetrics.registerFont(TTFont("StudentDejaVu", str(candidate)))
             font_name = "StudentDejaVu"
@@ -274,14 +278,77 @@ def _report_page_footer(canvas: Any, document: Any) -> None:
     canvas.drawRightString(558, 25, f"Findings to check  |  Report page {document.page}")
 
 
+_COMMENTS_FONT_LOCK = Lock()
+
+
+@lru_cache(maxsize=1)
+def _comments_fonts() -> tuple[TTFont, TTFont]:
+    # Both fonts ship with the application or PyMuPDF.
+    with _COMMENTS_FONT_LOCK:
+        if "CommentsPrimary" not in pdfmetrics.getRegisteredFontNames():
+            primary = TTFont(
+                "CommentsPrimary", str(resource_path("assets", "fonts", "DejaVuSans.ttf"))
+            )
+            cjk = TTFont("CommentsCJK", io.BytesIO(fitz.Font("cjk").buffer))
+            pdfmetrics.registerFont(primary)
+            pdfmetrics.registerFont(cjk)
+        return pdfmetrics.getFont("CommentsPrimary"), pdfmetrics.getFont("CommentsCJK")
+
+
+def _comments_paragraph(text: str, style: ParagraphStyle) -> Paragraph:
+    primary, cjk = _comments_fonts()
+
+    def font(char: str) -> str:
+        if ord(char) not in primary.face.charToGlyph and ord(char) in cjk.face.charToGlyph:
+            return "CommentsCJK"
+        return "CommentsPrimary"
+
+    runs = []
+    for name, chars in groupby(text, font):
+        plain = escape("".join(chars)).replace("\n", "<br/>")
+        runs.append(f'<font name="{name}">{plain}</font>')
+    return Paragraph("".join(runs), style)
+
+
+def _fix_comments_cmaps(pdf: fitz.Document) -> None:
+    """Fix ReportLab's supplementary-plane mappings within the comments file."""
+    for xref in range(1, pdf.xref_length()):
+        kind, value = pdf.xref_get_key(xref, "ToUnicode")
+        if kind != "xref":
+            continue
+        stream_ref = int(value.split()[0])
+        cmap = pdf.xref_stream(stream_ref)
+        fixed = re.sub(
+            rb"(<[0-9A-Fa-f]+>\s*)<([0-9A-Fa-f]{5,6})>",
+            lambda match: match[1] + b"<" + (
+                chr(int(match[2], 16)).encode("utf-16-be").hex().upper().encode("ascii")
+            ) + b">",
+            cmap,
+        )
+        if fixed != cmap:
+            pdf.update_stream(stream_ref, fixed)
+
+
 def _report_pdf(
     findings: Sequence[Mapping[str, Any]],
     *,
-    file_name: str,
+    file_name: str | None,
     labels: Mapping[int, str],
     failed_check_count: int = 0,
+    other_evidence_pages: Sequence[int] = (),
 ) -> bytes:
+    comments_only = file_name is None
     styles = _styles()
+    paragraph = _comments_paragraph if comments_only else _p
+    if comments_only:
+        for style in styles.values():
+            style.fontName = "CommentsPrimary"
+        styles["body"].fontSize = 11
+        styles["body"].leading = 16
+        styles["small"].fontSize = 9
+        styles["small"].leading = 13
+        styles["subtitle"].keepWithNext = True
+        styles["problem"].keepWithNext = True
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -290,29 +357,39 @@ def _report_pdf(
         rightMargin=54,
         topMargin=50,
         bottomMargin=50,
-        title="NJIT Findings to check",
+        title="NJIT Formatting Comments" if comments_only else "NJIT Findings to check",
         author="NJIT Thesis Auditor",
     )
     story: list[Any] = [
-        _p("NJIT Thesis/Dissertation Formatting Audit", styles["title"]),
-        _p("Findings to check", styles["subtitle"]),
-        _p(f"File: {file_name}", styles["body"]),
-        _p(
-            "The preceding pages contain your thesis with possible formatting issues "
-            "highlighted where an exact location was available. The problems below are "
-            "listed in document order. Problem numbers correspond to numbered highlights "
-            "when shown.",
-            styles["body"],
-        ),
+        paragraph("NJIT Thesis/Dissertation Formatting Audit", styles["title"]),
+        paragraph("Comments" if comments_only else "Findings to check", styles["subtitle"]),
     ]
+    if comments_only:
+        story.append(paragraph(
+            "Comments are listed in document order. Problem numbers match the audit results "
+            "and the Complete PDF Report. PDF page numbers refer to the original upload.",
+            styles["body"],
+        ))
+    else:
+        story.extend([
+            paragraph(f"File: {file_name}", styles["body"]),
+            paragraph(
+                "The preceding pages contain your thesis with possible formatting issues "
+                "highlighted where an exact location was available. The problems below are "
+                "listed in document order. Problem numbers correspond to numbered highlights "
+                "when shown.",
+                styles["body"],
+            ),
+        ])
     notice = incomplete_audit_notice(failed_check_count)
     if notice:
-        story.append(_p(INCOMPLETE_AUDIT_TITLE, styles["subtitle"]))
-        story.append(_p(notice, styles["body"]))
+        story.append(paragraph(INCOMPLETE_AUDIT_TITLE, styles["subtitle"]))
+        story.append(paragraph(notice, styles["body"]))
     pages = {int(f["page"]) for f in findings if f.get("page") is not None}
+    pages.update(other_evidence_pages)
     rules = {_public_rule(f) for f in findings}
     story.append(
-        _p(
+        paragraph(
             f"{len(findings)} problems  |  {len(pages)} pages affected  |  "
             f"{len(rules)} rules flagged",
             styles["body"],
@@ -320,16 +397,16 @@ def _report_pdf(
     )
     if not findings:
         story.append(
-            _p(
+            paragraph(
                 "No formatting problems were detected by the implemented checks. "
                 "This automated check does not establish full compliance with NJIT requirements.",
                 styles["body"],
             )
         )
-    story.append(_p(CONFIDENCE_NOTE, styles["body"]))
-    story.append(_p(COVERAGE_HEADING, styles["subtitle"]))
-    for paragraph in COVERAGE_INTRO:
-        story.append(_p(paragraph, styles["body"]))
+    story.append(paragraph(CONFIDENCE_NOTE, styles["body"]))
+    coverage: list[Any] = [paragraph(COVERAGE_HEADING, styles["subtitle"])]
+    for introduction in COVERAGE_INTRO:
+        coverage.append(paragraph(introduction, styles["body"]))
     for area in COVERAGE_AREAS:
         # Heading colour marks the title: the registered DejaVu font has no bold face.
         parts = [
@@ -338,48 +415,83 @@ def _report_pdf(
         if area.checked:
             parts.append(f"Checked: {escape(area.checked)}")
         parts.append(f"Check yourself: {escape(area.manual)}")
-        story.append(Paragraph(" ".join(parts), styles["coverage"]))
-    story.append(Spacer(1, 5))
+        coverage.append(Paragraph(" ".join(parts), styles["coverage"]))
+    coverage.append(Spacer(1, 5))
+    if not comments_only:
+        story.extend(coverage)
     current_page: int | None = None
     doc_heading = False
     for finding in findings:
         page = finding.get("page")
         if page is None and not doc_heading:
-            story.append(_p("DOCUMENT-LEVEL FINDINGS", styles["subtitle"]))
+            story.append(paragraph("DOCUMENT-LEVEL FINDINGS", styles["subtitle"]))
             doc_heading = True
         elif page is not None and page != current_page:
             current_page = int(page)
-            story.append(_p(f"PDF PAGE {current_page}", styles["subtitle"]))
+            story.append(paragraph(f"PDF PAGE {current_page}", styles["subtitle"]))
             if labels.get(current_page):
-                story.append(_p(f"Manuscript page: {labels[current_page]}", styles["small"]))
+                label = paragraph(f"Manuscript page: {labels[current_page]}", styles["small"])
+                if comments_only:
+                    label.keepWithNext = True
+                story.append(label)
         heading = (
             f"Problem #{finding['problem_number']} — {_public_rule(finding)} — {_title(finding)}"
         )
-        block: list[Any] = [_p(heading, styles["problem"])]
+        block: list[Any] = [paragraph(heading, styles["problem"])]
         if _field(finding, "location_label"):
-            block.append(_p(f"Location: {_field(finding, 'location_label')}", styles["small"]))
+            block.append(paragraph(
+                f"Location: {_field(finding, 'location_label')}", styles["small"]
+            ))
         block.append(
-            _p(f"What was detected: {_detection(finding)}", styles["body"])
+            paragraph(f"What was detected: {_detection(finding)}", styles["body"])
         )
         if _fix(finding):
-            block.append(_p(f"What to check: {_fix(finding)}", styles["body"]))
+            block.append(paragraph(f"What to check: {_fix(finding)}", styles["body"]))
         if _field(finding, "confidence_label"):
-            block.append(_p(f"Confidence: {_field(finding, 'confidence_label')}", styles["small"]))
+            block.append(paragraph(
+                f"Confidence: {_field(finding, 'confidence_label')}", styles["small"]
+            ))
         for line in _check_lines(finding):
-            block.append(_p(line, styles["body"]))
-        if _technical_lines(finding):
-            block.append(_p("Technical details:", styles["small"]))
-            block.extend(_p(line, styles["small"]) for line in _technical_lines(finding))
-        if page is not None and not finding.get("_combined_has_highlight", False):
-            block.append(_p("Exact visual highlight unavailable.", styles["small"]))
+            block.append(paragraph(line, styles["body"]))
+        if not comments_only and _technical_lines(finding):
+            block.append(paragraph("Technical details:", styles["small"]))
+            block.extend(paragraph(line, styles["small"]) for line in _technical_lines(finding))
+        has_highlight = finding.get(
+            "has_highlight" if comments_only else "_combined_has_highlight", False
+        )
+        if page is not None and not has_highlight:
+            block.append(paragraph("Exact visual highlight unavailable.", styles["small"]))
             if _field(finding, "no_highlight_reason"):
-                block.append(_p(_field(finding, "no_highlight_reason"), styles["small"]))
+                block.append(paragraph(_field(finding, "no_highlight_reason"), styles["small"]))
         block.append(Spacer(1, 5))
         # The heading stays with the first text line; long explanations can
         # flow naturally onto subsequent report pages.
         story.extend(block)
+    if comments_only:
+        story.extend(coverage)
     doc.build(story, onFirstPage=_report_page_footer, onLaterPages=_report_page_footer)
     return buffer.getvalue()
+
+
+def build_comments_pdf_report(
+    output_pdf: Path,
+    findings: Sequence[Mapping[str, Any]],
+    *,
+    manuscript_page_labels: Mapping[int, str] | None = None,
+    failed_check_count: int = 0,
+) -> None:
+    """Write only student comments to a staging file owned by the exporter."""
+    ordered = ordered_student_findings(findings)
+    if [int(f["problem_number"]) for f in ordered] != list(range(1, len(ordered) + 1)):
+        raise ValueError("student findings must have canonical, page-ordered problem numbers")
+    report = _report_pdf(
+        ordered, file_name=None, labels=manuscript_page_labels or {},
+        failed_check_count=failed_check_count,
+    )
+    with fitz.open(stream=report, filetype="pdf") as pdf:
+        _fix_comments_cmaps(pdf)
+        pdf.xref_set_key(pdf.pdf_catalog(), "Lang", "(en)")
+        pdf.save(output_pdf, garbage=4, deflate=True)
 
 
 def _marker_rect(
@@ -408,6 +520,7 @@ def build_combined_student_pdf_report(
     findings: Sequence[Mapping[str, Any]],
     *,
     boxes_by_problem: Mapping[int, Sequence[HighlightBox | tuple[float, float, float, float]]],
+    other_pages_by_problem: Mapping[int, BoxesByPage] | None = None,
     file_name: str,
     manuscript_page_labels: Mapping[int, str] | None = None,
     failed_check_count: int = 0,
@@ -426,8 +539,9 @@ def build_combined_student_pdf_report(
             thesis_pages = source.page_count
             page_sizes = [page_box_space(p) for p in source]
         selected: dict[int, list[HighlightBox]] = {}
-        primary: dict[int, tuple[int, tuple[float, float, float, float]]] = {}
+        primary: dict[tuple[int, int], tuple[float, float, float, float]] = {}
         drawn_findings: set[int] = set()
+        other_evidence_pages: set[int] = set()
         for finding in ordered:
             page_raw = finding.get("page")
             if page_raw is None:
@@ -436,19 +550,27 @@ def build_combined_student_pdf_report(
             if not 1 <= page <= thesis_pages:
                 continue
             number = int(finding["problem_number"])
-            for box in boxes_by_problem.get(number, ()):
-                clipped = clip_box_to_page(box, *page_sizes[page - 1])
-                if clipped is None:
+            targets: dict[int, Sequence[HighlightBox | tuple[float, float, float, float]]] = {
+                page: boxes_by_problem.get(number, ()),
+            }
+            for target_page, extra_boxes in (other_pages_by_problem or {}).get(number, {}).items():
+                if target_page != page:
+                    targets[target_page] = extra_boxes
+            for target_page, boxes in targets.items():
+                if not 1 <= target_page <= thesis_pages:
                     continue
-                selected.setdefault(page, []).append(
-                    box if isinstance(box, HighlightBox) else HighlightBox.from_tuple(box)
-                )
-                drawn_findings.add(number)
-                if number not in primary and getattr(box, "kind", "default") not in {
-                    "guide",
-                    "overflow_display",
-                }:
-                    primary[number] = (page, clipped)
+                for box in boxes:
+                    clipped = clip_box_to_page(box, *page_sizes[target_page - 1])
+                    if clipped is None:
+                        continue
+                    selected.setdefault(target_page, []).append(
+                        box if isinstance(box, HighlightBox) else HighlightBox.from_tuple(box)
+                    )
+                    drawn_findings.add(number)
+                    if target_page != page:
+                        other_evidence_pages.add(target_page)
+                    if getattr(box, "kind", "default") not in {"guide", "overflow_display"}:
+                        primary.setdefault((number, target_page), clipped)
         highlight_result = build_highlighted_pdf(
             source_pdf, annotated_path, selected, max_boxes_per_page=None
         )
@@ -462,6 +584,7 @@ def build_combined_student_pdf_report(
             file_name=file_name,
             labels=labels,
             failed_check_count=failed_check_count,
+            other_evidence_pages=sorted(other_evidence_pages),
         )
         markers_drawn = 0
         with (
@@ -469,13 +592,12 @@ def build_combined_student_pdf_report(
             fitz.open(stream=report_bytes, filetype="pdf") as report,
         ):
             report_page_count = report.page_count
-            # Draw one visible problem badge per finding with a reliable
-            # primary box. P011's existing line-index markers remain intact.
+            # Mark each evidence page with the same canonical problem number.
             occupied_by_page: dict[int, list[fitz.Rect]] = {}
-            for number, (page_number, box) in primary.items():
+            for (number, page_number), badge_box in primary.items():
                 page = thesis[page_number - 1]
                 occupied = occupied_by_page.setdefault(page_number, [])
-                marker = _marker_rect(page, box, number, occupied)
+                marker = _marker_rect(page, badge_box, number, occupied)
                 if marker is None:
                     continue
                 shape = page.new_shape()

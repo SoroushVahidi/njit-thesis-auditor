@@ -106,7 +106,15 @@ def has_lot_table_column_header(context: TocPageContext, entries: list[TocEntryL
     """Confirm a Table label above the entries and near their number column."""
     if context.page_type != "list_of_tables" or not entries:
         return False
-    first_entry_top = min(entry.line.bbox.y0 for entry in entries)
+    # A separately drawn continuation subtitle can appear as a logical
+    # row. It is part of the heading and cannot own the Table label.
+    first_entry_top = min(
+        (entry.line.bbox.y0 for entry in entries
+         if _normalize_label(entry.cleaned_text) != "(continued)"),
+        default=None,
+    )
+    if first_entry_top is None:
+        return False
     expected_left_x = _expected_left_x(entries)
     return any(
         _matches_left_label(line.text, context.page_type)

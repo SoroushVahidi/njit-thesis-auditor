@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}General feedback — NJIT Thesis Auditor{% endblock %}
 {% block content %}
-<main>
+<div>
   <h1>General feedback</h1>
   <p>Share feedback about the auditor that is not tied to a specific finding.</p>
   {% if notice %}<div class="alert-info" role="status">General feedback saved.</div>{% endif %}
@@ -29,5 +29,5 @@
     <span>Page {{ page }} of {{ total_pages }}</span>
     {% if next_url %}<a href="{{ next_url }}">Next</a>{% endif %}
   </nav>
-</main>
+</div>
 {% endblock %}

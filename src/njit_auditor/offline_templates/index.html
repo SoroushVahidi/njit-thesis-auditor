@@ -2,7 +2,13 @@
 {% block content %}
 <h1>NJIT Thesis Auditor — Offline</h1>
 <p class="subtitle">Select a PDF. Audit it on this computer, even without internet access.</p>
-{% if notice %}<div class="alert-warn" role="alert">{{ notice }}</div>{% endif %}
+{% if notice %}
+<div class="alert-warn" role="alert">
+  {% if notice_title %}<strong>{{ notice_title }}</strong><br>{% endif %}
+  {{ notice }}
+  {% if notice_audit_url %}<br><a href="{{ notice_audit_url }}">Return to audit results</a>{% endif %}
+</div>
+{% endif %}
 {% if error %}<div class="alert-error" role="alert"><strong>{{ error_title or "Could not start audit." }}</strong><br>{{ error }}</div>{% endif %}
 {% if deletion_status == "pending" %}<div class="alert-warn" role="status">An audit is still running. Its local files are queued for deletion as soon as it finishes.</div>{% endif %}
 {% if deletion_status == "deleted" %}<div class="alert-info" role="status">Local audit data was deleted.</div>{% endif %}
@@ -13,9 +19,9 @@
   <form action="/audits" method="post" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <label for="file">Select PDF</label>
-    <input type="file" id="file" name="file" accept=".pdf" required>
-    <p class="file-hint">PDF · maximum {{ max_upload_mb }} MB · processed on this computer</p>
-    <p class="file-hint">Audits stop after two minutes. You can cancel a running audit.</p>
+    <input type="file" id="file" name="file" accept=".pdf" required aria-describedby="file-hint audit-time-hint">
+    <p id="file-hint" class="file-hint">PDF · maximum {{ max_upload_mb }} MB · processed on this computer</p>
+    <p id="audit-time-hint" class="file-hint">Audits stop after two minutes. You can cancel a running audit.</p>
     <button type="submit">Start audit</button>
   </form>
 </section>

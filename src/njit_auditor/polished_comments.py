@@ -10,9 +10,13 @@ from njit_auditor.caption_continuation_preview import caption_continuation_expla
 from njit_auditor.ester_warning_wording import student_warning_remediation
 from njit_auditor.float_layout_advice import float_layout_suggested_fix
 from njit_auditor.issue_type_explanations import humanize_issue_type
-from njit_auditor.p018_guidance import P018_WRAPPED_TITLE_FIX
+from njit_auditor.p018_guidance import (
+    P018_MISSING_PAGE_NUMBER_FIX,
+    P018_WRAPPED_TITLE_FIX,
+)
 from njit_auditor.report_outputs import derive_source_issue_type
 from njit_auditor.resource_paths import resource_path
+from njit_auditor.toc_order_evidence import P062_ISSUE, describe_p062_pair
 
 REVIEW_PREFIX = "Review needed:"
 VERIFY_SUFFIX = "Automated finding — please verify against NJIT guidelines manually."
@@ -459,9 +463,11 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "appears to end with a terminal period. Remove the final period."
     ),
     ("P017", "missing_terminal_punctuation"): (
-        "Likely problem: A {caption_type} caption on page {page} appears to "
-        "be missing terminal punctuation where NJIT expects a period, question "
-        "mark, or exclamation point. Add appropriate ending punctuation."
+        "Likely problem: A figure description on page {page} appears to be missing "
+        "terminal punctuation."
+    ),
+    ("P017", "excessive_caption_line_spacing"): (
+        "The wrapped caption on page {page} appears to have wide internal line spacing."
     ),
     ("P017", "possible_sentence_case_issue"): (
         "Likely problem: A {caption_type} caption on page {page} appears to use "
@@ -483,8 +489,8 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P018", "missing_page_number"): (
         "Likely problem: A TOC, List of Tables, or List of Figures entry on "
-        "page {page} appears to be missing its trailing page number. Add the "
-        "correct page number for this entry."
+        "page {page} appears to be missing its trailing page number. "
+        + P018_MISSING_PAGE_NUMBER_FIX
     ),
     ("P018", "inconsistent_leader_dots"): (
         "Likely problem: Leader dots or spacing before page numbers on page "
@@ -919,7 +925,7 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "Align this entry's page number with the dominant right-hand column "
         "on this list page."
     ),
-    ("P018", "missing_page_number"): "Add the missing trailing page number to this entry.",
+    ("P018", "missing_page_number"): P018_MISSING_PAGE_NUMBER_FIX,
     ("P018", "inconsistent_leader_dots"): (
         "Make the leader-dot spacing before this entry's page number match "
         "nearby entries."
@@ -941,7 +947,7 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P017", "unexpected_terminal_period"): (
         "Remove the final period from this table title or List of Tables entry."
     ),
-    ("P017", "missing_terminal_punctuation"): "",
+    ("P017", "missing_terminal_punctuation"): "End the figure description with a period.",
     ("P017", "possible_sentence_case_issue"): "",
     ("P017", "possible_title_case_issue"): (
         "Edit the table title to title case: capitalize the first word and "
@@ -2074,6 +2080,9 @@ def build_polished_comment(
         k: v for k, v in (details or {}).items() if k not in _BLOCKED_DETAIL_KEYS
     }
     issue = issue_type or safe_details.get("issue_type", "")
+    if rule_id == "P062" and issue == P062_ISSUE:
+        if pair := describe_p062_pair(safe_details):
+            return _finish_comment(pair, rule_id=rule_id, issue_type=issue, specific=True)
     if rule_id in _SOURCE_RULE_IDS and not issue:
         issue = derive_source_issue_type(rule_id, safe_details)
     if (
@@ -2092,6 +2101,15 @@ def build_polished_comment(
         continuation = caption_continuation_explanation(safe_details)
         if continuation:
             return _finish_comment(continuation, rule_id=rule_id, issue_type=issue, specific=True)
+        if (
+            safe_details.get("caption_context") == "list_of_figures"
+            or safe_details.get("source_q_rule_id") == "Q075"
+        ):
+            body = (
+                f"Likely problem: A List of Figures description on page {_safe_page_label(page)} "
+                "appears to be missing terminal punctuation."
+            )
+            return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P017" and issue == "unexpected_terminal_period":
         subject = (

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from njit_auditor.caption_continuation_preview import caption_continuation_explanation
 from njit_auditor.p018_guidance import (
+    P018_MISSING_PAGE_NUMBER_FIX,
     P018_WRAPPED_TITLE_EXPECTED,
     P018_WRAPPED_TITLE_FIX,
 )
@@ -20,6 +21,7 @@ from njit_auditor.toc_list_student_preview import (
     sanitize_toc_list_entry_preview,
     spacing_entries_phrase,
 )
+from njit_auditor.toc_order_evidence import P062_ISSUE, describe_p062_pair
 
 # ---------------------------------------------------------------------------
 # Action kind / label helpers
@@ -606,9 +608,11 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "a period. Remove the final period."
     ),
     ("P017", "missing_terminal_punctuation"): (
-        "A figure or table caption on this page appears to be missing terminal "
-        "punctuation. Add a period, question mark, or exclamation point as "
-        "appropriate for the caption style."
+        "A figure description on this page appears to be missing terminal punctuation."
+    ),
+    ("P017", "excessive_caption_line_spacing"): (
+        "The highlighted caption lines appear widely spaced. Apply single line spacing "
+        "within the figure description or table title, then check the exported PDF."
     ),
     ("P017", "possible_sentence_case_issue"): (
         "A caption on this page appears to use Title Case where sentence case may "
@@ -627,7 +631,7 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P018", "missing_page_number"): (
         "A TOC or list entry on this page appears to be missing its trailing "
-        "page number. Add the correct page number for this entry."
+        "page number. " + P018_MISSING_PAGE_NUMBER_FIX
     ),
     ("P018", "inconsistent_leader_dots"): (
         "Leader dots or spacing before page numbers on this list page are "
@@ -1437,6 +1441,10 @@ _P036_SECTION_LABELS: dict[str, str] = {
 
 
 _P018_EXPECTED_BY_ISSUE_TYPE: dict[str, str] = {
+    "missing_page_number": (
+        "Each entry ends with its page number aligned to the list's page-number column. "
+        + P018_MISSING_PAGE_NUMBER_FIX
+    ),
     "wrapped_title_continuation_misaligned": (
         P018_WRAPPED_TITLE_EXPECTED + " What to check or fix: " + P018_WRAPPED_TITLE_FIX
     ),
@@ -2008,6 +2016,9 @@ def _build_explanation_text(
     page: int | None,
 ) -> str:
     effective_issue_type = _resolve_issue_type(rule_id, issue_type, details)
+    if rule_id == "P062" and effective_issue_type == P062_ISSUE:
+        if pair := describe_p062_pair(details):
+            return pair
     if rule_id == "P017" and effective_issue_type == "missing_terminal_punctuation":
         continuation = caption_continuation_explanation(details)
         if continuation:
