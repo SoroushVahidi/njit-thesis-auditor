@@ -442,6 +442,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Tables, or List of Figures does not include the correct continued heading. "
         "Add the correct continued heading on this continuation page."
     ),
+    ("P030", "missing_symbols_continued_heading"): (
+        "Problem: The List of Symbols continues on this page without its continued heading. "
+        "Add LIST OF SYMBOLS (Continued) above the symbol entries."
+    ),
     # --- P033 title consistency ---
     ("P033", "frontmatter_title_mismatch"): (
         "The dissertation title appears to differ between two or more front-matter "

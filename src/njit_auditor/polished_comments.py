@@ -169,6 +169,10 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "List of Figures on page {page} does not include the correct continued "
         "heading. Add the correct continued heading on this continuation page."
     ),
+    ("P030", "missing_symbols_continued_heading"): (
+        "The List of Symbols continues on page {page}. "
+        "Add LIST OF SYMBOLS (Continued) above the entries."
+    ),
     ("P034", "copyright_year_mismatch"): (
         "Copyright page year format on page {page} may need review. "
         "Confirm the copyright block includes the required year format."
