@@ -104,6 +104,7 @@ _INTERNAL_STUDENT_EXPORT_DETAIL_KEYS: frozenset[str] = frozenset(
         "source_q_rule_ids",
         "source_q_rule",
         "source_q_rule_basis",
+        "_preserve_prior_finding_ids",
     }
 )
 
@@ -1005,7 +1006,7 @@ def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFindi
     slot -- it only reorders the page groups themselves, so finding counts and
     representative-finding choices are unchanged; only display order changes.
     """
-    def sort_key(finding: AuditFinding) -> tuple[bool, bool, int]:
+    def sort_key(finding: AuditFinding) -> tuple[int, bool, int]:
         page_start_finding = (finding.rule_id, finding.details.get("issue_type")) in {
             ("P016", "blank_line_above_continuing_body_text"),
             ("P023", "blank_line_before_opening_level_three_heading"),
@@ -1019,7 +1020,10 @@ def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFindi
                 start_page = int(start)
                 if 0 < start_page < page:
                     page = start_page
-        return page_start_finding, page is None, page or 0
+        priority = int(page_start_finding)
+        if finding.details.get("_preserve_prior_finding_ids") == "true":
+            priority = 2
+        return priority, page is None, page or 0
 
     return sorted(findings, key=sort_key)
 
