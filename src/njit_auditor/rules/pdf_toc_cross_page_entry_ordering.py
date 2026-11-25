@@ -46,7 +46,7 @@ from njit_auditor.rules.pdf_toc_entry_number_ordering import (
     MIN_INVERSIONS_TO_FLAG,
     _parse_section_num,
 )
-from njit_auditor.toc_order_evidence import P062_ISSUE, describe_p062_pair
+from njit_auditor.toc_order_evidence import describe_p062_pair
 
 _SOURCE_Q_RULE_ID = "Q056"
 _FOLIO = re.compile(r"(?:[0-9]{1,4}|[ivxlcdm]{1,12})", re.IGNORECASE)
@@ -194,7 +194,8 @@ def _check_cross_page_toc_run(
                 f"section entries across {len(run)} consecutive pages."
             ),
             details={
-                "issue_type": P062_ISSUE,
+                # The static registry reads detector issue IDs without importing them.
+                "issue_type": "toc_cross_page_entry_numbers_not_nondecreasing",
                 "page": str(page),
                 "section_type": "table_of_contents",
                 "page_count": str(len(run)),

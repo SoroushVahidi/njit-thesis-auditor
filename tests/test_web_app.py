@@ -872,8 +872,7 @@ def test_findings_by_topic_table_not_grouped_by_rule_id(
 def test_findings_in_page_order_precedes_findings_by_topic(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Findings in page order is the primary student workflow section and appears
-    before the secondary Findings by topic index."""
+    """The findings-first view places actionable cards above its related guidance."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
@@ -883,7 +882,7 @@ def test_findings_in_page_order_precedes_findings_by_topic(
     idx_review_order = html.index('id="section-review-order"')
     idx_findings = html.index('id="section-findings"')
     idx_topics = html.index('id="section-topics"')
-    assert idx_review_order < idx_findings < idx_topics
+    assert idx_findings < idx_review_order < idx_topics
     assert 'id="section-triage"' not in html
 
 
