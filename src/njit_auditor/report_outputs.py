@@ -1005,7 +1005,11 @@ def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFindi
     slot -- it only reorders the page groups themselves, so finding counts and
     representative-finding choices are unchanged; only display order changes.
     """
-    def sort_key(finding: AuditFinding) -> tuple[bool, int]:
+    def sort_key(finding: AuditFinding) -> tuple[bool, bool, int]:
+        page_start_finding = (finding.rule_id, finding.details.get("issue_type")) in {
+            ("P016", "blank_line_above_continuing_body_text"),
+            ("P023", "blank_line_before_opening_level_three_heading"),
+        }
         page = finding.page
         if finding.rule_id == "P046" and page is not None:
             # Raw JSON indexes back finding IDs. Keep the list-wide warning's
@@ -1015,7 +1019,7 @@ def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFindi
                 start_page = int(start)
                 if 0 < start_page < page:
                     page = start_page
-        return page is None, page or 0
+        return page_start_finding, page is None, page or 0
 
     return sorted(findings, key=sort_key)
 
