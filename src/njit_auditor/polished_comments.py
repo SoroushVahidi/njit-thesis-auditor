@@ -460,9 +460,8 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "appears to end with a terminal period. Remove the final period."
     ),
     ("P017", "missing_terminal_punctuation"): (
-        "Likely problem: A {caption_type} caption on page {page} appears to "
-        "be missing terminal punctuation where NJIT expects a period, question "
-        "mark, or exclamation point. Add appropriate ending punctuation."
+        "Likely problem: A figure description on page {page} appears to be missing "
+        "terminal punctuation."
     ),
     ("P017", "excessive_caption_line_spacing"): (
         "The wrapped caption on page {page} appears to have wide internal line spacing."
@@ -945,7 +944,7 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P017", "unexpected_terminal_period"): (
         "Remove the final period from this table title or List of Tables entry."
     ),
-    ("P017", "missing_terminal_punctuation"): "",
+    ("P017", "missing_terminal_punctuation"): "End the figure description with a period.",
     ("P017", "possible_sentence_case_issue"): "",
     ("P017", "possible_title_case_issue"): (
         "Edit the table title to title case: capitalize the first word and "

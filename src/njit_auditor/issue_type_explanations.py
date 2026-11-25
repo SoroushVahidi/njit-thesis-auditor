@@ -644,8 +644,7 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
         "that should be removed."
     ),
     ("P017", "missing_terminal_punctuation"): (
-        "This means a figure or table caption is missing terminal punctuation. "
-        "Add a period, question mark, or exclamation point as appropriate."
+        "This means a figure description appears to be missing terminal punctuation."
     ),
     ("P017", "excessive_caption_line_spacing"): (
         "The distances between lines within this wrapped figure description or table title "

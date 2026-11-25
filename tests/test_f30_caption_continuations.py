@@ -564,6 +564,7 @@ def test_actual_final_line_controls_report_card_and_both_pdf_routes(
     tail, = [
         line for block in page.text_blocks for line in block.lines if line.text.startswith(_END)
     ]
+    advice = "End the figure description with a period."
     with TestClient(web_app.app) as client:
         post = client.post(
             "/audits",
@@ -599,19 +600,25 @@ def test_actual_final_line_controls_report_card_and_both_pdf_routes(
             ]
             assert cards == []
             assert any(abs(rect.y0 - tail.bbox.y0) < 2 for rect in complete_rects) == (pitch == 24)
-            assert "Add a period, question mark, or exclamation point" not in report.text
+            assert advice not in report.text
             return
 
         card, = cards
         row = rows[int(card["finding_id"][1:])]
         assert row["page"] == card["page"] == 1
         assert row["details"]["bbox"] == format_bbox_detail(tail.bbox)
-        advice = "Add a period, question mark, or exclamation point"
-        assert advice in report.text
+        assert advice in report.text and card["suggested_fix"] == advice
         for extension in ("markdown", "text"):
             export = client.get(base + "/download/" + extension)
             assert export.status_code == 200
             assert "missing terminal punctuation" in export.text.lower()
+            assert f"What to check: {advice}" in export.text
+        comments = client.get(base + "/download/comments.pdf")
+        assert comments.status_code == 200
+        for pdf in (complete, comments):
+            with fitz.open(stream=pdf.content) as doc:
+                exported_text = " ".join(" ".join(p.get_text() for p in doc).split())
+            assert f"What to check: {advice}" in exported_text
         single = client.get(
             base + "/highlighted-page.pdf",
             params={"page": 1, "rule_id": "P017", "finding_id": card["finding_id"]},

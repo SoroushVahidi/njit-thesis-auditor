@@ -607,9 +607,7 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "a period. Remove the final period."
     ),
     ("P017", "missing_terminal_punctuation"): (
-        "A figure or table caption on this page appears to be missing terminal "
-        "punctuation. Add a period, question mark, or exclamation point as "
-        "appropriate for the caption style."
+        "A figure description on this page appears to be missing terminal punctuation."
     ),
     ("P017", "excessive_caption_line_spacing"): (
         "The highlighted caption lines appear widely spaced. Apply single line spacing "
