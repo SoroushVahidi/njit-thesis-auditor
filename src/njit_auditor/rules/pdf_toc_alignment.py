@@ -1259,16 +1259,14 @@ def extract_toc_logical_entry_lines(
 
     The ordinary extractor deliberately filters rows that do not resemble a
     standalone entry. A wrapped title can contain exactly such a row, or a
-    numeral inside its first row can be mistaken for the page number. Rejoin
-    only hanging rows with a terminal folio in the page's established column
-    are normally rejoined. P018's missing-number check can also use a final
+    numeral inside its first row can be mistaken for the page number. Normally, it rejoins hanging rows with a terminal folio in the page's established column. P018's missing-number check can also use a final
     hanging row's own right-side dot leaders when the column estimate is
     contaminated. Other rules keep the established entry geometry.
     """
     entries = extract_toc_entry_lines(context, require_right_edge=require_right_edge)
     rows = collect_toc_visual_rows(context, require_right_edge=require_right_edge)
     column_edge = _logical_page_column_edge(entries)
-    figure_wrap_column = (
+    figure_folio_column = (
         _trusted_folio_column(entries)
         if recover_displaced_leader_folio and context.page_type == "list_of_figures"
         else None
@@ -1380,10 +1378,10 @@ def extract_toc_logical_entry_lines(
                     )
                     and not (
                         not continuation_rows
-                        and figure_wrap_column is not None
+                        and figure_folio_column is not None
                         and row_index + 1 < len(rows)
                         and _is_first_figure_wrap_with_integer(
-                            first, follower, rows[row_index + 1], figure_wrap_column
+                            first, follower, rows[row_index + 1], figure_folio_column
                         )
                     )
                 )
@@ -1394,6 +1392,17 @@ def extract_toc_logical_entry_lines(
             token, edge = _extract_page_number_token(
                 follower, text, require_right_edge=require_right_edge
             )
+            if token is None and figure_folio_column is not None:
+                # The visible right-edge folio can share its PDF text span
+                # with the closing punctuation of a wrapped figure title.
+                glued = _GLUED_FINAL_PAGE_NUMBER_RE.search(text)
+                if (
+                    glued
+                    and text[:glued.start()].endswith(")")
+                    and abs(follower.bbox.x1 - figure_folio_column) <= RIGHT_EDGE_TOLERANCE_PT
+                ):
+                    final_number, final_edge = glued["num"], follower.bbox.x1
+                    break
             if token is not None and (
                 (
                     column_edge is None
