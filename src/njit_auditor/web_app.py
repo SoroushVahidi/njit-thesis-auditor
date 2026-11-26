@@ -18,7 +18,7 @@ from _thread import LockType
 from collections.abc import Callable, Mapping
 from contextlib import ExitStack, asynccontextmanager
 from copy import deepcopy
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -2196,10 +2196,12 @@ def _run_audit_task(job_id: str) -> None:
         _analytics_signal("failed")
         job = _get_job(job_id)
         if job is not None and job.state in ("pending", "running"):
-            job.state = "failed"
-            job.error_message = "An unexpected error occurred during the audit."
-            job.finished_at = datetime.now(timezone.utc).isoformat()
-            _set_job(job)
+            _set_job(replace(
+                job,
+                state="failed",
+                error_message="An unexpected error occurred during the audit.",
+                finished_at=datetime.now(timezone.utc).isoformat(),
+            ))
         _logger.warning(
             "Audit task failed after start (%s at %s).",
             type(exc).__name__, _exception_location(exc),
@@ -2215,8 +2217,10 @@ def _execute_audit_task(job_id: str) -> None:
         return
 
     _analytics_signal("start")
-    job.state = "running"
-    _set_job(job)
+    running = replace(job, state="running")
+    _set_job(running)
+    # Readers keep the published running state while the worker prepares the result.
+    job = replace(running)
 
     jdir = _job_dir(job_id)
     upload_path = _job_pdf_path(jdir)
@@ -2232,11 +2236,13 @@ def _execute_audit_task(job_id: str) -> None:
         job.failed_check_count = len(result.failed_checks)
         job.text_layer_quality = classify_pdf_text_layer(upload_path)
     except (UploadValidationError, AuditError) as exc:
-        job.state = "failed"
         # Parsing errors can include the temporary upload path or PDF content.
-        job.error_message = "Could not read this PDF. Check that it is a valid PDF and try again."
-        job.finished_at = datetime.now(timezone.utc).isoformat()
-        _set_job(job)
+        _set_job(replace(
+            running,
+            state="failed",
+            error_message="Could not read this PDF. Check that it is a valid PDF and try again.",
+            finished_at=datetime.now(timezone.utc).isoformat(),
+        ))
         _logger.warning(
             "Audit input could not be read (%s at %s).",
             type(exc).__name__, _exception_location(exc),
@@ -2358,7 +2364,6 @@ def _execute_audit_task(job_id: str) -> None:
 
     md_preview = md_report_path.read_text(encoding="utf-8")[:6000]
 
-    job.state = "complete"
     job.audit_type = result.audit_type
     job.finding_count = view.total_findings
     job.warn_count = int(view.counts_by_severity.get("WARNING", 0))
@@ -2379,6 +2384,7 @@ def _execute_audit_task(job_id: str) -> None:
     job.report_view = view_dict
     job.md_preview = md_preview
     job.finished_at = datetime.now(timezone.utc).isoformat()
+    job.state = "complete"
     _set_job(job)
     _analytics_signal("completed")
 
