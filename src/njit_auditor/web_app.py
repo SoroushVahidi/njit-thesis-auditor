@@ -16,7 +16,7 @@ import threading
 import urllib.parse
 from _thread import LockType
 from collections.abc import Callable, Mapping
-from contextlib import asynccontextmanager
+from contextlib import ExitStack, asynccontextmanager
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -30,6 +30,9 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.templating import Jinja2Templates
 from starlette.types import Receive, Scope, Send
 
+from njit_auditor.analytics import web as analytics_web
+from njit_auditor.analytics.runtime import AnalyticsRuntime, AnalyticsSettings, build_runtime
+from njit_auditor.analytics.schema import Source
 from njit_auditor.audit_runner import (
     AuditError,
     _exception_location,
@@ -506,9 +509,30 @@ _after_audit_task: Callable[[str], None] | None = None
 async def _lifespan(_app: FastAPI):
     _retention_sweeper.run_once()
     _retention_sweeper.start()
+    analytics_runtime = None
+    try:
+        offline = getattr(_app.state, "offline_mode", False)
+        analytics_runtime = None if offline else getattr(_app.state, "analytics_runtime", None)
+        if analytics_runtime is None:
+            settings = AnalyticsSettings.from_environment(
+                public_web=_app is app and not offline,
+                environment=ENVIRONMENT_NAME,
+                test_mode=("pytest" in sys.modules or "starlette.testclient" in sys.modules
+                           or "PYTEST_CURRENT_TEST" in os.environ),
+            )
+            analytics_runtime = build_runtime(settings, app_mode="offline" if offline else "web")
+        _app.state.analytics_runtime = analytics_runtime
+        analytics_runtime.start()
+    except Exception:  # noqa: BLE001
+        pass
     try:
         yield
     finally:
+        try:
+            if analytics_runtime is not None:
+                analytics_runtime.stop()
+        except Exception:  # noqa: BLE001
+            pass
         _retention_sweeper.stop()
 
 
@@ -518,6 +542,7 @@ app = FastAPI(
     redoc_url=None,
     lifespan=_lifespan,
 )
+app.add_middleware(analytics_web.PageObserver)
 _templates = Jinja2Templates(directory=str(package_path("templates")))
 
 
@@ -2038,7 +2063,8 @@ def _submission_error(error: str, status_code: int = 400) -> RedirectResponse:
 
 
 def _queue_pdf_audit(
-    request: Request, background_tasks: BackgroundTasks, content: bytes, filename: str
+    request: Request, background_tasks: BackgroundTasks, content: bytes, filename: str,
+    *, source: Source,
 ) -> RedirectResponse:
     """Validate a PDF copy and start the ordinary temporary audit lifecycle."""
     job_id = _new_job_id()
@@ -2065,7 +2091,22 @@ def _queue_pdf_audit(
     prepare_audit = getattr(request.app.state, "prepare_audit", None)
     if prepare_audit is not None:
         prepare_audit(job_id)
-    background_tasks.add_task(getattr(request.app.state, "audit_executor", _run_audit_task), job_id)
+    executor = getattr(request.app.state, "audit_executor", _run_audit_task)
+    runtime = None
+    internal = False
+    try:
+        runtime = analytics_web.runtime_for(request.app)
+        internal = analytics_web.is_internal_activity()
+    except Exception:  # noqa: BLE001
+        pass
+    if runtime is not None and executor is _run_audit_task:
+        background_tasks.add_task(_run_web_audit, job_id, runtime, source, internal)
+    else:
+        background_tasks.add_task(executor, job_id)
+    try:
+        analytics_web.accepted_upload(runtime, source, internal)
+    except Exception:  # noqa: BLE001
+        pass
 
     return RedirectResponse(url=f"/audits/{job_id}", status_code=303)
 
@@ -2116,6 +2157,31 @@ def _pdf_export_failure_notice(
 # Background audit task
 # ---------------------------------------------------------------------------
 
+def _analytics_signal(action: str) -> None:
+    try:
+        analytics_web.signal(action)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _run_web_audit(
+    job_id: str, runtime: AnalyticsRuntime, source: Source, internal: bool,
+) -> None:
+    # Operational identity stays here; the observation gets only bounded dimensions.
+    stack = ExitStack()
+    try:
+        stack.enter_context(analytics_web.task_context(runtime, source, internal))
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        _run_audit_task(job_id)
+    finally:
+        try:
+            stack.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def _run_audit_task(job_id: str) -> None:
     """Execute an upload audit in a background thread and update job state.
 
@@ -2127,6 +2193,7 @@ def _run_audit_task(job_id: str) -> None:
     try:
         _execute_audit_task(job_id)
     except Exception as exc:  # noqa: BLE001
+        _analytics_signal("failed")
         job = _get_job(job_id)
         if job is not None and job.state in ("pending", "running"):
             job.state = "failed"
@@ -2147,6 +2214,7 @@ def _execute_audit_task(job_id: str) -> None:
     if job is None:
         return
 
+    _analytics_signal("start")
     job.state = "running"
     _set_job(job)
 
@@ -2173,6 +2241,7 @@ def _execute_audit_task(job_id: str) -> None:
             "Audit input could not be read (%s at %s).",
             type(exc).__name__, _exception_location(exc),
         )
+        _analytics_signal("failed")
         return
 
     pdf_page_sizes: list[tuple[float, float]] = []
@@ -2311,6 +2380,7 @@ def _execute_audit_task(job_id: str) -> None:
     job.md_preview = md_preview
     job.finished_at = datetime.now(timezone.utc).isoformat()
     _set_job(job)
+    _analytics_signal("completed")
 
 
 # ---------------------------------------------------------------------------
@@ -2365,6 +2435,10 @@ async def submit_audit(
     background_tasks: BackgroundTasks,
     file: UploadFile | None = File(default=None),
 ) -> RedirectResponse | HTMLResponse:
+    try:
+        analytics_web.submission_attempt(request.app, "upload")
+    except Exception:  # noqa: BLE001
+        pass
     # Reject old clients explicitly, even when they also attach a valid file.
     # Inspect all values so duplicate legacy fields cannot bypass the policy.
     form = await request.form()
@@ -2385,7 +2459,7 @@ async def submit_audit(
     if len(content) > MAX_UPLOAD_BYTES:
         return _submission_error(f"File exceeds the {MAX_UPLOAD_MB} MB limit.", status_code=413)
 
-    return _queue_pdf_audit(request, background_tasks, content, filename)
+    return _queue_pdf_audit(request, background_tasks, content, filename, source="upload")
 
 
 @app.post("/sample-audits", response_model=None)
@@ -2396,6 +2470,10 @@ async def submit_sample_audit(
     if getattr(request.app.state, "offline_mode", False):
         return _submission_error("Sample audits are unavailable in offline mode.")
 
+    try:
+        analytics_web.submission_attempt(request.app, "approved_sample")
+    except Exception:  # noqa: BLE001
+        pass
     form = await request.form(max_files=0, max_fields=1, max_part_size=1024)
     fields = form.multi_items()
     if (len(fields) != 1 or fields[0][0] != "sample_id"
@@ -2418,7 +2496,7 @@ async def submit_sample_audit(
 
     if len(content) > MAX_UPLOAD_BYTES:
         return _submission_error(f"File exceeds the {MAX_UPLOAD_MB} MB limit.", status_code=413)
-    return _queue_pdf_audit(request, background_tasks, content, filename)
+    return _queue_pdf_audit(request, background_tasks, content, filename, source="approved_sample")
 
 
 @app.post("/audits/url", response_model=None)
