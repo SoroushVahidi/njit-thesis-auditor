@@ -132,6 +132,29 @@ def test_day_closing_with_inflight_producer_has_no_exact_report(database):
     collector._disconnect()
 
 
+def test_day_closing_checks_loss_after_producer_completion(database, monkeypatch):
+    collector = manual_collector(database)
+    for _ in range(2 * 24 * 60 - 1):
+        collector.clock.advance(60)
+        collector._tick()
+    assert collector._producers.enter()
+    snapshot = collector._producers.outstanding
+
+    def complete_with_loss():
+        collector._drop("ENQUEUE_LOSS", "2030-01-02")
+        collector._producers.finish()
+        return snapshot()
+
+    monkeypatch.setattr(collector._producers, "outstanding", complete_with_loss)
+    collector.clock.advance(60)
+    collector._heartbeat()
+    result = query_usage(database, "2030-01-02", "2030-01-03")["periods"][0]
+    assert result["coverage"] == "partial"
+    assert result["totals"] is None
+    assert result["observed_counts"]["page_view"] == 0
+    collector._disconnect()
+
+
 @pytest.mark.parametrize("value", ["user@invalid", "PRIVATE_CANARY", "127.0.0.1"])
 def test_closed_dimensions_reject_private_values(value):
     with pytest.raises(ValueError):

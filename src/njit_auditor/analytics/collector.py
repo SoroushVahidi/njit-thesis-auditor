@@ -356,16 +356,17 @@ class BoundedCollector:
         now = utc_now(self.clock.utcnow())
         if mono - self._last_heartbeat >= 60 or mono < self._last_heartbeat or self._loss:
             assert self._retention is not None
-            days, unknown = self._take_loss()
             # Read admission before copying the queue. A producer still making
             # an observation may hold the old UTC day without an envelope yet.
             previous = self._retention.previous
             prior_day = previous[0].date() if previous is not None else None
-            unfinished_day = (
-                prior_day.isoformat()
-                if prior_day is not None and prior_day != now.date() and self._producers.outstanding()
-                else None
-            )
+            unfinished_day = None
+            if (
+                prior_day is not None
+                and prior_day != now.date()
+                and self._producers.outstanding()
+            ):
+                unfinished_day = prior_day.isoformat()
             # Copy at most 1,000 immutable envelopes under the queue's short lock;
             # decode and all storage work happen after releasing it.
             with self.queue.mutex:
@@ -375,6 +376,9 @@ class BoundedCollector:
                 unsettled.add(unfinished_day)
             if self.pending is not None:
                 unsettled.update(row[0] for row in self.pending.deltas.counts)
+            # A producer that finished before the admission snapshot may have
+            # published a loss. Take the loss mailbox after that snapshot.
+            days, unknown = self._take_loss()
             try:
                 self._retention.heartbeat(
                     now,
