@@ -63,6 +63,14 @@ def test_classify_valid_tex(tmp_path: Path) -> None:
     assert validate_upload_path(tex) == UploadKind.TEX
 
 
+@pytest.mark.parametrize("check", [classify_upload, validate_upload_path])
+def test_missing_upload_error_excludes_filesystem_path(tmp_path: Path, check) -> None:
+    path = tmp_path / "synthetic-private-filename.pdf"
+    with pytest.raises(UploadValidationError, match="The uploaded file is unavailable") as error:
+        check(path)
+    assert str(path) not in str(error.value)
+
+
 def test_invalid_pdf_magic_rejected(tmp_path: Path) -> None:
     bad = tmp_path / "fake.pdf"
     bad.write_bytes(b"NOTAPDF-content-here")

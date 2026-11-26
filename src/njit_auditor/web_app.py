@@ -32,6 +32,7 @@ from starlette.types import Receive, Scope, Send
 
 from njit_auditor.audit_runner import (
     AuditError,
+    _exception_location,
     classify_pdf_text_layer,
     run_audit_for_uploaded_file,
 )
@@ -233,7 +234,7 @@ class JobState:
             "created_at": self.created_at,
             "finished_at": self.finished_at,
             "finding_count": self.finding_count,
-            "file_name": self.file_name,
+            "file_name": "" if self.state == "failed" else self.file_name,
         }
 
 
@@ -2132,8 +2133,10 @@ def _run_audit_task(job_id: str) -> None:
             job.error_message = "An unexpected error occurred during the audit."
             job.finished_at = datetime.now(timezone.utc).isoformat()
             _set_job(job)
-        # Exception type only: messages and tracebacks can carry the job path.
-        _logger.warning("Audit task failed after start (%s).", type(exc).__name__)
+        _logger.warning(
+            "Audit task failed after start (%s at %s).",
+            type(exc).__name__, _exception_location(exc),
+        )
     finally:
         if _after_audit_task is not None:
             _after_audit_task(job_id)
@@ -2160,23 +2163,16 @@ def _execute_audit_task(job_id: str) -> None:
         findings = result.findings
         job.failed_check_count = len(result.failed_checks)
         job.text_layer_quality = classify_pdf_text_layer(upload_path)
-    except UploadValidationError as exc:
+    except (UploadValidationError, AuditError) as exc:
         job.state = "failed"
-        job.error_message = str(exc)
+        # Parsing errors can include the temporary upload path or PDF content.
+        job.error_message = "Could not read this PDF. Check that it is a valid PDF and try again."
         job.finished_at = datetime.now(timezone.utc).isoformat()
         _set_job(job)
-        return
-    except AuditError as exc:
-        job.state = "failed"
-        job.error_message = str(exc)
-        job.finished_at = datetime.now(timezone.utc).isoformat()
-        _set_job(job)
-        return
-    except Exception:  # noqa: BLE001
-        job.state = "failed"
-        job.error_message = "An unexpected error occurred during the audit."
-        job.finished_at = datetime.now(timezone.utc).isoformat()
-        _set_job(job)
+        _logger.warning(
+            "Audit input could not be read (%s at %s).",
+            type(exc).__name__, _exception_location(exc),
+        )
         return
 
     pdf_page_sizes: list[tuple[float, float]] = []
