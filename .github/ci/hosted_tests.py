@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FORBIDDEN = ("data/raw", "data/evaluation", "results")
+FORBIDDEN = ("data/raw", "data/evaluation", "docs/evaluation/ester_feedback", "results")
 
 
 def inventory(root: Path) -> dict:

@@ -37,8 +37,8 @@ browser job requires its full coverage. Private test exclusions are reported
 separately from pytest skips.
 
 Every checkout uses `lfs: false`, `GIT_LFS_SKIP_SMUDGE=1`, no persisted credentials,
-one-commit history, and sparse exclusions for `data/raw/`, `data/evaluation/` and
-`results/`. Before executing tests, jobs remove the checkout remote and set
+one-commit history, and sparse exclusions for raw and private evaluation inputs,
+reviewer evidence, and local results. Before executing tests, jobs remove the checkout remote and set
 `lfs.fetchexclude=*`. The boundary checker rejects private roots, replay manifest
 environment variables, materialized LFS files, enabled smudging, remotes, and an
 incomplete test inventory. It prints generic failures rather than private paths
@@ -73,9 +73,9 @@ sparse checkout and this change do not authorize publishing its Git history.
 
 ## Reproducing the hosted selection locally
 
-Use a separate disposable clone, not a checkout holding private evidence. Set
-`GIT_LFS_SKIP_SMUDGE=1` **before cloning**, clone with `--no-checkout --depth 1`,
-then use the sparse patterns shown in `.github/workflows/ci.yml` before checkout.
+Use a separate, authorized fixture-free source checkout. Set
+`GIT_LFS_SKIP_SMUDGE=1` before checkout and apply the sparse patterns shown in
+`.github/workflows/ci.yml`. Do not fetch protected LFS payloads.
 Remove `origin` and set `git config --local lfs.fetchexclude '*'` only in that
 disposable clone. Install `.[dev]` in an isolated environment, then run:
 

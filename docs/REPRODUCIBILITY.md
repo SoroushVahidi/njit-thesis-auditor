@@ -6,35 +6,25 @@ results; a prior pass count is not a promise about a new checkout.
 
 ## Checkout and dependencies
 
-Python **3.10 or newer** is declared in `pyproject.toml`. GitHub Actions tests
-3.10, 3.11, and 3.12; other versions are not part of that CI matrix. Use a
-private, authorized clone for the tracked Ester sources. Install Git LFS and
-materialize the tracked binary fixtures before running tests that use them:
+Use a source checkout approved for your role. Set `GIT_LFS_SKIP_SMUDGE=1`
+before checkout, use the [hosted CI sparse patterns](CI_PRIVACY.md) for routine
+validation, and leave protected sources unmaterialized. The source repository
+is public. Neither a Git filename nor a Git LFS pointer provides confidentiality
+or permission to retrieve the payload.
 
 ```bash
-git lfs install
-git lfs pull
+export GIT_LFS_SKIP_SMUDGE=1
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
+python -m pip check
 ```
 
-Do not copy dissertation PDFs or private outputs into a public checkout. A
-clean clone does not contain ignored `data/evaluation/private/`,
-`data/evaluation/generated/`, local `results/`, private replay manifests,
-review ledgers, or the separate 19-PDF run outputs.
-
-Synthetic fixtures and their tests provide shareable engineering checks. The
-repository is currently private, and access to its tracked LFS files is not
-public. The 136-case reviewer replay and 19-PDF evaluation additionally
-depend on authorized private inputs and cannot be reproduced from a public
-source snapshot or ordinary CI alone.
-
-For checkout roles, saved path dependencies and output retention, start with the
-[development guide](DEVELOPMENT.md). Keep environment installation confined to
-your development worktree; do not reinstall into a production or saved validation
-environment. Documentation-only work does not require materializing private LFS
-inputs or running the full application suite.
+Use generated fixtures for shared tests. Keep private review ledgers, replay
+manifests, manuscript PDFs, case-level findings, and outputs in approved
+restricted storage. Use approved private fixtures only in a separately
+authorized local run. Record any independently verified data scope in the
+private evidence index.
 
 ## Standard checks and exact commits
 
