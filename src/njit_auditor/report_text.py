@@ -34,12 +34,13 @@ from njit_auditor.p011_student_preview import (
     collect_p011_margin_pages_from_serialized,
     init_p011_display_state,
 )
-from njit_auditor.p012_student_preview import count_p012_annotations_by_page
+from njit_auditor.p012_student_preview import count_p012_annotations_by_page, is_p012_finding
 from njit_auditor.p026_student_preview import (
     collect_p026_pattern_pages_from_serialized,
     init_p026_display_state,
 )
 from njit_auditor.report_outputs import (
+    _p012_document_summary_stats,
     _prepare_findings_for_export,
     _problem_location_text,
     _websafe_rule_text,
@@ -304,6 +305,7 @@ def _build_occurrences(
     p011_page_stats: dict[Any, Any],
 ) -> list[_Occurrence]:
     occurrences: list[_Occurrence] = []
+    p012_summary = _p012_document_summary_stats(p012_count_by_page)
     for finding in visible_findings:
         details_raw = finding.get("details", {})
         details = (
@@ -366,7 +368,7 @@ def _build_occurrences(
             _Occurrence(
                 rule_id=rule_id,
                 issue_type=issue_type,
-                page=page,
+                page=None if p012_summary and is_p012_finding(rule_id, issue_type) else page,
                 title=title,
                 section=section,
                 exact_location=exact_location,
