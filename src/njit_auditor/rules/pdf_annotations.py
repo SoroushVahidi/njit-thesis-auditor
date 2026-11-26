@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import fitz
+import pymupdf as fitz
 
 from njit_auditor.models import AuditFinding, Severity
 

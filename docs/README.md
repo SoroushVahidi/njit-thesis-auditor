@@ -1,5 +1,12 @@
 # Documentation guide
 
+Start with the [project README](../README.md) for use, the [development guide](DEVELOPMENT.md)
+for checkout roles, and [reproducibility](REPRODUCIBILITY.md) for checks. The
+[canonical deployment runbook](DEPLOYMENT.md) describes the release gates.
+Use the [status snapshots](status/CURRENT_STATUS.md) to distinguish verified
+source from deployed production. Private incident, operational, and reviewer
+evidence belongs in institutionally approved restricted storage.
+
 Use these entry points for the present system. Dated reports and plans are
 retained as evidence of earlier decisions; read their dates before treating a
 claim as current.

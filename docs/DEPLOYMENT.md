@@ -1,269 +1,87 @@
-# Deployment
+# Online Auditor deployment and rollback
 
-The homepage Windows installer link defaults to disabled. See
-[Windows beta publication](PUBLIC_WINDOWS_RELEASE.md) for hosted build/smoke checks,
-HTTPS artifact verification and release metadata. Installer lifecycle qualification
-is not a beta publication gate. Full NJIT rule distribution
-is authorized; keep the source repository private.
-Do not enable the link merely because the web implementation passes tests.
+The live web UI runs from a dedicated, detached checkout supervised by the user
+systemd unit `thesis-auditor-web.service`. Use the live service configuration
+for its runtime environment and storage paths. The
+[historical deployment checklist](status/live_deployment_checklist.md) records
+prior deployments and the [Windows release guide](PUBLIC_WINDOWS_RELEASE.md)
+covers desktop distribution.
 
-This is the canonical, consolidated deployment doc. The older
-`docs/status/live_deployment_checklist.md` has the full historical detail (including a
-superseded manual-tmux fallback procedure and dated verification snapshots) and is kept for
-reference, but this file is what to follow.
+## Before cutover
 
-**Historical provenance:** the 2026-07-13 documentation audit transcribed the
-established procedure without touching the live server or port 8000. That dated
-statement is not evidence of the current deployment. Use the checks below when
-performing an authorized deployment; documentation edits or passing checks alone
-do not authorize a restart or release. For isolated development and checkout roles,
-see the [development guide](DEVELOPMENT.md).
+### Clean-worktree requirement
 
-## Supervision model
+1. Obtain release authorization. Establish the exact remote main commit, tree,
+   and seven successful exact-checkout hosted jobs. Record the current
+   production revision and the exact rollback target before scheduling downtime.
+2. Use the designated clean production checkout and service environment.
+   Verify the candidate source and resolved dependencies independently of the
+   development environment. Use LFS-free qualification for hosted jobs.
+   The operator handles approved fixture provisioning separately.
+3. Check public and loopback `/healthz` and `/version`. Confirm the service is
+   in the intended role and its approved configuration remains in effect,
+   including disabled production analytics and the intended reviewer and
+   administrative access settings.
+4. Check for active audit or export work. Follow the approved maintenance
+   procedure, then make a fresh private SQLite backup. Verify its owner-only
+   mode, checksum, and integrity. Record sanitized digests or counts for
+   accounts, feedback, comments, attachments, and configuration. Confirm the
+   rollback checkout and environment are available.
 
-The live web UI runs as a **user-level systemd service**, not a manual process:
-
-- **Service name:** `thesis-auditor-web.service` — a *user* unit. Always use
-  `systemctl --user ...`, never `sudo systemctl ...`.
-- **Unit file:** `~/.config/systemd/user/thesis-auditor-web.service` (host-specific, not
-  committed to this repo — template below).
-- **Serves from a dedicated deploy worktree**, never from a developer's day-to-day `main`
-  checkout. Keeping deploy and dev checkouts separate means the live server never picks up
-  someone else's uncommitted in-progress edits.
-- **`Restart=always`** (not `on-failure`): systemd treats a clean `SIGTERM` the same whether it
-  was an intentional stop or something else, so `on-failure` would leave the service down after
-  an unintended `SIGTERM`. This was verified directly on the host that manages this deployment;
-  `Restart=always` still respects an explicit `systemctl --user stop`.
-- **Reboot persistence** requires `loginctl enable-linger <user>` so the user systemd instance
-  (and this service) starts at boot without an interactive login.
-
-## Clean-worktree requirement
-
-**Never deploy from a dirty or stale worktree.** Before pointing the service at a new commit:
-
-1. The deploy worktree must have `git status --short` produce no output (nothing uncommitted,
-   nothing untracked left behind by a prior debugging session).
-2. The commit being deployed must be an ancestor of `origin/main` (normally `origin/main` itself,
-   fast-forwarded) — not a local-only commit, not a rebase in progress.
-3. All three validation gates below must be green **on that exact commit**, not "close enough."
+In the deployment checkout, set `release_sha` to the qualified main commit.
+Verify the worktree and candidate before switching.
+Keep the current environment available for rollback when the dependencies change.
 
 ```bash
-cd <deploy-worktree>
-git fetch origin
-git status --short          # must be empty
-git branch --show-current   # must print nothing: the live worktree stays detached
-git switch --detach <merged-origin-main-sha>   # the exact squash-merge SHA, never a branch
-git rev-parse HEAD          # this is the SHA that must show up in /version after restart
-# Hydrate the four approved historical website samples from Git LFS before validation.
-git lfs pull --include='data/raw/ester/250218 Cibaku Elson First Review.pdf,data/raw/ester/Yin_Haotian_Second_R_with_EF_Feedback.pdf,data/raw/ester/260415 Yin H _2nd_review with EF Comments.pdf,data/raw/ester/Yin_H_4th_Review_with_EF_comments_compressed.pdf' --exclude=''
-PYTHONPATH=src python -c 'from njit_auditor.web_samples import get_public_sample; [get_public_sample(f"ester_sample_{letter}") for letter in "abcd"]'
-# If runtime dependencies changed, sync the service venv as shown below before gates.
-ruff check .
-mypy src
-python -m pytest -q
+git status --short          # Must be empty.
+git branch --show-current   # Must be empty for the detached deploy checkout.
+git fetch origin main
+GIT_LFS_SKIP_SMUDGE=1 git switch --detach "$release_sha"
+git rev-parse HEAD
 ```
 
-Do not restart the live server on a commit that fails any of these.
+Use the existing production sample provisioning and verify all four sample
+digests before restarting. When dependencies change, stage and check the
+release environment with `python -m pip check` before selecting it for the unit.
 
-Deployment never touches the shared review ledger
-(`main/data/evaluation/private/ester_review_ledger`). Authority replays run
-against a scratch copy with `--ledger-root <scratch>`, never `--shared-ledger`.
+## Cutover verification
 
-When the deployed commit changes runtime dependencies in `pyproject.toml`, sync
-the **service's venv** after checking out the exact commit and before running
-the gates or restarting. For the combined student PDF report, this installs
-`reportlab>=4.0.0`, which is required at web-app import time:
-
-```bash
-<service-venv>/bin/python -m pip install -e .
-<service-venv>/bin/python -c "import reportlab; import njit_auditor.student_pdf_report"
-```
-
-The deployment uses a worktree and `PYTHONPATH` pointing at its `src/` directory.
-An isolated non-editable wheel from this tree lacks repository rule/spec JSON
-and web HTML templates. It does not provide an equivalent standalone web
-installation. Keep the established worktree layout; see
-[reproducibility](REPRODUCIBILITY.md) for the verified packaging boundary.
-
-## Restart procedure
+1. Switch only to the exact qualified revision and use the service supervisor
+   for the restart. Verify the running source SHA and tree and confirm the
+   exact version and health through public and loopback routes.
+2. Run approved synthetic upload and download smoke checks. A successful audit
+   must publish terminal metadata only when the required reports are available.
+   Verify HTML, JSON, text, Markdown, and PDF reports, finding references, and
+   highlight geometry. Check that failed audits conceal partial outputs and
+   private details.
+3. Verify the authorized reviewer workflow, General Feedback, and attachment
+   behavior at their appropriate test scopes. Verify the database and effective
+   configuration against the before snapshots and confirm analytics remains
+   disabled. Run approved correction and retained-regression checks at the
+   recorded synthetic, excerpt, or exact-original scope.
+4. Record terminal receipts before updating deployment dispositions or
+   communicating release completion. See
+   [reproducibility](REPRODUCIBILITY.md) and [hosted CI privacy](CI_PRIVACY.md).
 
 ```bash
 systemctl --user restart thesis-auditor-web.service
-sleep 3
-curl -s http://127.0.0.1:8000/version   # confirm commit + a fresh process_start_time
+curl --retry 8 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:8000/healthz
+curl -fsS http://127.0.0.1:8000/version
 ```
-
-## General Feedback on the HTTP website
-
-Keep `NJIT_AUDITOR_REVIEWER_HTTP_BETA_ENABLED=1` and the existing
-`NJIT_AUDITOR_ADMIN_DB_PATH` and `NJIT_AUDITOR_ADMIN_SESSION_KEY` in the service
-environment file. Reviewers sign in with their existing accounts. Keep web
-administrator access disabled. The host operator can read General Feedback and
-retrieve attachments using their existing filesystem access.
-
-Before updating the deployment checkout, set `db` to the database path from
-the service environment file and make an owner-only SQLite backup:
-
-```bash
-db=/absolute/path/to/existing-feedback.sqlite3
-backup=$(mktemp "$db.backup.XXXXXX")
-python3 - "$db" "$backup" <<'PY'
-import sqlite3
-import sys
-from contextlib import closing
-from pathlib import Path
-
-source_uri = Path(sys.argv[1]).resolve().as_uri() + "?mode=ro"
-with closing(sqlite3.connect(source_uri, uri=True)) as source:
-    with closing(sqlite3.connect(sys.argv[2])) as target:
-        source.backup(target)
-        if target.execute("PRAGMA quick_check").fetchone() != ("ok",):
-            raise SystemExit("Backup integrity check failed")
-PY
-```
-
-Record the backup path and follow the clean-worktree, dependency sync, and
-restart steps above. Keep the current service environment and audit runtime.
-The first feedback database connection creates `general_feedback` and its
-index in the existing database. Attachments are stored in that table. The
-existing account and finding-feedback tables remain in place.
-
-From a private operator shell, list submissions with the following command.
-To retrieve one attachment, use its `id` and supply a new output path in an
-owner-only directory. The original attachment name is shown in the list.
-
-```bash
-feedback_id=''  # Set this and output to retrieve an attachment.
-output=''
-(
-umask 077
-python3 - "$db" "$feedback_id" "$output" <<'PY'
-import json
-import sqlite3
-import sys
-from contextlib import closing
-from pathlib import Path
-
-db_path, feedback_id, output = sys.argv[1:]
-uri = Path(db_path).resolve().as_uri() + "?mode=ro"
-with closing(sqlite3.connect(uri, uri=True)) as db:
-    db.row_factory = sqlite3.Row
-    if feedback_id:
-        row = db.execute(
-            "SELECT attachment_data FROM general_feedback WHERE id = ?",
-            (feedback_id,),
-        ).fetchone()
-        if row is None or row["attachment_data"] is None:
-            raise SystemExit("No attachment for that feedback ID")
-        with open(output, "xb") as attachment:
-            attachment.write(row["attachment_data"])
-    else:
-        rows = db.execute("""
-            SELECT g.id, g.created_at, a.username, g.comment, g.attachment_name
-            FROM general_feedback AS g JOIN admins AS a ON a.id = g.submitted_by_admin_id
-            ORDER BY g.created_at DESC, g.id DESC
-        """)
-        for row in rows:
-            print(json.dumps(dict(row)))
-PY
-)
-```
-
-After restart, check `/healthz`, `/version`, and `/reviewer/login` on the live
-HTTP site. Use the deployed code in a separate loopback instance with a
-scratch database, session key, and audit runtime to smoke-test login,
-General Feedback navigation, text and file submissions, saved confirmation,
-history after restart, and operator retrieval. Use only synthetic accounts
-and files in the scratch instance.
-
-## Status / logs
-
-```bash
-systemctl --user status thesis-auditor-web.service
-journalctl --user -u thesis-auditor-web.service -n 100 --no-pager
-```
-
-## Stop / start (intentional maintenance)
-
-```bash
-systemctl --user stop thesis-auditor-web.service     # the only clean way to keep it down
-systemctl --user start thesis-auditor-web.service
-```
-
-A bare `kill -TERM <pid>` will **not** stay down — `Restart=always` relaunches it (bounded by
-`StartLimitBurst=5` / `StartLimitIntervalSec=60`).
-
-## Smoke test after restart
-
-1. `GET /healthz` → `200`, `{"ok": true, ...}`.
-2. `GET /version` → `commit` equals the SHA from step 1 of the clean-worktree checklist above.
-   If `commit` is `"unknown"`, the process was started outside the git checkout — treat as a
-   failed deploy.
-   `environment` should be `"production"`; `"local-dev"` means the unit does not set
-   `NJIT_AUDITOR_WEB_ENVIRONMENT` (see the unit template below). Changing the unit requires
-   `systemctl --user daemon-reload` and a restart, so do it in a planned maintenance step.
-   As verified on 2026-10-12, the live unit sets this variable and `/version` reports
-   `"production"`.
-3. `GET /` and `GET /rules` → `200`.
-4. Download `/sample.pdf`, then upload it with `POST /audits` and confirm the job completes
-   and reports download. Confirm legacy URL/sample POSTs and mixed file/URL submissions redirect
-   to the upload-required error page without creating a job. Check Help, Rules, About, and the
-   unchanged published Windows installer link.
 
 ## Rollback
 
-If the smoke test fails: `git checkout <previous-known-good-SHA>` in the deploy worktree, confirm
-`git status --short` is empty, then repeat the restart + smoke-test steps above against that SHA.
-Do not attempt a partial/manual file-level rollback inside the deploy worktree.
+On a failed cutover gate, use the approved rollback procedure to restore the
+previous verified code and environment. Preserve the live feedback database
+and both sets of receipts. Restore database data only if necessary under the
+approved backup and recovery decision. Recheck public and loopback health,
+version, reviewer access, database integrity, row and attachment preservation,
+and disabled analytics. Record the failed gate and restored revision.
 
-## Never do this
+## Maintenance handoff
 
-- Never edit files directly inside the deploy worktree to "hotfix" something — merge through a
-  normal PR to `main`, then update the deploy worktree to that merged commit and restart.
-- Never start a bare `nohup uvicorn ...` or an ad hoc tmux process against port 8000 "just for
-  now" — it has no supervisor and a lost terminal/reboot/`SIGTERM` will silently take the site
-  down. If you need an ad hoc instance for local debugging, use a different port and a scratch
-  `NJIT_AUDITOR_WEB_RUNTIME_DIR`.
-- Never restart after only "Python route tables / Jinja registrations are created at import
-  time" — template auto-reload is not sufficient for route, Jinja-global, filter, or
-  startup-config changes; a restart is required.
-
-## Generic systemd unit template
-
-Substitute the absolute paths for the deploy worktree and its venv on the target host — nothing
-here is secret.
-
-```ini
-[Unit]
-Description=NJIT Thesis Auditor Web GUI
-After=network-online.target
-
-[Service]
-Type=simple
-WorkingDirectory=/path/to/deploy-worktree
-# Label reported by /version; without it /version says "local-dev".
-Environment=NJIT_AUDITOR_WEB_ENVIRONMENT=production
-Environment=PYTHONPATH=/path/to/deploy-worktree/src
-Environment=NJIT_AUDITOR_WEB_RUNTIME_DIR=/path/to/deploy-worktree/.runtime/web_audits
-# Optional: retention window (default 86400) and sweep interval (default 300).
-# Environment=NJIT_AUDITOR_WEB_JOB_TTL_SECONDS=3600
-# Environment=NJIT_AUDITOR_WEB_CLEANUP_INTERVAL_SECONDS=300
-ExecStart=/path/to/venv/bin/python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
-Restart=always
-RestartSec=5
-StartLimitIntervalSec=60
-StartLimitBurst=5
-
-[Install]
-WantedBy=default.target
-```
-
-After creating/editing: `systemctl --user daemon-reload`, then
-`systemctl --user enable --now thesis-auditor-web.service`, then
-`loginctl enable-linger <user>`.
-
-## Full historical detail
-
-`docs/status/live_deployment_checklist.md` retains the manual-tmux fallback procedure (for hosts
-without a user systemd instance) and dated verification snapshots. Treat any SHA/PR/test-count
-numbers in that file as historical, not current — see `docs/status/CURRENT_STATUS.md` instead.
+Record the service and environment, release lock, backup verification, rollback
+target, and location of the release receipts. Use
+[reviewer and administrative feedback](implementation/admin_feedback.md)
+for the feature contract and [the status snapshots](status/CURRENT_STATUS.md)
+for dated source and production observations.

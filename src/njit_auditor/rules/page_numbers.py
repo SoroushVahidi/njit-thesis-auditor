@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-import fitz
+import pymupdf as fitz
 
 from njit_auditor.models import AuditFinding, Severity
 

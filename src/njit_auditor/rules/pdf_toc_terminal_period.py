@@ -20,7 +20,7 @@ import re
 from collections.abc import Callable
 from functools import cache, partial
 
-import fitz
+import pymupdf as fitz
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextSpan, format_bbox_detail

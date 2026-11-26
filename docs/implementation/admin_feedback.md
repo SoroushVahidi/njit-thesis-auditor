@@ -98,28 +98,18 @@ until an administrator explicitly deletes it.
 
 ## Backup, restore, and migration
 
-Back up the database with SQLite's online backup API or the `sqlite3` CLI `.backup` command while
-the service is running. Store backups in a private, encrypted location; protect them like the
-database because they include comments and active sessions. Check backup integrity with
-`PRAGMA integrity_check` and record `PRAGMA user_version` before an application update.
-Keep the session key in a separate protected secret backup. Restored account password hashes
-remain valid without the old session key, but rotating that key invalidates every session.
+Back up the database with SQLite's online backup API or the `sqlite3` CLI
+`.backup` command. Store the backup with owner-only access. Check it with
+`PRAGMA integrity_check` and record `PRAGMA user_version`. Keep the session key
+in a separate protected backup. Rotating it will invalidate existing sessions.
 
-For restoration, disable administrator login, stop the application, restore the backup to the
-configured persistent path, set owner and permissions (`0700` parent, `0600` database), and
-revoke restored sessions before starting the application. Re-enable administrator login only
-after integrity and schema checks. Restore the matching application schema version and verify
-that account IDs, review attribution, and login work with a synthetic account in a staging copy.
-Audit files are separate and are not restored with feedback.
+If restoration is necessary, disable administrator login and stop the service
+before restoring to the configured database path. Set the parent directory to
+`0700` and the database to `0600`. Revoke restored sessions before startup.
+Verify the schema, account IDs, reviewer attribution, feedback rows, and
+attachment digests. Audit files are stored separately.
 
-Before a future schema migration, make and verify a backup, then deploy a version that explicitly
-supports the existing `user_version`. The application creates version 5 in one transaction and
-refuses unknown versions. Version 1, 2, 3, and 4 databases are migrated in one transaction,
-preserving all feedback IDs and records. Version 1 also loses the one-review-per-finding limit.
-Old sessions are revoked during migration, including shared-password sessions from version 3.
-Version 5 backups must be restored with a version 5 compatible application. Document and test every
-subsequent version transition before deployment. Roll back by restoring the matching backup and
-application version.
-
-Backups made before the version 3 migration may still contain the former session CSRF values.
-Keep those backups private and remove them under the administrator's backup-retention policy.
+The current schema is version 5. The application migrates versions 1 through 4
+transactionally and preserves feedback IDs and records. Use a version 5
+compatible application to restore a version 5 backup. See the
+[deployment runbook](../DEPLOYMENT.md) for production checks and code rollback.

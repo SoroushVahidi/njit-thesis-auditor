@@ -4,7 +4,16 @@
 > advertised GitHub main and the live `/version` before using these values for
 > development or release work.
 
-## Verified baseline — 2026-11-22
+## Source and production snapshot — 2026-11-26
+
+| Role | Verified observation |
+| --- | --- |
+| Remote main | `dc40ec37e4d9dfb9df1205683cf75ecd2434fdd9`, tree `12159560e9ffc9193d36c4bb3eef7c06f1e6a9a8`. All seven [exact-checkout main CI jobs](https://github.com/SoroushVahidi/njit-thesis-auditor/actions/runs/45882403376) passed. |
+| Running website | `380ccb78f7fa146c8100a0fda0333fb70029feba`. Public and loopback health passed after the rollback. |
+| Release disposition | The smoke gate detected a job marked complete before terminal metadata was published. The service restored the prior revision. The latest feedback corrections on main await a successful qualified release. |
+| Configuration | Production aggregate analytics remains disabled. The existing reviewer accounts and feedback records were preserved during rollback. |
+
+## Historical snapshot — 2026-11-22
 
 | Role | Observation |
 | --- | --- |

@@ -33,7 +33,7 @@ def test_multipart_dependency_contract() -> None:
                 if (item := Requirement(text)).marker is None}
     pins = {item.name: item for text in constraints.read_text().splitlines()
             if text and not text.startswith("#") and (item := Requirement(text))}
-    assert set(pins) == {"fastapi", "starlette"}
+    assert set(pins) == {"fastapi", "starlette", "python-multipart"}
     for name, pinned in pins.items():
         pin, = pinned.specifier
         assert pin.operator == "=="

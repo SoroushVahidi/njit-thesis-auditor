@@ -20,7 +20,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-import fitz
+import pymupdf as fitz
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.pdfbase import pdfmetrics

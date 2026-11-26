@@ -11,7 +11,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Concatenate, ParamSpec, TypeVar
 
-import fitz
+import pymupdf as fitz
 
 P = ParamSpec("P")
 T = TypeVar("T")

@@ -12,20 +12,23 @@ license = { text = "MIT" }
 authors = [{ name = "Soroush Vahidi" }]
 dependencies = [
   "pymupdf>=1.25.0",
-  "pdfplumber>=0.11.0",
-  "pypdf>=5.0.0",
+  "pdfplumber>=0.11.0; sys_platform == 'win32'",
+  "pypdf>=6.21.4; sys_platform != 'win32'",
+  "pypdf>=5.0.0; sys_platform == 'win32'",
   "typer>=0.12.0",
   "rich>=13.7.0",
   "pydantic>=2.7.0",
   "pylatexenc>=2.10",
-  "fastapi>=0.115.7",
-  "starlette>=0.44.0",
+  "fastapi>=0.141.1",
+  "starlette>=1.6.0",
   "uvicorn[standard]>=0.30.0",
-  "python-multipart>=0.0.9",
+  "python-multipart>=0.0.32",
   "jinja2>=3.1.0",
   "python-docx>=1.0.0",
   "reportlab>=4.0.0",
-  "pillow>=12.0.0",
+  "pillow>=13.0.0; python_version >= '3.11' and sys_platform != 'win32'",
+  "pillow>=12.3.0; python_version < '3.11' and sys_platform != 'win32'",
+  "pillow>=12.0.0; sys_platform == 'win32'",
   "argon2-cffi>=23.1.0",
 ]
 
@@ -90,7 +93,7 @@ mypy_path = "src"
 packages = ["njit_auditor"]
 
 [[tool.mypy.overrides]]
-module = ["fitz", "pymupdf"]
+module = ["pymupdf"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

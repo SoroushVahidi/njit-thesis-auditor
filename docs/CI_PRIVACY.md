@@ -13,7 +13,7 @@ selection in [tests.json](../.github/ci/tests.json). The separate Python 3.12
 browser job runs six explicit targets with generated PDFs and loopback services;
 zero tests or any browser skip fails that job.
 
-At the [2026-11-22 baseline](status/CURRENT_STATUS.md#verified-baseline--2026-11-22),
+At the [2026-11-22 baseline](status/CURRENT_STATUS.md#historical-snapshot--2026-11-22),
 the inventory classified 226 hosted modules, 18 local-only modules, and five
 support modules. The [test manifest](../.github/ci/tests.json) is the current
 source of truth. The six browser targets are a selection from the hosted inventory.
@@ -37,8 +37,8 @@ browser job requires its full coverage. Private test exclusions are reported
 separately from pytest skips.
 
 Every checkout uses `lfs: false`, `GIT_LFS_SKIP_SMUDGE=1`, no persisted credentials,
-one-commit history, and sparse exclusions for `data/raw/`, `data/evaluation/` and
-`results/`. Before executing tests, jobs remove the checkout remote and set
+one-commit history, and sparse exclusions for raw and private evaluation inputs,
+reviewer evidence, and local results. Before executing tests, jobs remove the checkout remote and set
 `lfs.fetchexclude=*`. The boundary checker rejects private roots, replay manifest
 environment variables, materialized LFS files, enabled smudging, remotes, and an
 incomplete test inventory. It prints generic failures rather than private paths
@@ -66,16 +66,15 @@ zero executed steps. Record a zero-step run as a hosted infrastructure blocker.
 List local results separately with their exact SHA or Git tree. Review the
 saved job annotation before considering a rerun.
 
-These controls protect the reviewed workflow from accidental fixture fetching or
-test inclusion. They are not a sandbox for malicious changes to workflows/code.
-Workflow edits still require review. The source repository remains private;
-sparse checkout and this change do not authorize publishing its Git history.
+The source repository is public. Sparse checkout keeps fixture inputs out of the
+hosted test workspace. Review workflow edits for any changes to the files the
+runner fetches or processes.
 
 ## Reproducing the hosted selection locally
 
-Use a separate disposable clone, not a checkout holding private evidence. Set
-`GIT_LFS_SKIP_SMUDGE=1` **before cloning**, clone with `--no-checkout --depth 1`,
-then use the sparse patterns shown in `.github/workflows/ci.yml` before checkout.
+Use a separate, authorized fixture-free source checkout. Set
+`GIT_LFS_SKIP_SMUDGE=1` before checkout and apply the sparse patterns shown in
+`.github/workflows/ci.yml`. Do not fetch protected LFS payloads.
 Remove `origin` and set `git config --local lfs.fetchexclude '*'` only in that
 disposable clone. Install `.[dev]` in an isolated environment, then run:
 

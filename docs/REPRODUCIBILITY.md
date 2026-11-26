@@ -6,37 +6,36 @@ results; a prior pass count is not a promise about a new checkout.
 
 ## Checkout and dependencies
 
-Python **3.10 or newer** is declared in `pyproject.toml`. GitHub Actions tests
-3.10, 3.11, and 3.12; other versions are not part of that CI matrix. Use a
-private, authorized clone for the tracked Ester sources. Install Git LFS and
-materialize the tracked binary fixtures before running tests that use them:
+Use a source checkout approved for your role. Set `GIT_LFS_SKIP_SMUDGE=1`
+before checkout, use the [hosted CI sparse patterns](CI_PRIVACY.md) for routine
+validation, and leave protected sources unmaterialized. The source repository
+is public. Neither a Git filename nor a Git LFS pointer provides confidentiality
+or permission to retrieve the payload.
 
 ```bash
-git lfs install
-git lfs pull
+export GIT_LFS_SKIP_SMUDGE=1
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
+python -m pip check
 ```
 
-Do not copy dissertation PDFs or private outputs into a public checkout. A
-clean clone does not contain ignored `data/evaluation/private/`,
-`data/evaluation/generated/`, local `results/`, private replay manifests,
-review ledgers, or the separate 19-PDF run outputs.
-
-Synthetic fixtures and their tests provide shareable engineering checks. The
-repository is currently private, and access to its tracked LFS files is not
-public. The 136-case reviewer replay and 19-PDF evaluation additionally
-depend on authorized private inputs and cannot be reproduced from a public
-source snapshot or ordinary CI alone.
-
-For checkout roles, saved path dependencies and output retention, start with the
-[development guide](DEVELOPMENT.md). Keep environment installation confined to
-your development worktree; do not reinstall into a production or saved validation
-environment. Documentation-only work does not require materializing private LFS
-inputs or running the full application suite.
+Use generated fixtures for shared tests. Keep private review ledgers, replay
+manifests, manuscript PDFs, case-level findings, and outputs in approved
+restricted storage. Use approved private fixtures only in a separately
+authorized local run. Record any independently verified data scope in the
+private evidence index.
 
 ## Standard checks and exact commits
+
+From an approved fixture-free checkout, create a fresh virtual environment,
+install with `python -m pip install -e ".[dev]"`, and run
+`python -m pip check`. For the minimum reviewer checks, install with
+`-c .github/ci/minimum-multipart.txt` and run the same two modules as the
+minimum hosted job with `NJIT_TEST_MINIMUM_MULTIPART=1`.
+The constraints and tests check the actual FastAPI, Starlette, and
+python-multipart versions. Record the resolved packages per Python version
+for a release rehearsal.
 
 From the repository root, record the commit and tree being checked before
 comparing results:
@@ -68,8 +67,8 @@ complete private local gate.
 ## Browser checks with synthetic local services
 
 The `browser` extra pins Playwright **1.64.1** and psutil **7.2.2**, separate from
-runtime dependencies. Use Python 3.12 for the browser CI job. From a private
-checkout on Ubuntu:
+runtime dependencies. Use Python 3.12 on Ubuntu in a fixture-free checkout
+configured as described in [CI privacy](CI_PRIVACY.md).
 
 ```bash
 python -m venv .venv
@@ -77,7 +76,7 @@ source .venv/bin/activate
 python -m pip install -e ".[dev,browser]"
 python -m playwright install --with-deps chromium
 python -m playwright --version
-python -m pytest -q tests/test_about_browser.py tests/test_ui_help_mobile_overflow.py tests/test_windows_download.py::test_browser_layout_and_keyboard tests/test_browser_audit_workflow.py --junitxml=.runtime/browser-ci.xml
+python .github/ci/hosted_tests.py browser
 ```
 
 `--with-deps` installs OS packages and may need administrator privileges locally;
@@ -133,12 +132,14 @@ against historical feedback; do not treat its exit code as reviewer approval.
 
 ## Wheel installation boundary
 
-The established deployment installs from a checkout and sets `PYTHONPATH` to
-its `src/` directory. An isolated non-editable wheel built from this tree on
-2026-10-12 contained Python modules but **no** `data/processed/` or
-`data/specs/` JSON and **no** `njit_auditor/templates/*.html`. For example,
-`report_text.py`, `polished_comments.py`, and `ester_warning_wording.py` read
-repository-relative JSON, while `web_app.py` loads templates beside its source
-module. A wheel-only installation therefore cannot be claimed to provide the
-same rule metadata and web UI as a checkout. Fixing package data, resource
-lookup, and isolated-install coverage belongs in a separate engineering PR.
+The online service currently runs from a checkout. The wheel also packages
+the runtime rule data, web templates, and report font. The source distribution
+includes the inputs required to build those resources.
+
+For release qualification, build the wheel and source distribution from a
+fixture-free checkout. In a fresh environment outside the source directory,
+install the wheel, run `python -m pip check`, and verify the packaged resources
+with a synthetic audit and web report smoke. Inspect both package inventories
+for excluded manuscripts, reviewer evidence, and local output before
+distributing either artifact. Keep installed-wheel verification separate from
+checks that import the repository's `src/` directly.

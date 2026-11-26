@@ -22,14 +22,17 @@ This project is:
 
 ## Quick install
 
-Use Python 3.10 or newer in an authorized private checkout. See
-[development and worktrees](docs/DEVELOPMENT.md) before using a shared host, and
-[reproducibility](docs/REPRODUCIBILITY.md) for Git LFS fixtures and CI versions.
+CI tests Python 3.10, 3.11 and 3.12. Use a checkout approved for your role, with
+LFS smudging disabled before checkout. The source repository is public and is
+not a destination for protected inputs. See [development and worktrees](docs/DEVELOPMENT.md)
+and [reproducibility](docs/REPRODUCIBILITY.md) for isolated installation and
+authorized fixture boundaries.
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
+python -m pip check
 ```
 
 Python distributions built with `python -m build` include the web and offline
@@ -41,13 +44,12 @@ provenance.
 ## Web UI
 
 ```bash
-./scripts/run_web_gui.sh              # starts on 0.0.0.0:8000
-# or
-python -m uvicorn njit_auditor.web_app:app --host 0.0.0.0 --port 8000
+python -m uvicorn njit_auditor.web_app:app --host 127.0.0.1 --port 8000
 ```
 
 Open `http://localhost:8000`. The public web UI accepts **uploaded PDF files only**.
-To try an example, choose **Download sample PDF**, save it, and upload the saved file.
+To try an example, choose **Download sample PDF**, save it, and upload the file.
+For a development instance without site samples, use a synthetic PDF.
 Document-URL and built-in sample audit shortcuts are disabled. Legacy submissions receive
 “Please upload your document to start an audit.” without fetching a URL or starting a worker.
 A nonempty legacy document-URL field is rejected even when a file is also attached.
@@ -56,8 +58,8 @@ Results include summary cards, findings by topic, findings in page order, client
 (rule/category/page/confidence), privacy-safe polished comments per finding, and a **Complete PDF
 Report** download. That PDF contains the entire thesis with reliable formatting locations
 highlighted, followed by page-ordered explanations for every student-visible finding. Findings
-without an exact highlight still appear in the appended report. Plain text, Markdown, and JSON
-downloads remain available. Treat downloaded complete reports as private thesis content. See
+without an exact highlight still appear in the appended report. The site also
+supports a standalone Comments PDF and text, Markdown, and JSON downloads. Treat downloaded complete reports as private thesis content. See
 [the complete report guide](docs/features/combined_student_pdf_report.md). Web exports use
 basename-only paths and strip several private-detail fields (see
 **Privacy statement** below); CLI exports are not sanitized.
@@ -69,6 +71,21 @@ For deploying and supervising a persistent instance, see [docs/DEPLOYMENT.md](do
 For the manual browser QA checklist, see
 [docs/web_ui_manual_qa_checklist.md](docs/web_ui_manual_qa_checklist.md). For a synthetic-fixture
 walkthrough, see [docs/web_ui_demo_guide.md](docs/web_ui_demo_guide.md).
+
+## Reviewer feedback
+
+A configured reviewer can sign in, submit feedback on a finding using its
+within-audit reference, and submit General Feedback with an optional supported
+attachment. Reviewers can see their own General Feedback submissions. Keep
+attachments and feedback in the approved service. The opt-in website reviewer
+flow and privileged administrative access have separate authorization requirements.
+See [reviewer and administrative feedback](docs/implementation/admin_feedback.md).
+
+The site accepts PDF uploads. Uploads are used by the temporary audit workflow,
+so use only documents you are authorized to submit. Aggregate web analytics is
+disabled by default and remains disabled in the verified production deployment.
+See [status and deployment](docs/status/CURRENT_STATUS.md) for the distinction
+between qualified source and the current service revision.
 
 ## CLI usage
 
@@ -152,7 +169,8 @@ in full.
 
 ## Privacy statement
 
-Designed for local processing only — keep thesis/dissertation files on your own machine.
+Local CLI processing keeps input on your machine. A hosted audit temporarily
+processes the file on the service, so use only authorized inputs.
 
 - **No submitted document URL is fetched.** User-submitted audits require an uploaded PDF.
 - **Web export privacy reduction:** web-generated JSON/Markdown downloads use basename-only paths
@@ -166,9 +184,10 @@ Designed for local processing only — keep thesis/dissertation files on your ow
   server receives no requests. Pending/running jobs are never deleted.
 - **No authentication or rate limiting by default.** A public deployment needs a reverse proxy,
   TLS, authentication, and rate limiting — see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
-- This repository's own evaluation data includes real, private student dissertations under
-  `data/raw/ester/` (all 16 tracked paths are Git LFS pointers at the verified
-  2026-10-12 commit; see [docs/EVALUATION_DATA.md](docs/EVALUATION_DATA.md)) — keep the repo private.
+- Source repository visibility is public. Store protected manuscripts, reviewer
+  records, operational settings, and restricted evidence only in approved
+  access-controlled locations. Git LFS does not provide a confidentiality boundary.
+  See [evaluation data handling](docs/EVALUATION_DATA.md).
 
 ## Limitations
 
@@ -193,7 +212,7 @@ Designed for local processing only — keep thesis/dissertation files on your ow
 | `src/njit_auditor/` | Shared Python application, CLI, web and desktop entry points; rules and templates. |
 | `tests/`, `examples/` | Automated checks, fixtures and synthetic examples. |
 | `data/specs/`, `data/processed/` | Private institutional specifications and application metadata; not disposable build output. |
-| `data/raw/` | Protected source and research inputs; not a public sample directory. |
+| Evaluation inputs | Use synthetic fixtures or a separately authorized data location. |
 | `docs/` | Guides, plans, dated validation and historical evidence. |
 | `scripts/`, `.github/workflows/` | Development, validation, packaging and CI tooling. |
 | `packaging/`, `assets/` | Desktop packaging definitions and runtime fonts/icons. |

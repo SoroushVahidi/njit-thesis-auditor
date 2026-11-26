@@ -50,6 +50,7 @@ jobs:
             /*
             !/data/raw/
             !/data/evaluation/
+            !/docs/evaluation/ester_feedback/
             !/results/
       - name: Disable subsequent fixture fetching
         run: |

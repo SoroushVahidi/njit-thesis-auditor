@@ -286,6 +286,86 @@ def test_status_endpoint_complete_after_audit(client: tuple[TestClient, Any]) ->
     assert data["state"] in ("complete", "running", "failed")
 
 
+@pytest.mark.parametrize("write_fails", [False, True], ids=["complete", "failed"])
+def test_status_publication_waits_for_final_report(
+    client: tuple[TestClient, Any], tmp_path: Path, write_fails: bool
+) -> None:
+    """Observe the running job while the worker is paused at its final report write."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    c, wa = client
+    source = tmp_path / "synthetic.pdf"
+    _make_real_pdf(source, page_count=1)
+    with patch.object(wa, "_run_audit_task", lambda job_id: None):
+        submitted = c.post(
+            "/audits",
+            files={"file": ("synthetic.pdf", source.read_bytes(), "application/pdf")},
+            follow_redirects=False,
+        )
+    assert submitted.status_code == 303
+    base = submitted.headers["location"]
+    job_id = base.rsplit("/", 1)[-1]
+    assert c.get(base + "/status").json()["state"] == "pending"
+    job_dir = wa._job_dir(job_id)
+    entered = Event()
+    finish = Event()
+    write_text = Path.write_text
+    private_error = "private report-generation detail"
+
+    def pause_report(path: Path, text: str, **kwargs: Any) -> int:
+        if path == job_dir / "report.txt":
+            entered.set()
+            assert finish.wait(timeout=15), "test did not release the report writer"
+            if write_fails:
+                write_text(path, private_error, **kwargs)
+                raise OSError(private_error)
+        return write_text(path, text, **kwargs)
+
+    downloads = ("json", "markdown", "text")
+    private_routes = (*downloads, "student-report.pdf", "comments.pdf")
+    with (
+        patch.object(wa, "run_audit_for_uploaded_file", _fake_dispatch),
+        patch.object(Path, "write_text", pause_report),
+        ThreadPoolExecutor(max_workers=1) as workers,
+    ):
+        worker = workers.submit(wa._run_audit_task, job_id)
+        try:
+            assert entered.wait(timeout=15), "worker did not reach the final report write"
+            assert (job_dir / "report.json").is_file()
+            assert (job_dir / "report.md").is_file()
+            intermediate = c.get(base + "/status").json()
+            assert intermediate["state"] == "running"
+            assert intermediate["finished_at"] is None
+            assert intermediate["finding_count"] == 0
+            for route in private_routes:
+                assert c.get(f"{base}/download/{route}").status_code == 404
+        finally:
+            finish.set()
+        worker.result(timeout=15)
+
+    terminal = c.get(base + "/status").json()
+    assert terminal["finished_at"]
+    if write_fails:
+        assert terminal["state"] == "failed"
+        assert terminal["file_name"] == ""
+        assert terminal["finding_count"] == 0
+        for route in private_routes:
+            response = c.get(f"{base}/download/{route}")
+            assert response.status_code == 404
+            assert private_error not in response.text
+        page = c.get(base)
+        assert "An unexpected error occurred during the audit." in page.text
+        assert private_error not in page.text
+    else:
+        assert terminal["state"] == "complete"
+        assert terminal["file_name"] == "synthetic.pdf"
+        for route in downloads:
+            response = c.get(f"{base}/download/{route}")
+            assert response.status_code == 200
+            assert response.content
+
+
 # ---------------------------------------------------------------------------
 # Results rendering
 # ---------------------------------------------------------------------------
