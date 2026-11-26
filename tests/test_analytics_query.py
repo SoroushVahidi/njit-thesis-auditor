@@ -101,6 +101,7 @@ def test_day_closing_with_inflight_producer_has_no_exact_report(database):
     for _ in range(2 * 24 * 60 - 1):
         collector.clock.advance(60)
         collector._tick()
+    collector.clock.advance(59)
     ready = threading.Event()
     resume = threading.Event()
 
@@ -114,7 +115,7 @@ def test_day_closing_with_inflight_producer_has_no_exact_report(database):
     producer.start()
     assert ready.wait(5)
     try:
-        collector.clock.advance(60)
+        collector.clock.advance(1)
         collector._tick()
         during = query_usage(database, "2030-01-02", "2030-01-03")["periods"][0]
         assert during["coverage"] == "partial"
