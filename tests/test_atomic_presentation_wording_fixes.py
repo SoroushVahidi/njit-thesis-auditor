@@ -29,12 +29,73 @@ IDs — they are wording/dict-entry additions and deletions only.
 
 from __future__ import annotations
 
+import pytest
+
 from njit_auditor.finding_explanations import _EXPLANATION_TEMPLATES
 from njit_auditor.issue_type_explanations import _RULE_ISSUE_EXPLANATIONS, explain_issue_type
 from njit_auditor.polished_comments import (
     _ISSUE_TEMPLATES,
+    _remediation_by_rule,
     build_polished_comment,
+    resolve_suggested_fix_for_display,
 )
+
+
+@pytest.mark.parametrize(
+    ("rule_id", "issue_type", "expected"),
+    [
+        (
+            "P063",
+            "single_appendix_uses_letter_label",
+            "For a sole appendix, remove the letter after APPENDIX in the heading.",
+        ),
+        (
+            "P063",
+            "multiple_appendix_missing_letter",
+            "Add the missing letter to the appendix heading in alphabetical order.",
+        ),
+        (
+            "P063",
+            "appendix_letter_sequence_gap",
+            "Correct the appendix labels so their letters are consecutive.",
+        ),
+        (
+            "P063",
+            "appendix_letter_sequence_repeat",
+            "Give each appendix a distinct letter in alphabetical order.",
+        ),
+        (
+            "P064",
+            "references_entry_indentation_inconsistent",
+            "Use either hanging indent or flush-left consistently for all reference entries, "
+            "following the style agreed with your advisor.",
+        ),
+        (
+            "P064",
+            "references_entry_spacing_inconsistent",
+            "Use consistent double spacing between consecutive reference entries.",
+        ),
+    ],
+)
+def test_appendix_heading_and_reference_fixes_are_specific(
+    rule_id: str, issue_type: str, expected: str
+) -> None:
+    assert resolve_suggested_fix_for_display(rule_id, issue_type) == expected
+    generic_fix = _remediation_by_rule()[rule_id]
+    assert resolve_suggested_fix_for_display(rule_id, issue_type, existing=generic_fix) == expected
+
+
+def test_appendix_and_references_keep_other_recorded_advice() -> None:
+    fix = "Apply the same indentation to the continuation lines on this page."
+    assert resolve_suggested_fix_for_display(
+        "P064", "references_entry_indentation_inconsistent", existing=fix
+    ) == fix
+    assert resolve_suggested_fix_for_display(
+        "P064", "references_section_heading_not_detected"
+    ) == _remediation_by_rule()["P064"]
+    assert resolve_suggested_fix_for_display(
+        "P063", "appendix_subsection_missing_letter_prefix"
+    ) == "Add the owning appendix's letter before the leading dot in the subsection number."
 
 # ---------------------------------------------------------------------------
 # P014 double-"issue" bug

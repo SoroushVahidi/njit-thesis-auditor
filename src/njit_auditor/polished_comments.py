@@ -986,8 +986,27 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P055", "body_figure_reference_abbreviated"): (
         "Use the full word 'Figure' before the number in this body reference."
     ),
+    ("P063", "single_appendix_uses_letter_label"): (
+        "For a sole appendix, remove the letter after APPENDIX in the heading."
+    ),
+    ("P063", "multiple_appendix_missing_letter"): (
+        "Add the missing letter to the appendix heading in alphabetical order."
+    ),
+    ("P063", "appendix_letter_sequence_gap"): (
+        "Correct the appendix labels so their letters are consecutive."
+    ),
+    ("P063", "appendix_letter_sequence_repeat"): (
+        "Give each appendix a distinct letter in alphabetical order."
+    ),
     ("P063", "appendix_subsection_missing_letter_prefix"): (
         "Add the owning appendix's letter before the leading dot in the subsection number."
+    ),
+    ("P064", "references_entry_indentation_inconsistent"): (
+        "Use either hanging indent or flush-left consistently for all reference entries, "
+        "following the style agreed with your advisor."
+    ),
+    ("P064", "references_entry_spacing_inconsistent"): (
+        "Use consistent double spacing between consecutive reference entries."
     ),
     ("P068", "approval_page_advisor_role_label_missing"): "",
     ("P068", "approval_page_signature_blocks_sparse"): "",
@@ -2308,7 +2327,9 @@ def resolve_suggested_fix_for_display(
             return numbered_fix
     cleaned = sanitize_suggested_fix_for_web(rule_id, existing.strip())
     if cleaned:
-        return cleaned
+        # Stored reports can carry the old generic action alongside a specific finding.
+        if rule_id not in {"P063", "P064"} or cleaned != _remediation_by_rule().get(rule_id):
+            return cleaned
     return sanitize_suggested_fix_for_web(rule_id, _resolve_remediation(rule_id, issue_type))
 
 
