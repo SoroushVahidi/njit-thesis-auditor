@@ -376,8 +376,7 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P065", "dedication_text_not_italic"): (
         "The dedication text on page {page} does not appear to be "
-        "italicized. NJIT requires dedication text to be in italic font. "
-        "Apply italic formatting to the dedication text."
+        "italicized. NJIT requires italics for dedication text that uses the Latin alphabet."
     ),
     ("P078", "abstract_pdf_forbidden_term"): (
         "The abstract on page {page} appears to contain \"paper\" or "
@@ -859,13 +858,23 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "Indent the highlighted level-3 TOC entries to the right of level-2 entries."
     ),
     ("P020", "possible_title_capitalization_issue"): "",
-    ("P027", "level1_not_all_caps"): "",
-    ("P027", "level2_title_case_issue"): "",
-    ("P027", "level3_sentence_case_issue"): "",
-    ("P027", "level4_sentence_case_issue"): "",
-    ("P027", "level4_sentence_case_or_punctuation_issue"): "",
-    ("P027", "level5_sentence_case_issue"): "",
-    ("P027", "level5_sentence_case_or_punctuation_issue"): "",
+    ("P027", "level1_not_all_caps"): "Use all capital letters in the Level 1 heading title.",
+    ("P027", "level2_title_case_issue"): "Use title case for this Level 2 heading.",
+    ("P027", "level3_sentence_case_issue"): "Use sentence case for this Level 3 heading.",
+    ("P027", "level4_sentence_case_issue"): "Use sentence case for this Level 4 heading.",
+    ("P027", "level4_sentence_case_or_punctuation_issue"): (
+        "Add a period at the end of this Level 4 heading."
+    ),
+    ("P027", "level5_sentence_case_issue"): "Use sentence case for this Level 5 heading.",
+    ("P027", "level5_sentence_case_or_punctuation_issue"): (
+        "Add a period at the end of this Level 5 heading."
+    ),
+    ("P065", "dedication_text_not_centered"): (
+        "Center the dedication text block horizontally within the text area."
+    ),
+    ("P065", "dedication_text_not_italic"): (
+        "If the dedication text uses the Latin alphabet, apply italic formatting to the full text."
+    ),
     ("P025", "missing_abstract_body"): (
         "Add the abstract body text directly below the ABSTRACT heading."
     ),
@@ -2320,12 +2329,15 @@ def resolve_suggested_fix_for_display(
     existing: str = "",
     float_number: str = "",
 ) -> str:
-    """Resolve advice, retaining recorded R035 identity over older generic text."""
+    """Resolve advice while preserving recorded occurrence-specific fixes."""
     if rule_id == "P035" and float_number.strip():
         numbered_fix = float_layout_suggested_fix(issue_type, float_number)
         if numbered_fix:
             return numbered_fix
     cleaned = sanitize_suggested_fix_for_web(rule_id, existing.strip())
+    if rule_id in {"P027", "P065"} and cleaned == _remediation_by_rule().get(rule_id):
+        # Older reports may already contain the combined catalog wording.
+        return _resolve_remediation(rule_id, issue_type)
     if cleaned:
         # Stored reports can carry the old generic action alongside a specific finding.
         if rule_id not in {"P063", "P064"} or cleaned != _remediation_by_rule().get(rule_id):
