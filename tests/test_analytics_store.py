@@ -19,6 +19,7 @@ from njit_auditor.analytics.schema import (
     UploadAccepted,
 )
 from njit_auditor.analytics.store import (
+    DEFINITION_VERSION,
     AggregateStore,
     Deltas,
     _connect,
@@ -56,6 +57,31 @@ def test_atomic_idempotent(database):
     assert store.db.execute("PRAGMA busy_timeout").fetchone()[0] == 50
     assert store.db.execute("PRAGMA secure_delete").fetchone()[0] == 1
     store.close()
+
+
+def test_late_batch_marks_observed_day_and_month_partial(database):
+    store = AggregateStore.open_existing(database)
+    day = "2030-01-31"
+    now = datetime(2030, 2, 1, tzinfo=timezone.utc)
+    try:
+        store.db.executemany(
+            "INSERT INTO daily_coverage VALUES(?,?,?,'observed',0)",
+            [(store.epoch, day, component) for component in ("counter", "duration")],
+        )
+        store.db.execute(
+            "INSERT INTO month_rollup VALUES(?,?,?,'observed','{}','{}',?)",
+            (store.epoch, "2030-01", DEFINITION_VERSION, now.isoformat()),
+        )
+        events = [PageView(day)]
+        assert apply(store, events, now=now)
+        assert not apply(store, events, now=now)
+        assert store.db.execute("SELECT quality,known_dropped FROM daily_coverage").fetchall() == [
+            ("partial", 0), ("partial", 0),
+        ]
+        assert store.db.execute("SELECT coverage FROM month_rollup").fetchone() == ("partial",)
+        assert store.db.execute("SELECT n FROM daily_count").fetchone() == (1,)
+    finally:
+        store.close()
 
 
 def test_batch_spanning_midnight_can_emit_more_counter_rows_than_events(database):

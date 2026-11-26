@@ -314,6 +314,22 @@ class AggregateStore:
             for day in deltas.invalid_duration:
                 check_deadline()
                 self.degrade(day, "duration", check_deadline=check_deadline)
+            affected_days = {row[0] for row in deltas.counts} | {row[0] for row in deltas.durations}
+            for day in sorted(affected_days):
+                # A clock step can reopen a date between heartbeats. The new count
+                # and the loss of exact coverage must become visible together.
+                check_deadline()
+                self.db.execute(
+                    "UPDATE daily_coverage SET quality='partial' "
+                    "WHERE epoch=? AND day_utc=? AND quality='observed'",
+                    (self.epoch, day),
+                )
+                check_deadline()
+                self.db.execute(
+                    "UPDATE month_rollup SET coverage='partial' "
+                    "WHERE epoch=? AND month_utc=? AND coverage='observed'",
+                    (self.epoch, day[:7]),
+                )
             if coverage:
                 for day in {row[0] for row in deltas.counts} | {now.date().isoformat()}:
                     self.degrade(day, "counter", check_deadline=check_deadline)

@@ -3,14 +3,18 @@
 import hashlib
 import json
 import threading
+from datetime import timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
-from test_analytics_collector import manual_collector
+from test_analytics_collector import manual_collector, prepared_midnight_collector
 from test_analytics_store import NOW
 from test_analytics_store import database as database
 
+from njit_auditor.analytics import web
 from njit_auditor.analytics.query import query_usage
+from njit_auditor.analytics.runtime import AnalyticsRuntime
 from njit_auditor.analytics.schema import METRICS, PageView, SubmissionAttempted, encode
 from njit_auditor.analytics.store import DEFINITION_VERSION, AggregateStore
 
@@ -154,6 +158,50 @@ def test_day_closing_checks_loss_after_producer_completion(database, monkeypatch
     assert result["totals"] is None
     assert result["observed_counts"]["page_view"] == 0
     collector._disconnect()
+
+
+def test_backward_clock_step_downgrades_closed_day_on_web_event(database):
+    collector = prepared_midnight_collector(database)
+    app = SimpleNamespace(state=SimpleNamespace(
+        analytics_runtime=AnalyticsRuntime(collector, collector.clock),
+    ))
+    try:
+        collector.clock.advance(1)
+        collector._tick()
+        report = query_usage(database, "2030-01-02", "2030-01-03")["periods"][0]
+        assert report["totals"]["submission_attempted"] == 0
+
+        # Move wall time back through midnight while monotonic time keeps moving.
+        collector.clock.now -= timedelta(seconds=12)
+        web.submission_attempt(app, "upload")
+        collector.clock.advance(5)
+        collector._tick()
+        report = query_usage(database, "2030-01-02", "2030-01-03")["periods"][0]
+        assert report["coverage"] == "partial" and report["totals"] is None
+        assert report["observed_counts"]["submission_attempted"] == 1
+
+        collector.clock.advance(55)
+        collector._tick()
+        assert query_usage(database, "2030-01-02", "2030-01-03")["periods"][0] == report
+    finally:
+        collector._disconnect()
+
+
+def test_backward_midnight_heartbeat_keeps_the_current_day_partial(database):
+    collector = prepared_midnight_collector(database)
+    try:
+        collector.clock.advance(1)
+        collector._tick()
+        collector.clock.advance(0.5)
+        collector.clock.now -= timedelta(seconds=1)
+        collector.mark_loss()
+        collector._heartbeat()
+
+        report = query_usage(database, "2030-01-03", "2030-01-04")["periods"][0]
+        assert report["coverage"] == "partial" and report["totals"] is None
+        assert collector._retention.eligible is None
+    finally:
+        collector._disconnect()
 
 
 @pytest.mark.parametrize("value", ["user@invalid", "PRIVATE_CANARY", "127.0.0.1"])

@@ -123,7 +123,8 @@ class Retention:
                 previous, mono = self.previous
                 elapsed = monotonic - mono
                 jump = elapsed < 0 or abs((now - previous).total_seconds() - elapsed) > 2
-                gap = elapsed > 90 or jump
+                # Even a clock step within tolerance cannot close a day backwards.
+                gap = elapsed > 90 or jump or now.date() < previous.date()
                 if gap:
                     lower, upper = sorted((previous.date(), now.date()))
                     lower = max(lower, now.date() - timedelta(days=DAILY_DAYS))

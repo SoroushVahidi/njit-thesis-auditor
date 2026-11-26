@@ -32,6 +32,9 @@ statistics routes, or desktop telemetry.
 The UTC day is assigned at collector admission. If work with a prior-day
 timestamp is still queued or in a registered producer at midnight, that day's
 coverage remains partial even if the batch later commits.
+If a delayed observation changes an already observed UTC day, such as after a
+backward host clock step, the count update and the coverage downgrade commit
+together. An affected observed monthly rollup also becomes partial.
 
 ## Owner-only reporting and validation
 
