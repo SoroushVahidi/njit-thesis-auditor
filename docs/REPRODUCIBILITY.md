@@ -67,8 +67,8 @@ complete private local gate.
 ## Browser checks with synthetic local services
 
 The `browser` extra pins Playwright **1.64.1** and psutil **7.2.2**, separate from
-runtime dependencies. Use Python 3.12 for the browser CI job. From a private
-checkout on Ubuntu:
+runtime dependencies. Use Python 3.12 on Ubuntu in a fixture-free checkout
+configured as described in [CI privacy](CI_PRIVACY.md).
 
 ```bash
 python -m venv .venv
@@ -76,7 +76,7 @@ source .venv/bin/activate
 python -m pip install -e ".[dev,browser]"
 python -m playwright install --with-deps chromium
 python -m playwright --version
-python -m pytest -q tests/test_about_browser.py tests/test_ui_help_mobile_overflow.py tests/test_windows_download.py::test_browser_layout_and_keyboard tests/test_browser_audit_workflow.py --junitxml=.runtime/browser-ci.xml
+python .github/ci/hosted_tests.py browser
 ```
 
 `--with-deps` installs OS packages and may need administrator privileges locally;

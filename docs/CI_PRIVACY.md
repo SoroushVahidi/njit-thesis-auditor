@@ -13,7 +13,7 @@ selection in [tests.json](../.github/ci/tests.json). The separate Python 3.12
 browser job runs six explicit targets with generated PDFs and loopback services;
 zero tests or any browser skip fails that job.
 
-At the [2026-11-22 baseline](status/CURRENT_STATUS.md#verified-baseline--2026-11-22),
+At the [2026-11-22 baseline](status/CURRENT_STATUS.md#historical-snapshot--2026-11-22),
 the inventory classified 226 hosted modules, 18 local-only modules, and five
 support modules. The [test manifest](../.github/ci/tests.json) is the current
 source of truth. The six browser targets are a selection from the hosted inventory.
