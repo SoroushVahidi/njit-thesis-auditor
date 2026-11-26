@@ -588,8 +588,7 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P065", "dedication_text_not_italic"): (
         "The dedication text does not appear to be italicized. "
-        "NJIT requires dedication text to be in italic font. "
-        "Apply italic formatting to the dedication text."
+        "If the dedication text uses the Latin alphabet, apply italic formatting to the full text."
     ),
     # --- P078 abstract keywords ---
     ("P078", "abstract_pdf_forbidden_term"): (

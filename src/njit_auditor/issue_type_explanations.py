@@ -589,8 +589,7 @@ _RULE_ISSUE_EXPLANATIONS: dict[tuple[str, str], str] = {
     ),
     ("P065", "dedication_text_not_italic"): (
         "The dedication text does not appear to be in italic. "
-        "NJIT requires dedication text to be italicized. Apply italic formatting "
-        "to the dedication text in your source document."
+        "If the dedication text uses the Latin alphabet, apply italic formatting to the full text."
     ),
     ("P078", "abstract_pdf_forbidden_term"): (
         "This means the abstract appears to contain \"paper\" or \"article\" "
