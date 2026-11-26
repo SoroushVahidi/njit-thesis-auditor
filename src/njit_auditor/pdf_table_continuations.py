@@ -15,7 +15,7 @@ from pathlib import Path
 from statistics import median
 from typing import Literal
 
-import fitz
+import pymupdf as fitz
 
 from njit_auditor.pdf_layout import _drawing_is_visible, _horizontal_rule_bboxes
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine

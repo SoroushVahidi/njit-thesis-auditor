@@ -11,7 +11,7 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import fitz
+import pymupdf as fitz
 
 from njit_auditor.pdf_publication import atomic_pdf_output
 

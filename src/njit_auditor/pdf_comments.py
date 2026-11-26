@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-import fitz
+import pymupdf as fitz
 
 PREVIEW_MAX_CHARS = 120
 

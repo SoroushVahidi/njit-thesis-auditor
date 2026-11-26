@@ -6,7 +6,7 @@ import re
 from collections.abc import Iterable
 from statistics import median as _median
 
-import fitz
+import pymupdf as fitz
 
 from njit_auditor.pdf_models import (
     LANDSCAPE_ASPECT_THRESHOLD,
