@@ -15,10 +15,13 @@ import pytest
 from fastapi.testclient import TestClient
 from pdf_link_helpers import extract_audit_pdf_links
 
+from njit_auditor.audit_runner import UploadedAuditResult
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_highlight import get_pdf_page_sizes
 from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
+from njit_auditor.report_text import write_text_report
 from njit_auditor.report_view import build_report_view, report_view_to_dict
+from njit_auditor.upload_handling import UploadKind
 
 _MOBILE_HEADERS = {
     "User-Agent": (
@@ -281,6 +284,112 @@ def test_problem_number_is_consistent_across_pages_and_reports(
         assert f'problem-{problem_number}' in text
 
     assert f"### Problem {problem_number} —" in markdown
+
+
+@pytest.mark.parametrize(
+    ("annotation_pages", "per_page", "rollup"),
+    [(10, 2, False), (11, 1, True), (1, 21, True)],
+    ids=["below-both-thresholds", "page-threshold", "raw-count-threshold"],
+)
+def test_p012_numbering_agrees_across_report_formats(
+    app: tuple[TestClient, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    annotation_pages: int,
+    per_page: int,
+    rollup: bool,
+) -> None:
+    client, web = app
+    annotation, _, _, _, document_warning, caption = _base_findings()
+    findings = [
+        annotation.model_copy(update={"page": page})
+        for page in range(1, annotation_pages + 1)
+        for _ in range(per_page)
+    ] + [caption, document_warning]
+    result = UploadedAuditResult(upload_kind=UploadKind.PDF, audit_type="pdf", findings=findings)
+    monkeypatch.setattr(web, "run_audit_for_uploaded_file", lambda *args, **kwargs: result)
+    source = tmp_path / "source.pdf"
+    _write_real_pdf(source, page_count=11)
+    posted = client.post(
+        "/audits",
+        files={"file": ("synthetic.pdf", source.read_bytes(), "application/pdf")},
+        follow_redirects=False,
+    )
+    assert posted.status_code == 303
+    base = posted.headers["location"]
+    job = web._get_job(base.rsplit("/", 1)[1])
+    assert job is not None and job.state == "complete"
+
+    expected_rules = ["P017", "P012", "P025"] if rollup else (
+        ["P012"] * 6 + ["P017"] + ["P012"] * 4 + ["P025"]
+    )
+    expected = list(enumerate(expected_rules, start=1))
+    assert [(card["problem_number"], card["rule_id"]) for card in job.findings] == expected
+    response = client.get(base + "/download/json")
+    assert response.status_code == 200
+    raw = response.json()["findings"]
+    original_order = sorted(findings, key=lambda finding: (finding.page is None, finding.page or 0))
+    assert [(row["rule_id"], row["page"]) for row in raw] == [
+        (finding.rule_id, finding.page) for finding in original_order
+    ]
+    assert raw[0]["page"] == 1 and raw[0]["details"]["rect"] == _P012_RECT
+    assert sorted(
+        (row["problem_number"], row["rule_id"]) for row in raw if row["student_visible_problem"]
+    ) == expected
+    for card in job.findings:
+        number = card["problem_number"]
+        index = int(card["finding_id"][1:])
+        assert (raw[index]["problem_number"], raw[index]["rule_id"]) == (number, card["rule_id"])
+        assert raw[index]["problem_anchor"] == card["problem_anchor"] == f"problem-{number}"
+    first_annotation = next(card for card in job.findings if card["rule_id"] == "P012")
+    assert first_annotation["finding_id"] == "f0"
+    assert first_annotation["page"] == (None if rollup else 1)
+    assert first_annotation["has_highlight"] is not rollup
+
+    md = client.get(base + "/download/markdown")
+    assert md.status_code == 200
+    expected_public = [(number, "R" + rule[1:]) for number, rule in expected]
+    blocks = md.text.split("## Findings by Rule")[0].split("### Problem ")[1:]
+    assert [
+        (int(block.split()[0]), re.search(r"- Rule: `(R\d+)`", block)[1]) for block in blocks
+    ] == expected_public
+    text = client.get(base + "/download/text")
+    assert text.status_code == 200
+    headings = re.findall(r"Problem #(\d+)\s+—\s+(R\d+)", text.text)
+    assert [(int(n), rule) for n, rule in headings] == expected_public
+
+    standalone = tmp_path / "standalone.txt"
+    write_text_report(findings, {"audit_type": "pdf"}, standalone)
+    records = standalone.read_text().split("\nProblem ")[1:]
+    assert [(int(record.split()[0]), re.search(r"Public rule reference: (R\d+)", record)[1])
+            for record in records] == expected_public
+
+    caption_card = next(card for card in job.findings if card["rule_id"] == "P017")
+    caption_ref = caption_card["finding_id"]
+    assert caption_ref == f"f{original_order.index(caption)}"
+    assert caption_card["bbox"] == (120.0, 220.0, 360.0, 270.0)
+    number = caption_card["problem_number"]
+    rule_page = _get_html(client, base + "/problems/rule/P017")
+    assert f"Report reference {number}" in rule_page
+    assert f'id="problem-{number}"' in rule_page
+    focused = client.get(
+        base + "/highlighted-page.pdf", params={"page": 6, "finding_id": caption_ref},
+    )
+    assert focused.status_code == 200
+    with fitz.open(stream=focused.content, filetype="pdf") as pdf:
+        assert pdf.page_count == 1 and "Synthetic thesis page 6." in pdf[0].get_text()
+        focused_marks = {tuple(annot.rect) for annot in pdf[0].annots()}
+        assert focused_marks
+    for download, source_pages in (("comments.pdf", 0), ("student-report.pdf", 11)):
+        response = client.get(f"{base}/download/{download}")
+        assert response.status_code == 200
+        with fitz.open(stream=response.content, filetype="pdf") as pdf:
+            report_text = " ".join(page.get_text() for page in list(pdf)[source_pages:])
+            assert [(int(n), rule) for n, rule in re.findall(
+                r"Problem #(\d+)\s+—\s+(R\d+)", report_text,
+            )] == expected_public
+            if source_pages:
+                assert focused_marks <= {tuple(annot.rect) for annot in pdf[5].annots()}
 
 
 def test_highlighted_and_original_page_actions_are_distinct(
