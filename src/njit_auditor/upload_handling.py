@@ -71,7 +71,7 @@ def sanitize_upload_filename(name: str, *, default_ext: str = "") -> str:
 def classify_upload(path: Path) -> UploadKind:
     """Classify an on-disk upload by extension (caller validates magic bytes separately)."""
     if not path.is_file():
-        msg = f"Not a regular file: {path}"
+        msg = "The uploaded file is unavailable or is not a regular file."
         raise UploadValidationError(msg)
 
     ext = path.suffix.lower()
@@ -116,7 +116,7 @@ def validate_upload_path(
 ) -> UploadKind:
     """Validate upload size/type and return the classified kind."""
     if not path.is_file():
-        msg = f"Not a regular file: {path}"
+        msg = "The uploaded file is unavailable or is not a regular file."
         raise UploadValidationError(msg)
 
     size = path.stat().st_size

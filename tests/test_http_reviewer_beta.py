@@ -22,6 +22,8 @@ from packaging.specifiers import Specifier
 from PIL import Image
 
 from njit_auditor import admin_accounts, admin_feedback, web_app
+from njit_auditor.audit_runner import AuditError
+from njit_auditor.upload_handling import UploadValidationError
 
 
 def test_multipart_dependency_contract() -> None:
@@ -93,6 +95,63 @@ def _login(client: TestClient, username: str, password: str, *, next_url: str = 
     return client.post("/reviewer/login", data={
         "username": username, "password": password, "csrf_token": csrf, "next": next_url,
     }, headers={"Origin": "http://testserver"}, follow_redirects=False)
+
+
+@pytest.mark.parametrize(
+    ("error_type", "expected_message"),
+    [
+        (AuditError, "Could not read this PDF."),
+        (UploadValidationError, "Could not read this PDF."),
+        (RuntimeError, "An unexpected error occurred during the audit."),
+    ],
+)
+def test_failed_audit_exposes_only_public_guidance(
+    reviewer_site: tuple[TestClient, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    error_type: type[Exception],
+    expected_message: str,
+) -> None:
+    client, _ = reviewer_site
+    filename = "synthetic-confidential-filename.pdf"
+    private_values = (
+        str(web_app.RUNTIME_DIR),
+        "synthetic-session-secret",
+        "synthetic-private-document-text",
+        filename,
+    )
+
+    def fail_audit(*args, **kwargs):
+        raise error_type(" ".join(private_values))
+
+    monkeypatch.setattr(web_app, "run_audit_for_uploaded_file", fail_audit)
+    posted = client.post(
+        "/audits",
+        files={"file": (filename, _attachment("pdf"), "application/pdf")},
+        follow_redirects=False,
+    )
+    assert posted.status_code == 303
+    job_url = posted.headers["location"]
+
+    student = client.get(job_url)
+    assert student.status_code == 200
+    password = secrets.token_urlsafe(24)
+    admin_accounts.create_account("ester", password, role="reviewer")
+    assert _login(client, "ester", password, next_url=job_url).status_code == 303
+    reviewer = client.get(job_url)
+    assert reviewer.status_code == 200 and reviewer.headers["cache-control"] == "no-store"
+    status = client.get(job_url + "/status")
+    assert status.status_code == 200
+    assert status.json()["state"] == "failed" and status.json()["finished_at"]
+    assert status.json()["file_name"] == ""
+    for page in (student, reviewer):
+        assert expected_message in page.text and "Try another file" in page.text
+    for response in (student, reviewer, status):
+        assert "Traceback" not in response.text
+        assert all(value not in response.text for value in private_values)
+    assert client.get(job_url + "/download/json").status_code == 404
+    assert error_type.__name__ in caplog.text and "in fail_audit" in caplog.text
+    assert all(value not in caplog.text for value in private_values)
 
 
 def test_http_reviewer_complete_synthetic_audit_workflow(
