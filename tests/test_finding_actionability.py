@@ -2041,11 +2041,17 @@ def test_suggested_fix_retains_recorded_specific_replacement_and_unknown_issue_f
     ) == generic
 
 
-def test_p065_italic_comment_limits_guidance_to_latin_alphabet() -> None:
+def test_p065_italic_guidance_limits_requirement_to_latin_alphabet() -> None:
     comment = build_polished_comment(
         rule_id="P065", issue_type="dedication_text_not_italic", page=4, details={},
     )
+    detailed = build_detailed_explanation(
+        rule_id="P065", issue_type="dedication_text_not_italic", page=4, details={},
+    )
+    issue = explain_issue_type("P065", "dedication_text_not_italic")
     assert "requires italics for dedication text that uses the Latin alphabet" in comment
+    assert "If the dedication text uses the Latin alphabet" in detailed
+    assert "If the dedication text uses the Latin alphabet" in issue
 
 
 def test_p020_heading_source_comment_is_title_case_specific_not_mixed_with_caption() -> None:
