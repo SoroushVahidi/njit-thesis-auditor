@@ -38,6 +38,15 @@ inputs or running the full application suite.
 
 ## Standard checks and exact commits
 
+From an approved fixture-free checkout, create a fresh virtual environment,
+install with `python -m pip install -e ".[dev]"`, and run
+`python -m pip check`. For the minimum reviewer checks, install with
+`-c .github/ci/minimum-multipart.txt` and run the same two modules as the
+minimum hosted job with `NJIT_TEST_MINIMUM_MULTIPART=1`.
+The constraints and tests check the actual FastAPI, Starlette, and
+python-multipart versions. Record the resolved packages per Python version
+for a release rehearsal.
+
 From the repository root, record the commit and tree being checked before
 comparing results:
 

@@ -7,6 +7,11 @@ release.
 
 ## Checkout roles and main
 
+Treat the live remote tip, a local branch, and the deployed revision as separate
+identities. Check the current remote and worktree ownership before changing any
+ref. Use an isolated checkout for changes. Disable LFS smudging before checkout
+and keep restricted evidence outside public source and build outputs.
+
 The authoritative upstream is the private
 [`SoroushVahidi/njit-thesis-auditor`](https://github.com/SoroushVahidi/njit-thesis-auditor)
 repository, whose default branch is `main`. A directory named `main` is not proof
