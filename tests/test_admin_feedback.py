@@ -500,7 +500,9 @@ def test_database_path_permissions_and_links_fail_closed(
 ) -> None:
     _, wa, _, _ = setup
     unsafe = tmp_path / "world-readable"
-    unsafe.mkdir(mode=0o755)
+    unsafe.mkdir()
+    # A restricted operator umask must not turn this into an owner-only directory.
+    unsafe.chmod(0o755)
     monkeypatch.setenv("NJIT_AUDITOR_ADMIN_DB_PATH", str(unsafe / "feedback.sqlite3"))
     with pytest.raises(ValueError, match="owner-only"):
         admin_feedback.list_feedback()
