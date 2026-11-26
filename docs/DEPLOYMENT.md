@@ -1,9 +1,11 @@
 # Online Auditor deployment and rollback
 
-This is the canonical release runbook. The approved restricted operational
-appendix identifies the service, credentials, checkout, storage paths, and
-authorized fixtures. Check the appendix with the responsible operator before
-acting. Keep those details out of public documentation, issues, and job output.
+The live web UI runs from a dedicated, detached checkout supervised by the user
+systemd unit `thesis-auditor-web.service`. Use the live service configuration
+for its runtime environment and storage paths. The
+[historical deployment checklist](status/live_deployment_checklist.md) records
+prior deployments and the [Windows release guide](PUBLIC_WINDOWS_RELEASE.md)
+covers desktop distribution.
 
 ## Before cutover
 
@@ -26,6 +28,22 @@ acting. Keep those details out of public documentation, issues, and job output.
    accounts, feedback, comments, attachments, and configuration. Confirm the
    rollback checkout and environment are available.
 
+In the deployment checkout, set `release_sha` to the qualified main commit.
+Verify the worktree and candidate before switching.
+Keep the current environment available for rollback when the dependencies change.
+
+```bash
+git status --short          # Must be empty.
+git branch --show-current   # Must be empty for the detached deploy checkout.
+git fetch origin main
+GIT_LFS_SKIP_SMUDGE=1 git switch --detach "$release_sha"
+git rev-parse HEAD
+```
+
+Use the existing production sample provisioning and verify all four sample
+digests before restarting. When dependencies change, stage and check the
+release environment with `python -m pip check` before selecting it for the unit.
+
 ## Cutover verification
 
 1. Switch only to the exact qualified revision and use the service supervisor
@@ -45,6 +63,12 @@ acting. Keep those details out of public documentation, issues, and job output.
    communicating release completion. See
    [reproducibility](REPRODUCIBILITY.md) and [hosted CI privacy](CI_PRIVACY.md).
 
+```bash
+systemctl --user restart thesis-auditor-web.service
+curl --retry 8 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:8000/healthz
+curl -fsS http://127.0.0.1:8000/version
+```
+
 ## Rollback
 
 On a failed cutover gate, use the approved rollback procedure to restore the
@@ -56,9 +80,8 @@ and disabled analytics. Record the failed gate and restored revision.
 
 ## Maintenance handoff
 
-The private appendix should record the responsible operator, exact service and
-environment, approved access, the release lock, retention policy, backup
-verification, rollback instructions, evidence location, and notification
-authority. Use [reviewer and administrative feedback](implementation/admin_feedback.md)
+Record the service and environment, release lock, backup verification, rollback
+target, and location of the release receipts. Use
+[reviewer and administrative feedback](implementation/admin_feedback.md)
 for the feature contract and [the status snapshots](status/CURRENT_STATUS.md)
 for dated source and production observations.

@@ -48,9 +48,8 @@ python -m uvicorn njit_auditor.web_app:app --host 127.0.0.1 --port 8000
 ```
 
 Open `http://localhost:8000`. The public web UI accepts **uploaded PDF files only**.
-To try an example, select an explicitly approved download from the website,
-save it, and upload the saved file. Generate a synthetic PDF if no approved
-example is available.
+To try an example, choose **Download sample PDF**, save it, and upload the file.
+For a development instance without site samples, use a synthetic PDF.
 Document-URL and built-in sample audit shortcuts are disabled. Legacy submissions receive
 “Please upload your document to start an audit.” without fetching a URL or starting a worker.
 A nonempty legacy document-URL field is rejected even when a file is also attached.

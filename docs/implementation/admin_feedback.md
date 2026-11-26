@@ -98,8 +98,18 @@ until an administrator explicitly deletes it.
 
 ## Backup, restore, and migration
 
-Follow the [canonical deployment runbook](../DEPLOYMENT.md) for the release
-backup, migration checks, and rollback. Use the approved restricted operational
-appendix for service and storage details. Verify reviewer roles, feedback rows,
-comments, and attachment integrity in memory or with digests. Keep private
-database and attachment contents out of shared receipts.
+Back up the database with SQLite's online backup API or the `sqlite3` CLI
+`.backup` command. Store the backup with owner-only access. Check it with
+`PRAGMA integrity_check` and record `PRAGMA user_version`. Keep the session key
+in a separate protected backup. Rotating it will invalidate existing sessions.
+
+If restoration is necessary, disable administrator login and stop the service
+before restoring to the configured database path. Set the parent directory to
+`0700` and the database to `0600`. Revoke restored sessions before startup.
+Verify the schema, account IDs, reviewer attribution, feedback rows, and
+attachment digests. Audit files are stored separately.
+
+The current schema is version 5. The application migrates versions 1 through 4
+transactionally and preserves feedback IDs and records. Use a version 5
+compatible application to restore a version 5 backup. See the
+[deployment runbook](../DEPLOYMENT.md) for production checks and code rollback.

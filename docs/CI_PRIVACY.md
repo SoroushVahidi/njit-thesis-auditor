@@ -66,10 +66,9 @@ zero executed steps. Record a zero-step run as a hosted infrastructure blocker.
 List local results separately with their exact SHA or Git tree. Review the
 saved job annotation before considering a rerun.
 
-These controls protect the reviewed workflow from accidental fixture fetching or
-test inclusion. They are not a sandbox for malicious changes to workflows/code.
-Workflow edits still require review. The source repository remains private;
-sparse checkout and this change do not authorize publishing its Git history.
+The source repository is public. Sparse checkout keeps fixture inputs out of the
+hosted test workspace. Review workflow edits for any changes to the files the
+runner fetches or processes.
 
 ## Reproducing the hosted selection locally
 
