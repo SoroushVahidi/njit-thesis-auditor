@@ -132,12 +132,14 @@ against historical feedback; do not treat its exit code as reviewer approval.
 
 ## Wheel installation boundary
 
-The established deployment installs from a checkout and sets `PYTHONPATH` to
-its `src/` directory. An isolated non-editable wheel built from this tree on
-2026-10-12 contained Python modules but **no** `data/processed/` or
-`data/specs/` JSON and **no** `njit_auditor/templates/*.html`. For example,
-`report_text.py`, `polished_comments.py`, and `ester_warning_wording.py` read
-repository-relative JSON, while `web_app.py` loads templates beside its source
-module. A wheel-only installation therefore cannot be claimed to provide the
-same rule metadata and web UI as a checkout. Fixing package data, resource
-lookup, and isolated-install coverage belongs in a separate engineering PR.
+The online service currently runs from a checkout. The wheel also packages
+the runtime rule data, web templates, and report font. The source distribution
+includes the inputs required to build those resources.
+
+For release qualification, build the wheel and source distribution from a
+fixture-free checkout. In a fresh environment outside the source directory,
+install the wheel, run `python -m pip check`, and verify the packaged resources
+with a synthetic audit and web report smoke. Inspect both package inventories
+for excluded manuscripts, reviewer evidence, and local output before
+distributing either artifact. Keep installed-wheel verification separate from
+checks that import the repository's `src/` directly.
