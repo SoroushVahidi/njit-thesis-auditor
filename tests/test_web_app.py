@@ -5122,3 +5122,110 @@ def test_p018_leftward_guidance_across_web_and_exports(
     assert "at or to the right" in catalog_card["title"]
     check_guidance(catalog_card["how_to_correct"])
     check_guidance(rules.text)
+
+
+@pytest.mark.parametrize(("case", "leader_issue", "alignment_issue"), [
+    ("missing", "toc_missing_leader_style", False),
+    ("mixed", "toc_mixed_leader_styles", False),
+    ("allowed_short", "", False),
+    ("alignment", "", True),
+    ("missing_and_alignment", "toc_missing_leader_style", True),
+])
+def test_p075_leader_advice_across_reports(
+    client: tuple[TestClient, Any], tmp_path: Path, case: str, leader_issue: str,
+    alignment_issue: bool,
+) -> None:
+    import re
+    from html import unescape
+
+    import pymupdf
+    from test_r057_toc_leader_gaps import _LEADER_CELL_FIXTURES, _toc_pdf
+
+    if case == "missing":
+        source = _LEADER_CELL_FIXTURES / "tight-cell-empty.pdf"
+    elif case == "allowed_short":
+        source = _LEADER_CELL_FIXTURES / "centered-cell-wrap.pdf"
+    else:
+        source = tmp_path / "toc.pdf"
+        if case == "missing_and_alignment":
+            _toc_pdf(source, "misaligned", size=11, pitch_em=0.60, wrapped=False)
+        else:
+            with pymupdf.open() as pdf:
+                page = pdf.new_page(width=612, height=792)
+                page.insert_text(
+                    (220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold",
+                )
+                for index, title in enumerate(("Introduction", "Methods", "Results", "Discussion")):
+                    y = 140 + index * 20
+                    leader = "-----" if case == "mixed" and index == 2 else "......."
+                    x = 465 if case == "alignment" and index == 2 else 500
+                    page.insert_text((108, y), f"Chapter {index + 1} {title} {leader}")
+                    page.insert_text((x, y), str(11 + index))
+                pdf.save(source)
+
+    c, wa = client
+    upload = c.post(
+        "/audits", files={"file": ("synthetic-toc.pdf", source.read_bytes(), "application/pdf")},
+        follow_redirects=False,
+    )
+    assert upload.status_code == 303
+    base = upload.headers["location"]
+    status = c.get(base + "/status").json()
+    assert status["state"] == "complete" and status["finished_at"]
+    job = wa._get_job(base.rsplit("/", 1)[-1])
+    assert job is not None
+    reports = {
+        "html": c.get(base),
+        **{fmt: c.get(base + "/download/" + fmt) for fmt in (
+            "json", "markdown", "text", "comments.pdf", "student-report.pdf",
+        )},
+    }
+    assert all(response.status_code == 200 for response in reports.values())
+
+    actions = {
+        "toc_missing_leader_style": (
+            "Add a leader before each affected Table of Contents page number, "
+            "using the same style as the other entries."
+        ),
+        "toc_mixed_leader_styles": (
+            "Use one leader style, dots or hyphens, throughout the Table of Contents."
+        ),
+    }
+    alignment = ("P018", "misaligned_page_number_column")
+    payload = reports["json"].json()
+    leaders = [(i, row) for i, row in enumerate(payload["findings"]) if row["rule_id"] == "P075"]
+    assert [row["details"]["issue_type"] for _, row in leaders] == (
+        [leader_issue] if leader_issue else []
+    )
+    folio_rows = [
+        row for row in payload["findings"]
+        if (row["rule_id"], row["details"].get("issue_type")) == alignment
+    ]
+    assert bool(folio_rows) is alignment_issue
+    if leader_issue:
+        (raw_index, raw_leader), = leaders
+        (card,) = [item for item in job.findings if item["rule_id"] == "P075"]
+        assert raw_leader["details"]["suggested_fix"] == actions[leader_issue]
+        assert card["finding_id"] == f"f{raw_index}"
+        assert card["page"] == raw_leader["page"]
+        assert card["suggested_fix"] == actions[leader_issue]
+        if raw_leader["details"].get("bbox"):
+            assert card["bbox"] == tuple(
+                float(part) for part in raw_leader["details"]["bbox"].split(",")
+            )
+        grouped = [group for group in payload["grouped_findings"] if group["rule_id"] == "P075"]
+        assert [group["suggested_fix"] for group in grouped] == [actions[leader_issue]]
+
+    for fmt, response in reports.items():
+        if fmt.endswith(".pdf"):
+            with pymupdf.open(stream=response.content, filetype="pdf") as pdf:
+                start = job.pdf_page_count if fmt == "student-report.pdf" else 0
+                rendered = " ".join(pdf[index].get_text() for index in range(start, len(pdf)))
+        else:
+            rendered = re.sub(r"<[^>]+>", " ", response.text) if fmt == "html" else response.text
+        rendered = " ".join(unescape(rendered).casefold().split())
+        assert "right-align page numbers and use one consistent leader style" not in rendered, fmt
+        for issue_type, action in actions.items():
+            expected = issue_type == leader_issue
+            assert (action.casefold() in rendered) is expected, (fmt, issue_type)
+        assert ("dominant right-hand column" in rendered) is alignment_issue, fmt

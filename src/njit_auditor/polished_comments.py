@@ -392,14 +392,12 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P075", "toc_mixed_leader_styles"): (
         "Problem: The Table of Contents mixes dot and hyphen leaders before "
-        "page numbers. The entry identified on page {page} is one example; "
-        "check the other TOC entries too. Use one leader style throughout the TOC."
+        "page numbers. The entry identified on page {page} is one example."
     ),
     ("P075", "toc_missing_leader_style"): (
         "Problem: The Table of Contents has entries without a leader before "
         "the page number while other entries use one. The entry identified "
-        "on page {page} is one example. Add the same leader style to each "
-        "affected TOC entry."
+        "on page {page} is one example."
     ),
     ("P084", "biosketch_birth_information_present"): (
         "Problem: The Biographical Sketch on page {page} appears to include "
@@ -1019,9 +1017,19 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ),
     ("P068", "approval_page_advisor_role_label_missing"): "",
     ("P068", "approval_page_signature_blocks_sparse"): "",
+    ("P075", "toc_missing_leader_style"): (
+        "Add a leader before each affected Table of Contents page number, "
+        "using the same style as the other entries."
+    ),
+    ("P075", "toc_mixed_leader_styles"): (
+        "Use one leader style, dots or hyphens, throughout the Table of Contents."
+    ),
 }
 
 _NO_ISSUE_OVERRIDE = object()
+_P075_GENERIC_LEADER_FIX = (
+    "Right-align page numbers and use one consistent leader style (dots or hyphens)."
+)
 
 
 def _resolve_remediation(rule_id: str, issue_type: str) -> str:
@@ -2335,6 +2343,12 @@ def resolve_suggested_fix_for_display(
         if numbered_fix:
             return numbered_fix
     cleaned = sanitize_suggested_fix_for_web(rule_id, existing.strip())
+    if (
+        rule_id == "P075"
+        and (rule_id, issue_type) in _ISSUE_REMEDIATION_OVERRIDES
+        and cleaned in {_P075_GENERIC_LEADER_FIX, _remediation_by_rule().get(rule_id)}
+    ):
+        return _resolve_remediation(rule_id, issue_type)
     if rule_id in {"P027", "P065"} and cleaned == _remediation_by_rule().get(rule_id):
         # Older reports may already contain the combined catalog wording.
         return _resolve_remediation(rule_id, issue_type)

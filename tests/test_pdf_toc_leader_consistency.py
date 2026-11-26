@@ -31,6 +31,7 @@ from njit_auditor.pdf_models import (
     PdfTextLine,
     PdfTextSpan,
 )
+from njit_auditor.polished_comments import resolve_suggested_fix_for_display
 from njit_auditor.report_outputs import audit_findings_to_json_dict
 from njit_auditor.report_view import build_report_view
 from njit_auditor.rules.pdf_toc_alignment import TocEntryLine, check_pdf_toc_alignment
@@ -41,6 +42,24 @@ from njit_auditor.rules.pdf_toc_leader_consistency import (
 from njit_auditor.student_pdf_report import build_combined_student_pdf_report
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.parametrize(("issue_type", "action"), [
+    ("toc_missing_leader_style", "Add a leader before each affected"),
+    ("toc_mixed_leader_styles", "Use one leader style, dots or hyphens"),
+])
+def test_p075_advice_replaces_only_generic_fixes(issue_type: str, action: str) -> None:
+    legacy = "Right-align page numbers and use one consistent leader style (dots or hyphens)."
+    catalog = (
+        "Right-align page numbers and use one consistent leader style "
+        "(dots or hyphens) throughout the entire Table of Contents."
+    )
+    specific = "Restore the dotted leader in the second entry."
+    for existing in ("", legacy, catalog):
+        fix = resolve_suggested_fix_for_display("P075", issue_type, existing=existing)
+        assert fix.startswith(action)
+    assert resolve_suggested_fix_for_display("P075", issue_type, existing=specific) == specific
+    assert resolve_suggested_fix_for_display("P075", "", existing=legacy) == legacy
 
 # ---------------------------------------------------------------------------
 # Synthetic PDF builder helpers
