@@ -52,7 +52,11 @@ from njit_auditor.issue_type_explanations import explain_issue_type
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_highlight import get_pdf_page_sizes
 from njit_auditor.pdf_layout import load_pdf_layout
-from njit_auditor.polished_comments import build_polished_comment
+from njit_auditor.polished_comments import (
+    _remediation_by_rule,
+    build_polished_comment,
+    resolve_suggested_fix_for_display,
+)
 from njit_auditor.report_outputs import audit_findings_to_json_dict, write_markdown_report
 from njit_auditor.report_view import build_report_view, report_view_to_dict
 from njit_auditor.rules.pdf_abstract_indentation import check_pdf_abstract_indentation
@@ -1993,6 +1997,55 @@ def test_p027_explanation_templates_are_level_specific() -> None:
     )
     assert "Level 1" in level1 and "Level 3" not in level1
     assert "Level 3" in level3 and "Level 1" not in level3
+
+
+@pytest.mark.parametrize(("rule_id", "issue", "expected"), [
+    ("P027", "level1_not_all_caps", "Use all capital letters in the Level 1 heading title."),
+    ("P027", "level2_title_case_issue", "Use title case for this Level 2 heading."),
+    ("P027", "level3_sentence_case_issue", "Use sentence case for this Level 3 heading."),
+    ("P027", "level4_sentence_case_issue", "Use sentence case for this Level 4 heading."),
+    (
+        "P027", "level4_sentence_case_or_punctuation_issue",
+        "Add a period at the end of this Level 4 heading.",
+    ),
+    ("P027", "level5_sentence_case_issue", "Use sentence case for this Level 5 heading."),
+    (
+        "P027", "level5_sentence_case_or_punctuation_issue",
+        "Add a period at the end of this Level 5 heading.",
+    ),
+    (
+        "P065", "dedication_text_not_centered",
+        "Center the dedication text block horizontally within the text area.",
+    ),
+    (
+        "P065", "dedication_text_not_italic",
+        "If the dedication text uses the Latin alphabet, apply italic formatting to the full text.",
+    ),
+])
+def test_suggested_fix_targets_only_the_detected_heading_or_dedication_issue(
+    rule_id: str, issue: str, expected: str,
+) -> None:
+    assert resolve_suggested_fix_for_display(rule_id, issue) == expected
+    old_generic = _remediation_by_rule()[rule_id]
+    assert resolve_suggested_fix_for_display(rule_id, issue, existing=old_generic) == expected
+
+
+def test_suggested_fix_retains_recorded_specific_replacement_and_unknown_issue_fallback() -> None:
+    specific = 'Change "1.2.3 Mixed Case" to "1.2.3 Mixed case".'
+    assert resolve_suggested_fix_for_display(
+        "P027", "level3_sentence_case_issue", existing=specific,
+    ) == specific
+    generic = _remediation_by_rule()["P027"]
+    assert resolve_suggested_fix_for_display(
+        "P027", "unrecognized_issue", existing=generic,
+    ) == generic
+
+
+def test_p065_italic_comment_limits_guidance_to_latin_alphabet() -> None:
+    comment = build_polished_comment(
+        rule_id="P065", issue_type="dedication_text_not_italic", page=4, details={},
+    )
+    assert "requires italics for dedication text that uses the Latin alphabet" in comment
 
 
 def test_p020_heading_source_comment_is_title_case_specific_not_mixed_with_caption() -> None:
