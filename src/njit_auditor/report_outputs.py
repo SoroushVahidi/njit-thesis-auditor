@@ -2371,12 +2371,18 @@ def audit_findings_to_json_dict(
     findings: list[AuditFinding], metadata: dict[str, str]
 ) -> dict[str, Any]:
     """Convert findings + metadata into a structured serializable payload."""
+    from njit_auditor.polished_comments import resolve_suggested_fix_for_display
+
     audit_type = metadata.get("audit_type", "pdf")
     prepared = _findings_sorted_for_export(_prepare_findings_for_export(findings, audit_type))
 
     serialized_findings: list[dict[str, Any]] = []
     for finding in prepared:
         details = _sanitize_details(finding.details)
+        if finding.rule_id == "P075" and "suggested_fix" in details:
+            details["suggested_fix"] = resolve_suggested_fix_for_display(
+                finding.rule_id, details.get("issue_type", ""), existing=details["suggested_fix"]
+            )
         _, student_facing_role = _student_export_role(finding.rule_id, details)
         entry: dict[str, Any] = {
             "rule_id": finding.rule_id,
