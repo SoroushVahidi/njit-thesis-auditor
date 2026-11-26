@@ -8,7 +8,8 @@ Heuristic PDF coverage for Q033 and Q034:
 
   B. dedication_text_not_italic — fewer than half of the usable text spans have
      italic/oblique font style metadata.  Gate: ≥3 usable spans required, and at
-     least one span must have non-None font metadata.
+     least one span must have non-None font metadata. The alphabetic text must
+     be identifiable as Latin script.
 
 Guideline basis:
   - Q033: "Is the full dedication text block visually centered on the page?"
@@ -32,6 +33,7 @@ Conservative skip conditions:
   - Fewer than _MIN_TEXT_LINES usable text lines below the heading.
   - Fewer than _MIN_SPANS usable spans for italic check.
   - All span fonts are None (no font metadata available).
+  - Non-Latin, mixed, or unrecognized alphabetic text for the italic check.
   - Image-only page (no text blocks at all).
 
 Privacy: all finding fields are geometric or numeric metadata only.  No
@@ -42,6 +44,7 @@ in any finding field.
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, PdfPage, PdfTextLine, PdfTextSpan
@@ -117,7 +120,7 @@ def _collect_dedication_text_lines(page: PdfPage, heading_y: float) -> list[PdfT
                 continue
             if _is_page_number_line(cleaned):
                 continue
-            if not re.search(r"[A-Za-z]", cleaned):
+            if not any(char.isalpha() for char in cleaned):
                 continue
             lines.append(line)
     return lines
@@ -179,8 +182,9 @@ def _check_centering(
 
 
 def _check_italic(
-    page: PdfPage, spans: list[PdfTextSpan]
+    page: PdfPage, lines: list[PdfTextLine]
 ) -> AuditFinding | None:
+    spans = _collect_spans(lines)
     if len(spans) < _MIN_SPANS:
         return None
     # Skip if no font metadata is available.
@@ -190,6 +194,19 @@ def _check_italic(
     italic_ratio = italic_count / len(spans)
     if italic_ratio >= _ITALIC_RATIO_THRESHOLD:
         return None
+
+    # Q034 applies only to Latin text. Require identifiable Latin letters in
+    # every alphabetic run, including lines with no ASCII characters.
+    letters = [
+        char for line in lines for char in unicodedata.normalize("NFC", line.text)
+        if char.isalpha()
+    ]
+    if not letters or any(
+        not unicodedata.name(char, "").startswith(("LATIN ", "FULLWIDTH LATIN "))
+        for char in letters
+    ):
+        return None
+
     return AuditFinding(
         rule_id="P065",
         severity=Severity.WARNING,
@@ -245,12 +262,14 @@ def check_pdf_dedication_centering_italic(
 
     findings: list[AuditFinding] = []
 
-    centering_finding = _check_centering(dedication_page, text_lines)
+    # Keep the existing Q033 line selection and geometry independent of the
+    # wider alphabetic coverage needed to determine whether Q034 applies.
+    centering_lines = [line for line in text_lines if re.search(r"[A-Za-z]", line.text)]
+    centering_finding = _check_centering(dedication_page, centering_lines)
     if centering_finding is not None:
         findings.append(centering_finding)
 
-    spans = _collect_spans(text_lines)
-    italic_finding = _check_italic(dedication_page, spans)
+    italic_finding = _check_italic(dedication_page, text_lines)
     if italic_finding is not None:
         findings.append(italic_finding)
 
