@@ -113,7 +113,7 @@ render.
 | P051 | copyright_year_not_found | No | — (value absent) | n/a | Yes | Should not highlight — correct |
 | P053 | lot_entry_has_terminal_period | Yes | Full entry line | Yes | n/a | Good |
 | P054 | toc_entry_has_terminal_period | Yes | Full entry line | Yes | n/a | Good |
-| P064 | references_structural_issue (hanging indent) | No | — | n/a | Debatable | **Present but misleading location** — see [Finding 4](#finding-4-p064-references-no-geometry-and-page-may-be-wrong) |
+| P064 | references_structural_issue (hanging indent) | No | — | n/a | Debatable | **Present but misleading location** — see [Finding 4](#finding-4-p064-references--no-geometry-and-page-may-be-wrong) |
 | P068 | approval_page_advisor_role_label_missing, _signature_blocks_sparse | No | — (page-wide count-based finding) | n/a | Yes, currently | Acceptable as explanation-only; a full committee-block region highlight is a plausible future enhancement, following the P035 pattern |
 
 ---

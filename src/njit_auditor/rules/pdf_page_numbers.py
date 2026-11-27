@@ -978,6 +978,59 @@ def _find_sequence_gap(
     return None
 
 
+def _visible_folio_in_mixed_block(
+    page: PdfPage,
+    previous: PageNumberCandidate | None,
+    following: PageNumberCandidate | None,
+) -> bool:
+    """Recover an expected folio hidden by a block spanning body and footer.
+
+    The ordinary extractor gates whole blocks by margin position. Only use a
+    line inside such a block when both adjacent folios establish its exact
+    value, style, position and baseline. This leaves isolated Roman-looking
+    header letters and genuinely absent folios outside the recovery path.
+    """
+    if (
+        previous is None
+        or following is None
+        or previous.value is None
+        or following.value != previous.value + 2
+        or previous.number_style != following.number_style
+        or previous.position_type != following.position_type
+        or previous.bbox is None
+        or following.bbox is None
+    ):
+        return False
+    expected = previous.value + 1
+    width, height = text_space_size(page)
+    for block in page.text_blocks:
+        for line in block.lines:
+            token = " ".join(line.text.strip().split())
+            if not PAGE_NUM_RE.fullmatch(token) or _is_math_symbol_line(line):
+                continue
+            style, value = _classify_style_and_value(token)
+            if style != previous.number_style or value != expected:
+                continue
+            if not _is_top_or_bottom_zone(line.bbox.y0, line.bbox.y1, height):
+                continue
+            position = _classify_position_type(
+                line.bbox.x0, line.bbox.x1, line.bbox.y1, width, height
+            )
+            if position != previous.position_type:
+                continue
+            center = (line.bbox.x0 + line.bbox.x1) / 2
+            if all(
+                abs(center - (neighbor.bbox[0] + neighbor.bbox[2]) / 2)
+                <= POSITION_CENTER_TOLERANCE_PT
+                and abs(line.bbox.y0 - neighbor.bbox[1])
+                <= _DOMINANT_PATTERN_MAX_Y_TOLERANCE_PT
+                for neighbor in (previous, following)
+                if neighbor.bbox is not None
+            ):
+                return True
+    return False
+
+
 def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
     """Emit conservative P019 warnings for page-number sequence/style issues."""
 
@@ -1025,6 +1078,22 @@ def check_pdf_page_number_sequence(pdf_doc: PdfDocument) -> list[AuditFinding]:
         if (page - 1) in pages_with_plausible_primary and (
             page + 1
         ) in pages_with_plausible_primary:
+            previous = _primary_plausible_candidate(by_page[page - 1])
+            following = _primary_plausible_candidate(by_page[page + 1])
+            # A Roman-to-Arabic front-matter/body boundary cannot establish
+            # that its intervening page should carry either numbering style.
+            if (
+                previous is not None
+                and following is not None
+                and previous.number_style != following.number_style
+            ):
+                continue
+            if _visible_folio_in_mixed_block(
+                pdf_doc.pages[page - 1],
+                previous,
+                following,
+            ):
+                continue
             findings.append(
                 AuditFinding(
                     rule_id="P019",

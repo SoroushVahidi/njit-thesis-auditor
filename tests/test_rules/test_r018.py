@@ -18,9 +18,11 @@ feedback -- see docs/status/r018_ester_reconciliation_20260907.md:
    indent outlier.
 """
 
+from copy import copy
 from pathlib import Path
 
 import fitz
+import pytest
 
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.pdf_models import (
@@ -37,8 +39,151 @@ from njit_auditor.rules.pdf_toc_alignment import (
     _has_prefix_entry_shape,
     _right_edge_page_number_span,
     check_pdf_toc_alignment,
+    detect_toc_like_pages,
+    entry_has_visible_dot_leader,
+    extract_toc_entry_lines,
 )
 from njit_auditor.rules.pdf_toc_leader_consistency import check_pdf_toc_leader_consistency
+
+
+@pytest.mark.parametrize(
+    ("heading", "prefix"),
+    [
+        ("TABLE OF CONTENTS", ""),
+        ("LIST OF FIGURES", "Figure "),
+        ("LIST OF TABLES", "Table "),
+    ],
+)
+@pytest.mark.parametrize(
+    ("offset", "placement", "warns"),
+    [
+        (1.25, "gap", False),
+        (-1.25, "gap", False),
+        (0.0, "tall", False),
+        (1.25, "competitor", True),
+        (1.25, "missing_title_origin", True),
+        (1.25, "beyond_folio", True),
+        (1.95, "gap", True),
+        (0.0, "absent", True),
+    ],
+)
+def test_detached_dot_run_requires_one_visual_row_owner(
+    tmp_path: Path, heading: str, prefix: str, offset: float, placement: str, warns: bool,
+) -> None:
+    path = tmp_path / "offset-leaders.pdf"
+    title = f"{prefix}3 Synthetic target entry"
+    with fitz.open() as doc:
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((220, 85), heading, fontname="hebo", fontsize=14)
+        for number, y in enumerate((130, 155, 180, 205, 230), start=1):
+            label = title if number == 3 else f"{prefix}{number} Synthetic peer entry ...."
+            page.insert_text((108, y), label, fontsize=10)
+            page.insert_text((530, y), str(10 + number), fontsize=10)
+        if placement != "absent":
+            x = 550 if placement == "beyond_folio" else 435
+            size = 16 if placement == "tall" else 10
+            page.insert_text((x, 180 + offset), ". . . .", fontname="tiro", fontsize=size)
+        if placement == "competitor":
+            # This source line is too far right to become an extracted entry.
+            page.insert_text((350, 182.5), "Other text", fontsize=10)
+        doc.save(path)
+
+    layout = load_pdf_layout(str(path))
+    if placement == "missing_title_origin":
+        (span,) = [
+            span for block in layout.pages[0].text_blocks for line in block.lines
+            for span in line.spans if span.text == title
+        ]
+        span.baseline_y = None
+    (context,) = detect_toc_like_pages(layout)
+    entries = extract_toc_entry_lines(context)
+    assert entries[2].page_number_token == "13"
+    assert not entries[2].has_leader_dots
+    findings = check_pdf_toc_alignment(layout) + check_pdf_toc_leader_consistency(layout)
+    assert all(finding.details["issue_type"] != "missing_page_number" for finding in findings)
+    if heading == "TABLE OF CONTENTS":
+        rule, issue, index_key = "P075", "toc_missing_leader_style", "entry_index"
+    else:
+        rule, issue, index_key = "P018", "inconsistent_leader_dots", "worst_entry_index"
+    targeted = [finding for finding in findings if finding.details["issue_type"] == issue]
+    if warns:
+        (finding,) = targeted
+        assert (finding.rule_id, finding.page, finding.details[index_key]) == (rule, 1, "2")
+    else:
+        assert not targeted
+
+
+@pytest.mark.parametrize(
+    ("placement", "warns"),
+    [
+        ("same_baseline", False),
+        ("final_baseline", False),
+        ("legacy_bbox", False),
+        ("first_baseline", True),
+        ("inside_title", True),
+        ("beyond_folio", True),
+        ("absent", True),
+    ],
+)
+def test_r018_detached_leaders_belong_to_final_title_row(
+    tmp_path: Path, placement: str, warns: bool
+) -> None:
+    path = tmp_path / "detached-leaders.pdf"
+    wrapped = placement in {"final_baseline", "first_baseline"}
+    with fitz.open() as doc:
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((215, 85), "LIST OF FIGURES")
+        for number, y in enumerate((130, 155, 180, 220, 245), start=1):
+            if number == 3:
+                if wrapped:
+                    page.insert_text((108, y - 14), "Figure 3 A long synthetic title")
+                    title = "continued with a second line"
+                elif placement == "inside_title":
+                    title = (
+                        "Figure 3 A long synthetic description with several words "
+                        "and a final phrase"
+                    )
+                else:
+                    title = "Figure 3 A synthetic title"
+                page.insert_text((108, y), title, fontsize=10)
+            else:
+                page.insert_text((108, y), f"Figure {number} A synthetic title ....", fontsize=10)
+            page.insert_text((500, y), str(10 + number), fontsize=10)
+        if placement != "absent":
+            x = {"inside_title": 350, "beyond_folio": 530}.get(placement, 450)
+            dot_y = 166 if placement == "first_baseline" else 180
+            size = 10 if placement in {"inside_title", "first_baseline", "legacy_bbox"} else 16
+            page.insert_text((x, dot_y), ". . . .", fontname="tiro", fontsize=size)
+        doc.save(path)
+
+    layout = load_pdf_layout(str(path))
+    context, = detect_toc_like_pages(layout)
+    entries = extract_toc_entry_lines(context)
+    entry = entries[2]
+    if placement == "legacy_bbox":
+        for block in context.page.text_blocks:
+            for line in block.lines:
+                if line.text == ". . . .":
+                    line.baseline_y = None
+    assert entry.is_wrapped is wrapped
+    assert not entry.has_leader_dots
+    assert entry_has_visible_dot_leader(entry, context.page, entries) is not warns
+    if placement == "same_baseline":
+        # The same fragment cannot certify two entries with competing geometry.
+        assert not entry_has_visible_dot_leader(entry, context.page, [*entries, copy(entry)])
+    if wrapped:
+        return
+
+    findings = [
+        finding for finding in check_pdf_toc_alignment(layout)
+        if finding.details.get("issue_type") == "inconsistent_leader_dots"
+    ]
+    assert bool(findings) is warns
+    if warns:
+        assert len(findings) == 1
+        assert findings[0].details["affected_entry_count"] == "1"
+        assert findings[0].details["worst_entry_index"] == "2"
+        assert "bbox" in findings[0].details
 
 
 def test_leader_dot_pattern_recognizes_literal_ascii_run() -> None:

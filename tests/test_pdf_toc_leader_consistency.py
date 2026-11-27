@@ -16,8 +16,13 @@ H. Issue-type label and explanation exist for both P075 issue types
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 
+import fitz
+import pytest
+
+from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
@@ -26,9 +31,35 @@ from njit_auditor.pdf_models import (
     PdfTextLine,
     PdfTextSpan,
 )
-from njit_auditor.rules.pdf_toc_leader_consistency import check_pdf_toc_leader_consistency
+from njit_auditor.polished_comments import resolve_suggested_fix_for_display
+from njit_auditor.report_outputs import audit_findings_to_json_dict
+from njit_auditor.report_view import build_report_view
+from njit_auditor.rules.pdf_toc_alignment import TocEntryLine, check_pdf_toc_alignment
+from njit_auditor.rules.pdf_toc_leader_consistency import (
+    _anchor_details,
+    check_pdf_toc_leader_consistency,
+)
+from njit_auditor.student_pdf_report import build_combined_student_pdf_report
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.parametrize(("issue_type", "action"), [
+    ("toc_missing_leader_style", "Add a leader before each affected"),
+    ("toc_mixed_leader_styles", "Use one leader style, dots or hyphens"),
+])
+def test_p075_advice_replaces_only_generic_fixes(issue_type: str, action: str) -> None:
+    legacy = "Right-align page numbers and use one consistent leader style (dots or hyphens)."
+    catalog = (
+        "Right-align page numbers and use one consistent leader style "
+        "(dots or hyphens) throughout the entire Table of Contents."
+    )
+    specific = "Restore the dotted leader in the second entry."
+    for existing in ("", legacy, catalog):
+        fix = resolve_suggested_fix_for_display("P075", issue_type, existing=existing)
+        assert fix.startswith(action)
+    assert resolve_suggested_fix_for_display("P075", issue_type, existing=specific) == specific
+    assert resolve_suggested_fix_for_display("P075", "", existing=legacy) == legacy
 
 # ---------------------------------------------------------------------------
 # Synthetic PDF builder helpers
@@ -252,6 +283,124 @@ def test_missing_leader_warning_anchors_page_with_actual_missing_entry() -> None
     assert p075[0].details["page_number"] == "4"
 
 
+def test_p075_mixed_styles_highlight_is_an_observed_example() -> None:
+    entries = [
+        _entry_dot("CHAPTER 1 SYNTHETIC TITLE", 80),
+        _entry_hyphen("CHAPTER 2 SYNTHETIC TITLE", 100),
+        _entry_dot("CHAPTER 3 SYNTHETIC TITLE", 120),
+    ]
+    findings = check_pdf_toc_leader_consistency(
+        _doc(_page(_block(_toc_heading()), *[_block(entry) for entry in entries]))
+    )
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.details["entry_index"] == "1"
+    assert finding.details["highlight_scope"] == "example_entry_only"
+    assert finding.details["bbox"] == "108.0,100.0,504.0,112.0"
+    assert finding.details["confidence"] == "medium"
+    assert "one hyphen-leader example" in finding.message
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    view = build_report_view(payload)
+    card = view.findings[0]
+    assert card.has_highlight
+    assert card.action_kind == "highlight"
+    assert "entry 2" in card.location_label
+    assert "one example" in card.polished_comment
+    assert "identified entry" in card.detailed_explanation
+    assert payload["findings"][0]["details"]["bbox"] == finding.details["bbox"]
+
+
+def test_p075_missing_leader_highlight_targets_missing_row() -> None:
+    entries = [
+        _entry_dot("CHAPTER 1 SYNTHETIC TITLE", 80),
+        _entry_none("CHAPTER 2 SYNTHETIC TITLE", 100),
+        _entry_dot("CHAPTER 3 SYNTHETIC TITLE", 120),
+    ]
+    finding = check_pdf_toc_leader_consistency(
+        _doc(_page(_block(_toc_heading()), *[_block(entry) for entry in entries]))
+    )[0]
+    assert finding.details["issue_type"] == "toc_missing_leader_style"
+    assert finding.details["entry_index"] == "1"
+    assert finding.details["bbox"] == "108.0,100.0,504.0,112.0"
+    assert "one entry without a leader" in finding.message
+
+
+def test_p075_invalid_geometry_is_disclosed_without_bbox(tmp_path: Path) -> None:
+    bad = TocEntryLine(
+        line=_line("CHAPTER 2 SYNTHETIC TITLE   10", x0=108, x1=108),
+        cleaned_text="CHAPTER 2 SYNTHETIC TITLE 10",
+        page_number_token="10",
+        page_number_right_x=504,
+        indent_x=108,
+        has_leader_dots=False,
+    )
+    details = _anchor_details(bad, _page(page_number=3), 1)
+    assert "bbox" not in details
+    assert "No reliable entry coordinates" in details["highlight_unavailable_reason"]
+    finding = {
+        "rule_id": "P075",
+        "severity": "WARNING",
+        "page": 3,
+        "message": "A TOC entry has no leader.",
+        "details": {"issue_type": "toc_missing_leader_style", **details},
+    }
+    card = build_report_view({"findings": [finding], "metadata": {}}).findings[0]
+    assert not card.has_highlight
+    assert card.action_kind == "original_page"
+    assert "No exact highlight is available" in card.no_highlight_reason
+    assert "entry 2" in card.location_label
+    source = tmp_path / "synthetic.pdf"
+    output = tmp_path / "report.pdf"
+    with fitz.open() as doc:
+        for _ in range(3):
+            doc.new_page(width=612, height=792)
+        doc.save(source)
+    result = build_combined_student_pdf_report(
+        source,
+        output,
+        [asdict(card)],
+        boxes_by_problem={},
+        file_name="synthetic.pdf",
+    )
+    assert result.highlighted_findings == 0
+    with fitz.open(output) as doc:
+        report_text = " ".join(page.get_text() for page in list(doc)[3:])
+        assert "No exact highlight is available" in report_text
+
+
+def test_p075_combined_pdf_uses_same_example_and_guidance(tmp_path: Path) -> None:
+    entries = [
+        _entry_dot("CHAPTER 1 SYNTHETIC TITLE", 80),
+        _entry_hyphen("CHAPTER 2 SYNTHETIC TITLE", 100),
+        _entry_dot("CHAPTER 3 SYNTHETIC TITLE", 120),
+    ]
+    findings = check_pdf_toc_leader_consistency(
+        _doc(_page(_block(_toc_heading()), *[_block(entry) for entry in entries]))
+    )
+    payload = audit_findings_to_json_dict(findings, {"audit_type": "pdf"})
+    card = build_report_view(payload).findings[0]
+    assert card.bbox is not None
+    source = tmp_path / "synthetic.pdf"
+    output = tmp_path / "report.pdf"
+    with fitz.open() as doc:
+        for _ in range(3):
+            page = doc.new_page(width=612, height=792)
+        page.insert_text((108, 110), "CHAPTER 2 SYNTHETIC TITLE ----- 100")
+        doc.save(source)
+    result = build_combined_student_pdf_report(
+        source,
+        output,
+        [asdict(card)],
+        boxes_by_problem={card.problem_number: [card.bbox]},
+        file_name="synthetic.pdf",
+    )
+    assert result.highlighted_findings == 1
+    with fitz.open(output) as doc:
+        report_text = " ".join(page.get_text() for page in list(doc)[3:])
+        assert "one example" in report_text
+        assert "Table of Contents" in report_text
+
+
 def test_missing_leaders_with_hyphen_dominant() -> None:
     """Missing-leader detection works when the dominant style is hyphen."""
     heading = _toc_heading()
@@ -408,3 +557,46 @@ def test_mixed_leaders_finding_text_confirms_q052() -> None:
     assert p075, "Expected a P075 finding"
     assert p075[0].details.get("source_q_rule_id") == "Q052"
     assert "Q052" not in p075[0].message
+
+
+@pytest.mark.parametrize(("heading", "prefix", "rule", "issue", "index_field"), [
+    ("TABLE OF CONTENTS", "", "P075", "toc_missing_leader_style", "entry_index"),
+    ("LIST OF TABLES", "Table ", "P018", "inconsistent_leader_dots", "worst_entry_index"),
+    ("LIST OF FIGURES", "Figure ", "P018", "inconsistent_leader_dots", "worst_entry_index"),
+])
+@pytest.mark.parametrize(("mode", "expected"), [
+    ("overprint", True), ("no_dots", True), ("compact", False),
+    ("detached", False), ("overprint_and_detached", False), ("sparse", False),
+])
+def test_dot_only_title_overprint_is_not_leader_evidence(
+    tmp_path: Path, heading: str, prefix: str, rule: str, issue: str, index_field: str,
+    mode: str, expected: bool,
+) -> None:
+    source = tmp_path / "leaders.pdf"
+    with fitz.open() as pdf:
+        page = pdf.new_page()
+        page.insert_text((160, 71), heading, fontsize=14, fontname="hebo")
+        for index, y in enumerate((122, 146, 175, 209, 237), start=1):
+            if mode == "sparse" and index not in (1, 3):
+                continue
+            title = f"{prefix}{index} Synthetic measurement method and control"
+            page.insert_text((103, y), title + (" ...." if index != 3 else ""), fontsize=10.5)
+            if index == 3:
+                if mode in {"overprint", "overprint_and_detached", "sparse"}:
+                    page.insert_text((160, y), ". . . .", fontsize=11, fontname="tiro")
+                if mode in {"detached", "overprint_and_detached"}:
+                    page.insert_text((400, y), ". . . .", fontsize=11, fontname="tiro")
+                if mode == "compact":
+                    right = 103 + fitz.get_text_length(title, fontsize=10.5)
+                    page.insert_text((right + 0.1, y), ". . . .", fontsize=11, fontname="tiro")
+            page.insert_text((507, y), str(20 + index), fontsize=10.5)
+        pdf.save(source)
+    doc = load_pdf_layout(str(source))
+    findings = check_pdf_toc_alignment(doc) + check_pdf_toc_leader_consistency(doc)
+    assert not any(f.details.get("issue_type") == "missing_page_number" for f in findings)
+    warnings = [f for f in findings if f.details.get("issue_type") == issue]
+    assert [(f.rule_id, f.page, f.details[index_field]) for f in warnings] == (
+        [(rule, 1, "2")] if expected else []
+    )
+    if mode == "overprint":
+        assert warnings[0].details["_preserve_prior_finding_ids"] == "true"

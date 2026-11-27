@@ -161,6 +161,11 @@ def _terminal_punctuation(text: str) -> bool:
     return bool(TERMINAL_PUNCT_RE.search(text))
 
 
+def has_terminal_caption_punctuation(text: str) -> bool:
+    """Recognize a terminal mark immediately inside closing quotation marks."""
+    return _terminal_punctuation(text.rstrip().rstrip("\"'”’"))
+
+
 def _starts_new_caption(text: str) -> bool:
     clean = normalize_caption_candidate_text(text)
     match = CAPTION_START_RE.match(clean)
@@ -190,12 +195,11 @@ def _starts_caption_note(text: str) -> bool:
 def _reads_as_prose_sentence(caption_body: str) -> bool:
     """True when the body already contains a full sentence followed by another.
 
-    A real figure/table caption is a single descriptive title, not a
-    multi-sentence narrative. A body paragraph that merely opens by
-    referencing a figure or table number (e.g. "Figure 4.1 displays the
-    relationship... The points cluster...") matches the same caption-start
-    pattern but reads as flowing prose once a sentence boundary appears
-    before the end of the line.
+    This legacy page-local guard cannot distinguish a multi-sentence caption
+    from a paragraph opening with a figure reference without further layout
+    evidence. The opt-in logical-caption path may recover a cross-page panel
+    description only with a corroborating graphic and continuation structure.
+    Other prose-reference exclusions remain unchanged.
     """
 
     return bool(EMBEDDED_SENTENCE_RE.search(caption_body))
@@ -381,17 +385,38 @@ def detect_caption_lines(pdf_document: PdfDocument) -> list[CaptionLine]:
 
 
 def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
-    """Emit conservative P017 warnings for obvious caption/title formatting issues."""
+    """Emit conservative P017 caption punctuation, capitalization and spacing warnings."""
 
     findings: list[AuditFinding] = []
 
-    for caption in detect_caption_lines(pdf_document):
+    from njit_auditor.rules.pdf_caption_continuations import (
+        LogicalCaption,
+        detect_logical_caption_lines,
+        locate_page_caption_end,
+    )
+    from njit_auditor.rules.pdf_caption_spacing import check_page_caption_spacing
+
+    pages = {page.page_number: page for page in pdf_document.pages}
+    quoted_list_rows: set[tuple[int, float, float]] | None = None
+    for caption in detect_logical_caption_lines(pdf_document):
         if caption.context in {"toc", "references"}:
             continue
 
         issue_type: str | None = None
         confidence = "medium"
         message = ""
+        terminal_text = caption.caption_body
+        end_lines: tuple[PdfTextLine, ...] = ()
+        end_is_resolved = True
+        if caption.context == "body" and not isinstance(caption, LogicalCaption):
+            end = locate_page_caption_end(pages[caption.page_number], caption)
+            if end is not None:
+                terminal_text = normalize_caption_text(end.lines[-1].text)
+                end_is_resolved = end.resolved
+                end_lines = end.lines
+                spacing = check_page_caption_spacing(caption, end)
+                if spacing is not None:
+                    findings.append(spacing)
 
         if caption.context == "list_of_tables" and caption.caption_type == "table":
             if caption.caption_body.endswith("."):
@@ -402,7 +427,18 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
                     "unexpected period."
                 )
         elif caption.context == "list_of_figures" and caption.caption_type == "figure":
-            if not _terminal_punctuation(caption.caption_body):
+            if not has_terminal_caption_punctuation(caption.caption_body):
+                if quoted_list_rows is None:
+                    from njit_auditor.rules.pdf_lof_terminal_punctuation import (
+                        quoted_lof_terminal_rows,
+                    )
+
+                    quoted_list_rows = quoted_lof_terminal_rows(pdf_document)
+                box = caption.bbox
+                if box is not None and (
+                    caption.page_number, round(box.x0, 1), round(box.y0, 1)
+                ) in quoted_list_rows:
+                    continue
                 issue_type = "missing_terminal_punctuation"
                 confidence = "medium"
                 message = (
@@ -414,16 +450,19 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
             # in P024 to avoid duplicate List of Figures findings.
         elif caption.context == "body":
             if caption.caption_type == "figure":
-                if not _terminal_punctuation(caption.caption_body):
+                if end_is_resolved and not has_terminal_caption_punctuation(terminal_text):
                     issue_type = "missing_terminal_punctuation"
                     confidence = "high"
                     message = "Figure caption appears to be missing terminal punctuation."
-                elif _likely_sentence_case_issue(caption.caption_body):
+                elif (
+                    has_terminal_caption_punctuation(caption.caption_body)
+                    and _likely_sentence_case_issue(caption.caption_body)
+                ):
                     issue_type = "possible_sentence_case_issue"
                     confidence = "low"
                     message = "Figure caption may not follow likely sentence-case style."
             elif caption.caption_type == "table":
-                if caption.caption_body.endswith(".."):
+                if end_is_resolved and terminal_text.endswith(".."):
                     issue_type = "unexpected_terminal_period"
                     confidence = "high"
                     message = (
@@ -439,7 +478,8 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
             caption.context == "body"
             and caption.caption_type == "table"
             and issue_type != "unexpected_terminal_period"
-            and caption.caption_body.endswith(".")
+            and end_is_resolved
+            and terminal_text.endswith(".")
         ):
             # Table titles do not end in a period (Ester, Sample B feedback);
             # report it alongside any capitalization issue on the same title.
@@ -450,19 +490,23 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
                     "medium",
                     "Table title appears to end with a period; table titles do not end "
                     "with a period.",
+                    end_lines=end_lines,
                 )
             )
 
         if issue_type is None:
             continue
 
-        findings.append(_caption_finding(caption, issue_type, confidence, message))
+        findings.append(
+            _caption_finding(caption, issue_type, confidence, message, end_lines=end_lines)
+        )
 
     return findings
 
 
 def _caption_finding(
-    caption: CaptionLine, issue_type: str, confidence: str, message: str
+    caption: CaptionLine, issue_type: str, confidence: str, message: str,
+    *, end_lines: tuple[PdfTextLine, ...] = (),
 ) -> AuditFinding:
     details = {
         "page_number": str(caption.page_number),
@@ -480,12 +524,50 @@ def _caption_finding(
             if caption.context == "list_of_tables"
             else "Remove the final period from this table title."
         )
+    if issue_type == "missing_terminal_punctuation" and caption.context == "list_of_figures":
+        details["caption_context"] = caption.context
+        details["suggested_fix"] = "End this List of Figures description with a period."
     if caption.bbox is not None:
         details["bbox"] = format_bbox_detail(caption.bbox)
+    if end_lines and issue_type in {"missing_terminal_punctuation", "unexpected_terminal_period"}:
+        details["caption_end_preview"] = _caption_end_preview(
+            " ".join(line.text for line in end_lines)
+        )
+        details["line_preview"] = _line_preview(normalize_caption_text(end_lines[-1].text))
+        if len(end_lines) > 1:
+            details["bbox"] = format_bbox_detail(end_lines[-1].bbox)
+    from njit_auditor.rules.pdf_caption_continuations import LogicalCaption
+
+    finding_page = caption.page_number
+    if isinstance(caption, LogicalCaption):
+        first, last = caption.fragments
+        details.update({
+            "caption_start_page": str(first.page_number),
+            "caption_end_page": str(last.page_number),
+            "caption_start_document_page_label": first.document_page_label,
+            "caption_end_document_page_label": last.document_page_label,
+            "caption_start_bbox": format_bbox_detail(first.bbox),
+            "caption_end_bbox": format_bbox_detail(last.bbox),
+        })
+        if issue_type == "missing_terminal_punctuation":
+            finding_page = last.page_number
+            details["page_number"] = str(finding_page)
+            details["bbox"] = format_bbox_detail(last.lines[-1].bbox)
+            details["line_preview"] = _line_preview(last.lines[-1].text.strip())
+            details["caption_end_preview"] = _caption_end_preview(
+                " ".join(line.text.strip() for line in last.lines)
+            )
+            details["suggested_fix"] = (
+                "Add terminal punctuation at the end of the complete figure description "
+                f"on physical PDF page {finding_page}."
+            )
+            if last.document_page_label:
+                details["document_page_label"] = last.document_page_label
+                details["document_page_label_confidence"] = "medium"
     return AuditFinding(
         rule_id="P017",
         severity=Severity.WARNING,
-        page=caption.page_number,
+        page=finding_page,
         message=message,
         details=details,
     )

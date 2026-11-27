@@ -6,7 +6,8 @@ Heuristic PDF coverage for Q063/Q072:
 
 Emits an advisory when:
   - A List of Tables entry starts with "Figure" (lot_entry_is_figure) or
-    is numeric-only (lot_entry_missing_table_prefix).
+    starts with a number without a recognized "Table" column heading
+    (lot_entry_missing_table_prefix).
   - A List of Figures entry starts with "Table" (lof_entry_is_table).
 
 Numeric-only LoF entries are valid (Ester 2026-11-17). The word Figure is
@@ -23,6 +24,7 @@ import re
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, format_bbox_detail
 from njit_auditor.rules.pdf_captions import _page_context, detect_caption_lines
+from njit_auditor.rules.pdf_lot_lof_column_headers import has_lot_table_column_header
 from njit_auditor.rules.pdf_toc_alignment import (
     RIGHT_COLUMN_MIN_X_OFFSET_PT,
     RIGHT_EDGE_TOLERANCE_PT,
@@ -133,6 +135,7 @@ def _check_lot_entry_type_page(
     page_entry_offset: int,
 ) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
+    has_table_heading = has_lot_table_column_header(context, entries)
     for idx, entry in enumerate(entries):
         if entry.page_number_token is None:
             continue
@@ -164,16 +167,15 @@ def _check_lot_entry_type_page(
                     },
                 )
             )
-        elif _NUMERIC_PREFIX_RE.match(text):
+        elif not has_table_heading and _NUMERIC_PREFIX_RE.match(text):
             findings.append(
                 AuditFinding(
                     rule_id="P055",
                     severity=Severity.WARNING,
                     page=context.page.page_number,
                     message=(
-                        "List of Tables entry is missing the required 'Table' prefix. "
-                        "NJIT guidelines require that each entry in the List of Tables "
-                        "begin with the word 'Table'."
+                        "This List of Tables entry starts with a number, but no 'Table' "
+                        "column heading was recognized above the entry numbers."
                     ),
                     details={
                         "issue_type": "lot_entry_missing_table_prefix",

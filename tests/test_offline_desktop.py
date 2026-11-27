@@ -6,6 +6,7 @@ import inspect
 import logging
 import re
 import socket
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -676,17 +677,21 @@ def test_combined_pdf_failure_does_not_log_job_id_or_exception_message(
             url = _upload(client, _pdf("normal"), csrf=app.state.csrf_token)
             job_id = url.rsplit("/", 1)[-1]
 
-            def fail_report(*args: object, **kwargs: object) -> None:
-                raise RuntimeError("synthetic-secret-pdf-content")
-
-            monkeypatch.setattr(web_app, "build_combined_student_pdf_report", fail_report)
+            code = (
+                "import sys; from njit_auditor import web_app; "
+                "web_app.build_combined_student_pdf_report = lambda *a, **k: "
+                "(_ for _ in ()).throw(RuntimeError('synthetic-secret-pdf-content')); "
+                "from njit_auditor.desktop_worker import main; sys.exit(main(sys.argv[1:]))"
+            )
+            monkeypatch.setattr(app.state.pdf_export_executor, "_command",
+                                lambda path: [sys.executable, "-c", code, str(path)])
             with caplog.at_level(logging.WARNING, logger="njit_auditor.web_app"):
                 response = client.get(url + "/download/student-report.pdf")
-            assert response.status_code == 500
+            assert response.status_code == 503
             assert "synthetic-secret-pdf-content" not in response.text
             assert "synthetic-secret-pdf-content" not in caplog.text
             assert job_id not in caplog.text
-            assert "RuntimeError" in caplog.text
+            assert "RuntimeError" not in caplog.text  # Child stderr is deliberately suppressed.
 
 
 def test_highlight_failure_does_not_log_job_id_or_exception_message(
@@ -701,17 +706,21 @@ def test_highlight_failure_does_not_log_job_id_or_exception_message(
             url = _upload(client, _pdf("normal"), csrf=app.state.csrf_token)
             job_id = url.rsplit("/", 1)[-1]
 
-            def fail_highlight(*args: object, **kwargs: object) -> None:
-                raise RuntimeError("synthetic-secret-highlight-text")
-
-            monkeypatch.setattr(web_app, "_matching_findings_for_highlight", fail_highlight)
+            code = (
+                "import sys; from njit_auditor import web_app; "
+                "web_app._matching_findings_for_highlight = lambda *a, **k: "
+                "(_ for _ in ()).throw(RuntimeError('synthetic-secret-highlight-text')); "
+                "from njit_auditor.desktop_worker import main; sys.exit(main(sys.argv[1:]))"
+            )
+            monkeypatch.setattr(app.state.pdf_export_executor, "_command",
+                                lambda path: [sys.executable, "-c", code, str(path)])
             with caplog.at_level(logging.WARNING, logger="njit_auditor.web_app"):
                 response = client.get(url + "/pdf/highlighted?page=1")
             assert response.status_code == 200
             assert response.headers["content-type"] == "application/pdf"
             assert "synthetic-secret-highlight-text" not in caplog.text
             assert job_id not in caplog.text
-            assert "RuntimeError" in caplog.text
+            assert "RuntimeError" not in caplog.text  # Child stderr is deliberately suppressed.
 
 
 def test_parity_normalization_changes_only_the_report_audit_time() -> None:

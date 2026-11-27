@@ -15,12 +15,10 @@ Companion to P042 (TOC-side appendix format check, Q058/Q059). P042 checks
 the Table of Contents entries; P063 checks the body-page headings.
 
 Conservative gates:
-  - Requires at least one body-page APPENDIX-like heading to fire at all.
-  - Skips documents where no body/chapter region is detected (image-only or
-    front-matter-only PDFs).
-  - A heading qualifies only if it:
-      * Starts with APPENDIX (case-insensitive) at the start of the line
-      * Appears after the body start page (past front-matter)
+  - Requires a structurally supported APPENDIX heading on a body page.
+  - Excludes named front matter, TOC/list pages and reference entries.
+  - Uses heading text, separation and typography to distinguish new headings
+    from prose and wrapped lines.
   - Single-appendix case: the heading must be exactly "APPENDIX" with no
     trailing letter (A–Z), OR must be "APPENDIX" optionally followed by a
     title that is NOT a single letter.  A bare letter suffix triggers a
@@ -54,66 +52,167 @@ from __future__ import annotations
 import re
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import BBox, PdfDocument, format_bbox_detail
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine, format_bbox_detail
+from njit_auditor.rules.pdf_appendix_subsections import check_appendix_subsections
+from njit_auditor.rules.pdf_frontmatter_heading_gate import resolve_gate_heading_from_line
+from njit_auditor.rules.pdf_heading_levels import _is_tight_wrap_gap, _union_bbox
+from njit_auditor.rules.pdf_headings import (
+    CENTER_TOLERANCE_PT,
+    _is_bold_line,
+    _line_centered,
+    normalize_heading_text,
+)
+from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT, RIGHT_MARGIN_PT, TOP_MARGIN_PT
+from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
+from njit_auditor.rules.pdf_references_citations_structural import (
+    _page_heading as _references_page_heading,
+)
+from njit_auditor.rules.pdf_title_capitalization import MINOR_WORDS
+from njit_auditor.rules.pdf_toc_alignment import (
+    HEADING_SUFFIX_RE,
+    RIGHT_COLUMN_MIN_X_OFFSET_PT,
+    SAME_BASELINE_Y_TOLERANCE_PT,
+    _right_edge_page_number_span,
+    detect_toc_like_pages,
+)
 
 # Matches a line starting with APPENDIX (case-insensitive), possibly followed by
 # a letter identifier and/or title text.
 _APPENDIX_LINE_RE = re.compile(r"^APPENDIX\b", re.IGNORECASE)
 
-# Matches APPENDIX immediately followed by a single uppercase letter and
-# word boundary (e.g. "APPENDIX A" or "APPENDIX A Title Text").
-_APPENDIX_WITH_LETTER_RE = re.compile(r"^APPENDIX\s+([A-Z])\b", re.IGNORECASE)
-
-# Body chapter/appendix heading pattern — marks start of body region.
-# Re-uses the same pattern as pdf_page_numbering_regime._CHAPTER_RE.
-_CHAPTER_APPENDIX_RE = re.compile(r"^(CHAPTER|APPENDIX)\s+[\dA-Z]+", re.IGNORECASE)
-
-# Minimum number of words that the heading line must have beyond "APPENDIX [letter]"
-# to be considered a meaningful appendix heading (not a wrapped sub-heading or label).
-_MIN_LINE_LEN = 3  # characters
+# Use a standalone letter token. A.1 is a subsection number, not an appendix label.
+_APPENDIX_WITH_LETTER_RE = re.compile(r"^APPENDIX\s+([A-Z])(?=$|[\s:\-–—])", re.IGNORECASE)
+_SUBSECTION_AFTER_APPENDIX_RE = re.compile(r"^APPENDIX\s+(?:[A-Z]?\.\d|\d)", re.IGNORECASE)
+_TOC_LEADERS_RE = re.compile(r"[.·]{2,}|…|[-–—_]{4,}")
+_OTHER_FRONT_MATTER = frozenset({
+    "COPYRIGHT PAGE", "TITLE PAGE", "LIST OF SYMBOLS", "LIST OF ABBREVIATIONS",
+})
 
 _RULE_ID = "P063"
 _SOURCE_Q_RULE_IDS = ("Q058", "Q059")
 
 
-def _find_body_start_page(pdf_doc: PdfDocument) -> int | None:
-    """Return the first page number where a CHAPTER or APPENDIX body heading is found."""
+def _heading_text(line: PdfTextLine, *, bold: bool) -> str | None:
+    text = normalize_heading_text(line.text)
+    prefix = _APPENDIX_WITH_LETTER_RE.match(text) or _APPENDIX_LINE_RE.match(text)
+    if (
+        prefix is None
+        or text.endswith((".", "!", "?", ";"))
+        or HEADING_SUFFIX_RE.search(text)
+        or _SUBSECTION_AFTER_APPENDIX_RE.match(text)
+        or _TOC_LEADERS_RE.search(text)
+    ):
+        return None
+    title = text[prefix.end():].strip(" :–—-")
+    if title and not title[0].isupper():
+        return None
+    # A full-width paragraph can appear centered. Regular text must also read like a title.
+    if not bold and any(
+        word[0].islower() and word not in MINOR_WORDS for word in title.split()
+    ):
+        return None
+    return text.upper()
+
+
+def _has_folio_peer(line: PdfTextLine, folios: list[PdfTextLine]) -> bool:
+    """Recognize TOC rows whose folio was extracted as a separate text line."""
+    if _right_edge_page_number_span(line) is not None:
+        return True
+    baseline = line.baseline_y if line.baseline_y is not None else line.bbox.y0
+    for folio in folios:
+        folio_y = folio.baseline_y if folio.baseline_y is not None else folio.bbox.y0
+        if (
+            folio.bbox.x0 >= line.bbox.x0 + RIGHT_COLUMN_MIN_X_OFFSET_PT
+            and abs(folio_y - baseline) <= SAME_BASELINE_Y_TOLERANCE_PT
+        ):
+            return True
+    return False
+
+
+def _is_upper_folio(line: PdfTextLine, page_width: float) -> bool:
+    """Recognize an isolated number in an upper-margin folio position."""
+    if line.bbox.y1 > TOP_MARGIN_PT or not PAGE_NUM_RE.fullmatch(line.text.strip()):
+        return False
+    right_edge = page_width - RIGHT_MARGIN_PT
+    return (
+        _line_centered(line, LEFT_MARGIN_PT, right_edge, page_width=page_width)
+        or abs(line.bbox.x1 - right_edge) <= CENTER_TOLERANCE_PT
+    )
+
+
+def _is_wrapped_letter(previous: PdfTextLine, following: PdfTextLine) -> bool:
+    if not (
+        re.fullmatch(r"[A-Z]", following.text.strip())
+        and _is_bold_line(previous)
+        and _is_bold_line(following)
+        and previous.bbox.y0 < following.bbox.y0
+        and _is_tight_wrap_gap(previous, following)
+    ):
+        return False
+    a, b = previous.bbox, following.bbox
+    return (
+        abs(a.x0 - b.x0) <= CENTER_TOLERANCE_PT
+        or abs((a.x0 + a.x1 - b.x0 - b.x1) / 2) <= CENTER_TOLERANCE_PT
+    )
+
+
+def _collect_appendix_headings(pdf_doc: PdfDocument) -> list[tuple[int, str, BBox]]:
+    """Return the physical page, label text and source box of each supported heading."""
+    list_pages = {c.page.page_number for c in detect_toc_like_pages(pdf_doc)}
+    headings: list[tuple[int, str, BBox]] = []
+    in_references = False
     for page in pdf_doc.pages:
-        for block in page.text_blocks:
-            for line in block.lines:
-                clean = " ".join(line.text.strip().split())
-                if _CHAPTER_APPENDIX_RE.match(clean):
-                    return page.page_number
-    return None
-
-
-def _collect_appendix_headings(
-    pdf_doc: PdfDocument, body_start: int
-) -> list[tuple[int, str, BBox]]:
-    """Return (page_number, normalized_heading_text, bbox) for body-page APPENDIX headings.
-
-    Only lines starting with APPENDIX (case-insensitive), on pages at or after
-    body_start, with length >= _MIN_LINE_LEN, are collected.
-    Duplicate headings on the same page are skipped (multi-line wrapped headings).
-    """
-    seen_pages: set[int] = set()
-    results: list[tuple[int, str, BBox]] = []
-    for page in pdf_doc.pages:
-        if page.page_number < body_start:
+        if page.page_number in list_pages:
             continue
-        if page.page_number in seen_pages:
+        lines = sorted(
+            (line for block in page.text_blocks for line in block.lines if line.text.strip()),
+            key=lambda line: (line.bbox.y0, line.bbox.x0),
+        )
+        if any(
+            resolve_gate_heading_from_line(line.text) is not None
+            or HEADING_SUFFIX_RE.sub("", normalize_heading_text(line.text)).upper()
+            in _OTHER_FRONT_MATTER
+            for line in lines
+        ):
             continue
-        for block in page.text_blocks:
-            for line in block.lines:
-                clean = " ".join(line.text.strip().split())
-                if len(clean) < _MIN_LINE_LEN:
-                    continue
-                if _APPENDIX_LINE_RE.match(clean):
-                    if page.page_number not in seen_pages:
-                        seen_pages.add(page.page_number)
-                        results.append((page.page_number, clean.upper(), line.bbox))
-                    break  # Only first matching line per page
-    return results
+        if _references_page_heading(page) is not None:
+            in_references = True
+            continue
+
+        folios = [line for line in lines if PAGE_NUM_RE.fullmatch(line.text.strip())]
+        for index, line in enumerate(lines):
+            if not _APPENDIX_LINE_RE.match(line.text.lstrip()):
+                continue
+            previous = lines[index - 1] if index else None
+            following = lines[index + 1] if index + 1 < len(lines) else None
+            if previous is not None and _is_tight_wrap_gap(previous, line):
+                continue
+            bold = _is_bold_line(line)
+            styled = bold or _line_centered(
+                line, LEFT_MARGIN_PT, page.width - RIGHT_MARGIN_PT, page_width=page.width,
+            )
+            # Mid-page headings need visual evidence. Within a References run,
+            # only a styled opening heading can establish a new appendix.
+            if not styled and (previous is not None or in_references):
+                continue
+            # An isolated upper folio can precede the heading without sharing its row.
+            if in_references and previous is not None and (
+                index != 1 or not _is_upper_folio(previous, page.width)
+            ):
+                continue
+            text = _heading_text(line, bold=bold)
+            if text is None or _has_folio_peer(line, folios):
+                continue
+            bbox = line.bbox
+            if text == "APPENDIX" and following is not None and _is_wrapped_letter(line, following):
+                text = f"{text} {following.text.strip()}"
+                bbox = _union_bbox(bbox, following.bbox)
+            elif not styled and following is not None and _is_tight_wrap_gap(line, following):
+                continue  # An unstyled line in a dense paragraph is ambiguous.
+            headings.append((page.page_number, text, bbox))
+            in_references = False
+
+    return headings
 
 
 def _extract_letter(heading: str) -> str | None:
@@ -125,7 +224,7 @@ def _extract_letter(heading: str) -> str | None:
 
 
 def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]:
-    """Emit P063 warnings for body-page appendix headings with incorrect label format.
+    """Emit P063 warnings for appendix labels and missing subsection prefixes.
 
     Conservative gates:
     - No findings if no body region is detected (image-only / front-matter-only PDFs).
@@ -134,15 +233,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
     - Multiple appendices: warn if any heading lacks a letter suffix per Q059.
     - Warn if letter identifiers are non-consecutive or repeated.
     """
-    if not pdf_doc.pages:
-        return []
-
-    body_start = _find_body_start_page(pdf_doc)
-    if body_start is None:
-        # No body heading detected → likely front-matter only or image PDF; skip.
-        return []
-
-    headings = _collect_appendix_headings(pdf_doc, body_start)
+    headings = _collect_appendix_headings(pdf_doc)
     if not headings:
         return []
 
@@ -268,4 +359,7 @@ def check_pdf_appendix_body_headings(pdf_doc: PdfDocument) -> list[AuditFinding]
                         )
                         break  # Report only the first gap.
 
+    findings.extend(check_appendix_subsections(
+        pdf_doc, [(page, _extract_letter(text), bbox) for page, text, bbox in headings],
+    ))
     return findings

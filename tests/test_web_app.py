@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -283,6 +284,86 @@ def test_status_endpoint_complete_after_audit(client: tuple[TestClient, Any]) ->
     resp = c.get(f"/audits/{job_id}/status")
     data = resp.json()
     assert data["state"] in ("complete", "running", "failed")
+
+
+@pytest.mark.parametrize("write_fails", [False, True], ids=["complete", "failed"])
+def test_status_publication_waits_for_final_report(
+    client: tuple[TestClient, Any], tmp_path: Path, write_fails: bool
+) -> None:
+    """Observe the running job while the worker is paused at its final report write."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    c, wa = client
+    source = tmp_path / "synthetic.pdf"
+    _make_real_pdf(source, page_count=1)
+    with patch.object(wa, "_run_audit_task", lambda job_id: None):
+        submitted = c.post(
+            "/audits",
+            files={"file": ("synthetic.pdf", source.read_bytes(), "application/pdf")},
+            follow_redirects=False,
+        )
+    assert submitted.status_code == 303
+    base = submitted.headers["location"]
+    job_id = base.rsplit("/", 1)[-1]
+    assert c.get(base + "/status").json()["state"] == "pending"
+    job_dir = wa._job_dir(job_id)
+    entered = Event()
+    finish = Event()
+    write_text = Path.write_text
+    private_error = "private report-generation detail"
+
+    def pause_report(path: Path, text: str, **kwargs: Any) -> int:
+        if path == job_dir / "report.txt":
+            entered.set()
+            assert finish.wait(timeout=15), "test did not release the report writer"
+            if write_fails:
+                write_text(path, private_error, **kwargs)
+                raise OSError(private_error)
+        return write_text(path, text, **kwargs)
+
+    downloads = ("json", "markdown", "text")
+    private_routes = (*downloads, "student-report.pdf", "comments.pdf")
+    with (
+        patch.object(wa, "run_audit_for_uploaded_file", _fake_dispatch),
+        patch.object(Path, "write_text", pause_report),
+        ThreadPoolExecutor(max_workers=1) as workers,
+    ):
+        worker = workers.submit(wa._run_audit_task, job_id)
+        try:
+            assert entered.wait(timeout=15), "worker did not reach the final report write"
+            assert (job_dir / "report.json").is_file()
+            assert (job_dir / "report.md").is_file()
+            intermediate = c.get(base + "/status").json()
+            assert intermediate["state"] == "running"
+            assert intermediate["finished_at"] is None
+            assert intermediate["finding_count"] == 0
+            for route in private_routes:
+                assert c.get(f"{base}/download/{route}").status_code == 404
+        finally:
+            finish.set()
+        worker.result(timeout=15)
+
+    terminal = c.get(base + "/status").json()
+    assert terminal["finished_at"]
+    if write_fails:
+        assert terminal["state"] == "failed"
+        assert terminal["file_name"] == ""
+        assert terminal["finding_count"] == 0
+        for route in private_routes:
+            response = c.get(f"{base}/download/{route}")
+            assert response.status_code == 404
+            assert private_error not in response.text
+        page = c.get(base)
+        assert "An unexpected error occurred during the audit." in page.text
+        assert private_error not in page.text
+    else:
+        assert terminal["state"] == "complete"
+        assert terminal["file_name"] == "synthetic.pdf"
+        for route in downloads:
+            response = c.get(f"{base}/download/{route}")
+            assert response.status_code == 200
+            assert response.content
 
 
 # ---------------------------------------------------------------------------
@@ -871,8 +952,7 @@ def test_findings_by_topic_table_not_grouped_by_rule_id(
 def test_findings_in_page_order_precedes_findings_by_topic(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
-    """Findings in page order is the primary student workflow section and appears
-    before the secondary Findings by topic index."""
+    """The findings-first view places actionable cards above its related guidance."""
     c, wa = client
     job_id = _inject_complete_job(wa, tmp_path, finding_count=3)
     resp = c.get(f"/audits/{job_id}")
@@ -882,7 +962,7 @@ def test_findings_in_page_order_precedes_findings_by_topic(
     idx_review_order = html.index('id="section-review-order"')
     idx_findings = html.index('id="section-findings"')
     idx_topics = html.index('id="section-topics"')
-    assert idx_review_order < idx_findings < idx_topics
+    assert idx_findings < idx_review_order < idx_topics
     assert 'id="section-triage"' not in html
 
 
@@ -4071,7 +4151,7 @@ def test_complete_student_pdf_download_is_cached_and_preserves_upload(
     assert first.headers["content-type"] == "application/pdf"
     assert "attachment" in first.headers["content-disposition"].lower()
     assert "thesis_NJIT_Formatting_Audit.pdf" in first.headers["content-disposition"]
-    output = jdir / "student-report.pdf"
+    (output,) = jdir.glob("student-report-*.pdf")
     metadata = json.loads((jdir / "student-report-metadata.json").read_text(encoding="utf-8"))
     assert metadata["total_visible_findings"] == 2
     assert metadata["highlighted_findings"] == 2
@@ -4269,20 +4349,29 @@ def test_complete_student_pdf_concurrent_requests_return_complete_files(
             assert document.page_count > 5
             assert "Problem #1" in " ".join(page.get_text() for page in list(document)[5:])
     jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
-    with fitz.open(jdir / "student-report.pdf") as cached:
+    (output,) = jdir.glob("student-report-*.pdf")
+    with fitz.open(output) as cached:
         assert cached.page_count > 5
 
 
-def test_complete_student_pdf_generation_failure_allows_retry(
-    client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("filename", "renderer", "report_label"),
+    [
+        ("student-report.pdf", "build_combined_student_pdf_report", "complete PDF report"),
+        ("comments.pdf", "build_comments_pdf_report", "Comments PDF"),
+    ],
+)
+def test_student_pdf_generation_failure_allows_retry(
+    client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    filename: str, renderer: str, report_label: str,
 ) -> None:
     c, wa = client
     job_id = _inject_complete_job_with_findings(
         wa, tmp_path, findings=[_p012_annotation_finding_with_bbox(page=2)],
         file_name="synthetic.pdf", audit_type="pdf",
     )
-    url = f"/audits/{job_id}/download/student-report.pdf"
-    original = wa.build_combined_student_pdf_report
+    url = f"/audits/{job_id}/download/{filename}"
+    original = getattr(wa, renderer)
     calls = []
 
     def fail_once(*args, **kwargs):
@@ -4291,9 +4380,18 @@ def test_complete_student_pdf_generation_failure_allows_retry(
             raise PermissionError("Synthetic transient write failure")
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(wa, "build_combined_student_pdf_report", fail_once)
-    assert c.get(url).status_code == 500
-    assert c.get(url).status_code == 200
+    monkeypatch.setattr(wa, renderer, fail_once)
+    failure = c.get(url)
+    assert failure.status_code == 500
+    assert "PDF export failed." in failure.text
+    assert "Audit result no longer available." not in failure.text
+    assert f"The {report_label} could not be prepared. Please try again." in failure.text
+    assert f'href="/audits/{job_id}">Return to audit results</a>' in failure.text
+    assert "Synthetic transient write failure" not in failure.text
+    assert c.get(f"/audits/{job_id}").status_code == 200
+    retry = c.get(url)
+    assert retry.status_code == 200
+    assert retry.content.startswith(b"%PDF-")
     assert len(calls) == 2
 
 
@@ -4301,7 +4399,10 @@ def test_complete_student_pdf_missing_and_non_pdf_jobs(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:
     c, wa = client
-    assert c.get("/audits/expired/download/student-report.pdf").status_code == 404
+    missing = c.get("/audits/expired/download/student-report.pdf")
+    assert missing.status_code == 404
+    assert "Audit result no longer available." in missing.text
+    assert "Return to audit results" not in missing.text
     job_id = _inject_complete_job_with_findings(
         wa, tmp_path, findings=[], file_name="source.tex", audit_type="tex"
     )
@@ -4357,8 +4458,8 @@ def test_complete_student_pdf_pending_failed_and_job_isolation(
         assert len(list(second_pdf[0].annots() or [])) == 0
         assert len(list(second_pdf[2].annots() or [])) == 1
     runtime = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"])
-    assert (runtime / first_id / "student-report.pdf").exists()
-    assert (runtime / second_id / "student-report.pdf").exists()
+    assert len(list((runtime / first_id).glob("student-report-*.pdf"))) == 1
+    assert len(list((runtime / second_id).glob("student-report-*.pdf"))) == 1
 
 
 def test_complete_student_pdf_safe_filename(
@@ -4809,6 +4910,64 @@ def test_home_and_help_offer_uploads_and_sample_download_only(
     assert not wa._jobs
 
 
+@pytest.mark.parametrize("sample_id, expected_sha256", [
+    ("ester_sample_a", "234f6c951a2a6a07308a771af434628658ddc84f9684c54e51f6c9423ac6d6ad"),
+    ("ester_sample_b", "dccea83030fe01c90d996ff3a1b901e2d56eaac6fe06ba51eea7c884bfc6d56b"),
+    ("ester_sample_c", "dbfdc9b820c46cf10570d802911c92b1b5ed31583a72f59cfadf2b5286e31eee"),
+    ("ester_sample_d", "cbf4497727dc106cd8c26e5f0c6786a45b6c5df42405254796e164200690e209"),
+])
+def test_historical_public_sample_downloads_match_original_files(
+    client: tuple[TestClient, Any], sample_id: str, expected_sha256: str,
+) -> None:
+    from njit_auditor.web_samples import get_builtin_sample
+
+    if not get_builtin_sample(sample_id).abs_path.is_file():
+        pytest.skip("Historical PDFs are excluded from nonconfidential CI checkouts")
+    c, wa = client
+    url = f"/samples/{sample_id}.pdf"
+    assert f'href="{url}"' in c.get("/").text
+    response = c.get(url)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert "attachment" in response.headers["content-disposition"]
+    assert response.content.startswith(b"%PDF")
+    assert hashlib.sha256(response.content).hexdigest() == expected_sha256
+    assert not wa._jobs
+
+
+def test_historical_sample_download_checks_whitelist_and_bytes(
+    client: tuple[TestClient, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import njit_auditor.web_samples as samples
+
+    relative = "data/raw/ester/synthetic-public-sample.pdf"
+    source = tmp_path / relative
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"%PDF-1.4\nsynthetic test data\n%%EOF\n")
+    expected = hashlib.sha256(source.read_bytes()).hexdigest()
+    monkeypatch.setattr(samples, "_REPO_ROOT", tmp_path)
+    monkeypatch.setitem(samples._BY_ID, "ester_sample_a", samples.SampleInfo(
+        "ester_sample_a", "Synthetic test sample", relative,
+    ))
+    monkeypatch.setitem(samples._PUBLIC_SAMPLE_SHA256, "ester_sample_a", expected)
+    c, wa = client
+    response = c.get("/samples/ester_sample_a.pdf")
+    assert response.status_code == 200
+    assert response.content == source.read_bytes()
+    assert "synthetic-public-sample.pdf" in response.headers["content-disposition"]
+    assert not wa._jobs
+    source.write_bytes(b"%PDF-1.4\nchanged\n%%EOF\n")
+    assert c.get("/samples/ester_sample_a.pdf").status_code == 404
+
+
+def test_historical_sample_download_rejects_unlisted_files(
+    client: tuple[TestClient, Any],
+) -> None:
+    c, _ = client
+    assert c.get("/samples/unlisted.pdf").status_code == 404
+    assert c.get("/samples/../private.pdf").status_code != 200
+
+
 # ---------------------------------------------------------------------------
 # GET /audits/url guard — regression tests for route collision bug
 # ---------------------------------------------------------------------------
@@ -4872,3 +5031,262 @@ def test_validation_error_redirects_to_refreshable_get(client: tuple[TestClient,
         assert page.status_code == 400
         assert 'Could not start audit' in page.text
     assert not wa._jobs
+
+
+@pytest.mark.parametrize("continuation_x", [126.0, 144.0, 160.0])
+def test_p018_leftward_guidance_across_web_and_exports(
+    client: tuple[TestClient, Any], tmp_path: Path, continuation_x: float,
+) -> None:
+    """Real synthetic TOC findings retain metadata and highlight their source."""
+    import re
+    from html import unescape
+
+    import fitz
+    from test_rules.test_r018_wrapped_title_alignment import _render, _wrapped_toc_rows
+
+    from njit_auditor.pdf_layout import load_pdf_layout
+    from njit_auditor.rules.pdf_toc_alignment import check_pdf_toc_alignment
+
+    c, wa = client
+    source = _render(tmp_path, "TABLE OF CONTENTS", _wrapped_toc_rows(continuation_x))
+    findings = [
+        f for f in check_pdf_toc_alignment(load_pdf_layout(str(source)))
+        if f.details.get("issue_type") == "wrapped_title_continuation_misaligned"
+    ]
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.severity.value == "WARNING"
+    assert finding.details["confidence"] == "medium"
+    assert float(finding.details["signed_delta_pt"]) < 0
+    assert finding.details["highlight_bboxes"]
+    job_id = _inject_complete_job_with_findings(
+        wa, tmp_path, findings=findings, file_name="synthetic-toc.pdf",
+        audit_type="pdf", page_count=1,
+    )
+    jdir = Path(os.environ["NJIT_AUDITOR_WEB_RUNTIME_DIR"]) / job_id
+    upload = jdir / "upload.pdf"
+    upload.write_bytes(source.read_bytes())
+    original_bytes = upload.read_bytes()
+    base = f"/audits/{job_id}"
+
+    def check_guidance(text: str) -> None:
+        normalized = " ".join(unescape(re.sub(r"<[^>]+>", " ", text)).split())
+        assert "at or to the right of the first word of the title text" in normalized
+        assert "rightward indentation of second and third lines is accepted" in normalized
+        assert "not indented past" not in normalized
+        assert "neither left of" not in normalized
+
+    for route in ("", "/problems/page/1", "/problems/rule/P018"):
+        response = c.get(base + route)
+        assert response.status_code == 200
+        check_guidance(response.text)
+    for export in ("json", "markdown", "text"):
+        response = c.get(base + "/download/" + export)
+        assert response.status_code == 200
+        check_guidance(response.text)
+        if export == "json":
+            exported = response.json()["findings"][0]
+            assert exported["page"] == exported["pdf_page"] == 1
+            assert exported["severity"] == "WARNING"
+            assert exported["details"] == finding.details
+    # Both the stored standalone text and the web text download use the correction.
+    check_guidance((jdir / "report.txt").read_text())
+
+    original = c.get(base + "/pdf")
+    assert original.status_code == 200 and original.content == original_bytes
+    highlighted = c.get(base + "/pdf/highlighted", params={
+        "page": 1, "rule_id": "P018", "issue_type": finding.details["issue_type"],
+    })
+    assert highlighted.status_code == 200
+    with fitz.open(stream=highlighted.content, filetype="pdf") as document:
+        assert document.page_count == 1
+        assert "TABLE OF CONTENTS" in document[0].get_text()
+        assert len(list(document[0].annots() or [])) == 1
+    combined = c.get(base + "/download/student-report.pdf")
+    assert combined.status_code == 200
+    with fitz.open(stream=combined.content, filetype="pdf") as document:
+        assert document.page_count > 1
+        assert len(list(document[0].annots() or [])) == 1
+        check_guidance(" ".join(page.get_text() for page in list(document)[1:]))
+    assert upload.read_bytes() == original_bytes
+    job = wa._get_job(job_id)
+    assert job is not None and len(job.findings) == 1
+    card = job.findings[0]
+    assert card["page"] == 1 and card["confidence"] == "medium"
+    assert wa._public_rule_reference_id("P018", issue_type=card["issue_type"]) == "P018R"
+    rules = c.get("/rules")
+    assert rules.status_code == 200
+    catalog_card = next(
+        rule for rule in wa._build_rule_catalog()["student_rules"] if rule["id"] == "P018R"
+    )
+    assert "at or to the right" in catalog_card["title"]
+    check_guidance(catalog_card["how_to_correct"])
+    check_guidance(rules.text)
+
+
+@pytest.mark.parametrize(("case", "leader_issue", "alignment_issue"), [
+    ("missing", "toc_missing_leader_style", False),
+    ("mixed", "toc_mixed_leader_styles", False),
+    ("allowed_short", "", False),
+    ("alignment", "", True),
+    ("missing_and_alignment", "toc_missing_leader_style", True),
+])
+def test_p075_leader_advice_across_reports(
+    client: tuple[TestClient, Any], tmp_path: Path, case: str, leader_issue: str,
+    alignment_issue: bool,
+) -> None:
+    import re
+    from html import unescape
+
+    import pymupdf
+    from test_r057_toc_leader_gaps import _LEADER_CELL_FIXTURES, _toc_pdf
+
+    if case == "missing":
+        source = _LEADER_CELL_FIXTURES / "tight-cell-empty.pdf"
+    elif case == "allowed_short":
+        source = _LEADER_CELL_FIXTURES / "centered-cell-wrap.pdf"
+    else:
+        source = tmp_path / "toc.pdf"
+        if case == "missing_and_alignment":
+            _toc_pdf(source, "misaligned", size=11, pitch_em=0.60, wrapped=False)
+        else:
+            with pymupdf.open() as pdf:
+                page = pdf.new_page(width=612, height=792)
+                page.insert_text(
+                    (220, 90), "TABLE OF CONTENTS", fontsize=16, fontname="Times-Bold",
+                )
+                for index, title in enumerate(("Introduction", "Methods", "Results", "Discussion")):
+                    y = 140 + index * 20
+                    leader = "-----" if case == "mixed" and index == 2 else "......."
+                    x = 465 if case == "alignment" and index == 2 else 500
+                    page.insert_text((108, y), f"Chapter {index + 1} {title} {leader}")
+                    page.insert_text((x, y), str(11 + index))
+                pdf.save(source)
+
+    c, wa = client
+    upload = c.post(
+        "/audits", files={"file": ("synthetic-toc.pdf", source.read_bytes(), "application/pdf")},
+        follow_redirects=False,
+    )
+    assert upload.status_code == 303
+    base = upload.headers["location"]
+    status = c.get(base + "/status").json()
+    assert status["state"] == "complete" and status["finished_at"]
+    job = wa._get_job(base.rsplit("/", 1)[-1])
+    assert job is not None
+    reports = {
+        "html": c.get(base),
+        **{fmt: c.get(base + "/download/" + fmt) for fmt in (
+            "json", "markdown", "text", "comments.pdf", "student-report.pdf",
+        )},
+    }
+    assert all(response.status_code == 200 for response in reports.values())
+
+    actions = {
+        "toc_missing_leader_style": (
+            "Add a leader before each affected Table of Contents page number, "
+            "using the same style as the other entries."
+        ),
+        "toc_mixed_leader_styles": (
+            "Use one leader style, dots or hyphens, throughout the Table of Contents."
+        ),
+    }
+    alignment = ("P018", "misaligned_page_number_column")
+    payload = reports["json"].json()
+    leaders = [(i, row) for i, row in enumerate(payload["findings"]) if row["rule_id"] == "P075"]
+    assert [row["details"]["issue_type"] for _, row in leaders] == (
+        [leader_issue] if leader_issue else []
+    )
+    folio_rows = [
+        row for row in payload["findings"]
+        if (row["rule_id"], row["details"].get("issue_type")) == alignment
+    ]
+    assert bool(folio_rows) is alignment_issue
+    if leader_issue:
+        (raw_index, raw_leader), = leaders
+        (card,) = [item for item in job.findings if item["rule_id"] == "P075"]
+        assert raw_leader["details"]["suggested_fix"] == actions[leader_issue]
+        assert card["finding_id"] == f"f{raw_index}"
+        assert card["page"] == raw_leader["page"]
+        assert card["suggested_fix"] == actions[leader_issue]
+        if raw_leader["details"].get("bbox"):
+            assert card["bbox"] == tuple(
+                float(part) for part in raw_leader["details"]["bbox"].split(",")
+            )
+        grouped = [group for group in payload["grouped_findings"] if group["rule_id"] == "P075"]
+        assert [group["suggested_fix"] for group in grouped] == [actions[leader_issue]]
+
+    for fmt, response in reports.items():
+        if fmt.endswith(".pdf"):
+            with pymupdf.open(stream=response.content, filetype="pdf") as pdf:
+                start = job.pdf_page_count if fmt == "student-report.pdf" else 0
+                rendered = " ".join(pdf[index].get_text() for index in range(start, len(pdf)))
+        else:
+            rendered = re.sub(r"<[^>]+>", " ", response.text) if fmt == "html" else response.text
+        rendered = " ".join(unescape(rendered).casefold().split())
+        assert "right-align page numbers and use one consistent leader style" not in rendered, fmt
+        for issue_type, action in actions.items():
+            expected = issue_type == leader_issue
+            assert (action.casefold() in rendered) is expected, (fmt, issue_type)
+        assert ("dominant right-hand column" in rendered) is alignment_issue, fmt
+
+
+@pytest.mark.parametrize(
+    ("title", "capitalization", "punctuation"),
+    [
+        ("Evaluation of eBoss Systems", False, False),
+        ("Evaluation of eBoss systems", True, False),
+        ("Evaluation of eBoss Systems.", False, True),
+        ("Evaluation of eBoss systems.", True, True),
+    ],
+)
+def test_ester_table_title_capitalization_and_period_advice_are_separate(
+    client: tuple[TestClient, Any], title: str, capitalization: bool, punctuation: bool,
+) -> None:
+    import re
+    from html import unescape
+
+    import pymupdf
+
+    with pymupdf.open() as pdf:
+        page = pdf.new_page(width=612, height=792)
+        page.insert_text((220, 85), "LIST OF TABLES", fontname="Times-Bold", fontsize=14)
+        for index, entry in enumerate((title, "Valid Comparison Table", "Valid Control Table")):
+            y = 150 + index * 27
+            page.insert_text((108, y), f"Table 1.{index + 1} {entry}", fontsize=12)
+            page.insert_text((494, y), str(20 + index), fontsize=12)
+        source = pdf.tobytes()
+
+    c, wa = client
+    upload = c.post(
+        "/audits", files={"file": ("synthetic-lot.pdf", source, "application/pdf")},
+        follow_redirects=False,
+    )
+    assert upload.status_code == 303
+    url = upload.headers["location"]
+    assert c.get(url + "/status").json()["state"] == "complete"
+    job = wa._get_job(url.rsplit("/", 1)[-1])
+    assert job is not None
+    responses = {"html": c.get(url)}
+    for fmt in ("json", "markdown", "text", "comments.pdf", "student-report.pdf"):
+        responses[fmt] = c.get(url + "/download/" + fmt)
+    assert all(response.status_code == 200 for response in responses.values())
+
+    issues = {
+        (row["rule_id"], row["details"].get("issue_type"))
+        for row in responses["json"].json()["findings"]
+    }
+    assert (("P024", "list_of_tables_title_case") in issues) is capitalization
+    assert (("P017", "unexpected_terminal_period") in issues) is punctuation
+    for fmt, response in responses.items():
+        if fmt.endswith(".pdf"):
+            with pymupdf.open(stream=response.content, filetype="pdf") as pdf:
+                first = job.pdf_page_count if fmt == "student-report.pdf" else 0
+                content = " ".join(pdf[i].get_text() for i in range(first, len(pdf)))
+        else:
+            content = re.sub(r"<[^>]+>", " ", response.text) if fmt == "html" else response.text
+        content = " ".join(unescape(content).casefold().split())
+        assert "title case with no ending period" not in content, fmt
+        assert ("use title case for this table title" in content) is capitalization, fmt
+        period_action = "remove the final period from this list of tables entry"
+        assert (period_action in content) is punctuation, fmt

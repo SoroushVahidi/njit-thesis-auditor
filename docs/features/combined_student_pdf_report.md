@@ -19,3 +19,11 @@ The report lives in the audit job's runtime directory and expires with that job.
 `student_pdf_report.build_combined_student_pdf_report()` accepts numbered student findings and per-problem boxes selected by the existing web highlight path. It first makes a temporary annotated copy through `pdf_highlight.build_highlighted_pdf()`, generates a ReportLab report section, then inserts both into a new PyMuPDF document without rasterizing the thesis. The finished file replaces the job cache atomically. A signature over the current findings, source, and report input controls regeneration. The result records visible, highlighted, unhighlighted, and document-level finding counts, as well as boxes, pages, and badges drawn; these counts are stored in `student-report-metadata.json` inside the expiring runtime job directory. Existing highlight endpoints retain their 100-box per-page request cap; the combined report draws every validated box.
 
 The PDF has **Thesis** and **Formatting Problems** bookmarks. For zero findings, it retains all thesis pages and appends one report page stating only that the implemented checks detected no formatting problems. The automated report does not establish full compliance with NJIT requirements.
+
+## Comments PDF
+
+The completed audit also offers **Download Comments PDF**. It contains student-facing comments in document order, with the same problem numbers and recommended corrections as the audit results. PDF page numbers refer to the original upload. Manuscript page labels are shown where available. Document-level problems, incomplete-check notices, and guidance for manual review are included.
+
+The export contains selectable text, generic document metadata, and numbered report pages. It contains no manuscript pages, embedded attachments, or reviewer-only technical details. Short excerpts in student-facing comments may still identify the document. The Complete PDF, focused PDF, plain-text, Markdown, and JSON downloads remain available.
+
+Web and desktop use the existing validated atomic PDF publication path. Desktop generation runs in the existing supervised export worker. The generated report shares the audit's normal retention and deletion lifecycle.

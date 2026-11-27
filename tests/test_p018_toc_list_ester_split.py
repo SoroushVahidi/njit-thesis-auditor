@@ -89,8 +89,8 @@ _P018_ESTER_QUESTIONS: dict[str, str] = {
         "Are all List of Figures page numbers aligned vertically in one right column?"
     ),
     "P018R": (
-        "When a Table of Contents title runs for more than one line, does the "
-        "second line align with the text of the first line, not the number?"
+        "Do continuation lines of a wrapped Table of Contents title start at "
+        "or to the right of the first word of the title text?"
     ),
     "P018S": (
         "In the Table of Contents, List of Tables, and List of Figures, do leader "
@@ -377,4 +377,4 @@ def test_catalog_p018_card_range_matches_implemented_cards(
         assert ranges, field
         assert all(f"P018{letter}" == last for letter in ranges), (field, ranges)
     rule_ids = sorted(rule["id"] for rule in rules if re.fullmatch(r"P\d{3}", rule["id"]))
-    assert rule_ids[-1] == "P087"
+    assert rule_ids[-1] == "P088"

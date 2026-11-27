@@ -7,6 +7,7 @@ from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import BBox, PdfDocument, PdfPage, PdfTextLine, format_bbox_detail
+from njit_auditor.pdf_table_continuations import measure_ruled_table_boxes
 from njit_auditor.rules.pdf_headings import EXPECTED_HEADINGS, normalize_heading_text
 from njit_auditor.rules.pdf_page_numbers import PAGE_NUM_RE
 
@@ -748,6 +749,19 @@ def _is_likely_expected_indent(indent_pt: float) -> bool:
     return abs(indent_pt - EXPECTED_NORMAL_INDENT_PT) <= INDENT_TOLERANCE_PT
 
 
+def _paragraph_inside_ruled_table(
+    paragraph: list[PdfTextLine], tables: tuple[BBox, ...],
+) -> bool:
+    return any(
+        all(
+            table.x0 <= line.bbox.x0 < line.bbox.x1 <= table.x1
+            and table.y0 <= line.bbox.y0 < line.bbox.y1 <= table.y1
+            for line in paragraph
+        )
+        for table in tables
+    )
+
+
 def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
     """Emit P015 indentation warnings for body-text paragraph layout.
 
@@ -812,7 +826,18 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
 
         seen_indented_paragraph = False
         page_issue_findings: dict[str, AuditFinding] = {}
+        # Leave the existing heading, grouping and style evidence intact so
+        # unrelated prose keeps the same diagnosis. Only skip findings with
+        # a paragraph fully owned by one verified closed table.
+        tables = (
+            measure_ruled_table_boxes(pdf_document.path, page)
+            if len(page.horizontal_rules) >= 3 else ()
+        )
         for idx, paragraph, indent_pt in paragraph_data:
+            if indent_pt >= STRONG_INDENT_THRESHOLD_PT:
+                seen_indented_paragraph = True
+            if _paragraph_inside_ruled_table(paragraph, tables):
+                continue
             if idx in heading_exempt and indent_pt >= STRONG_INDENT_THRESHOLD_PT:
                 current = AuditFinding(
                     rule_id="P015",
@@ -878,9 +903,6 @@ def check_pdf_indentation(pdf_document: PdfDocument) -> list[AuditFinding]:
                 existing = page_issue_findings.get("unexpected_indent_on_continuation_line")
                 if existing is None or indent_pt > float(existing.details["indent_pt"]):
                     page_issue_findings["unexpected_indent_on_continuation_line"] = current
-
-            if indent_pt >= STRONG_INDENT_THRESHOLD_PT:
-                seen_indented_paragraph = True
 
             # Detect body-text paragraphs after the first that are missing first-line indent.
             if idx >= 1:

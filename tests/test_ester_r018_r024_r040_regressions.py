@@ -211,3 +211,23 @@ def test_wrapped_lof_title_uses_final_line_and_keeps_real_missing_punctuation() 
         ],
     )
     assert "lof_entry_missing_terminal_punctuation" in _issues(incorrect, "P040")
+
+
+def test_wrapped_lof_terminal_mark_inside_closing_smart_quotes() -> None:
+    peers = [
+        ("Figure 2.2 Second title. .... 22", 108, 540, 180),
+        ("Figure 2.3 Third title. .... 23", 108, 540, 204),
+    ]
+    for terminal, expected in (
+        ("continues to the label “Ready.” . . 21", []),
+        ("continues to the label “Ready” . . 21", ["lof_entry_missing_terminal_punctuation"]),
+    ):
+        document = _doc(
+            "LIST OF FIGURES",
+            [
+                ("Figure 2.1 A long comparison of ordinary chart annotations", 108, 510, 140),
+                (terminal, 149, 540, 154.3),
+                *peers,
+            ],
+        )
+        assert _issues(document, "P040") == expected

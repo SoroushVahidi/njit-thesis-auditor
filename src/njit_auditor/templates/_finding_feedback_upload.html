@@ -1,0 +1,104 @@
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  for (const form of document.querySelectorAll("form.admin-feedback")) {
+    const picker = form.querySelector('input[type="file"]');
+    const list = form.querySelector(".feedback-selected-files");
+    const progress = form.querySelector(".feedback-upload-progress");
+    const status = form.querySelector(".feedback-upload-status");
+    const submit = form.querySelector('button[type="submit"]');
+    const maxFiles = Number(picker.dataset.maxFiles);
+    const maxBytes = Number(picker.dataset.maxBytes);
+    let files = [];
+    let uploading = false;
+
+    function renderFiles() {
+      list.replaceChildren();
+      list.hidden = files.length === 0;
+      files.forEach((file, index) => {
+        const row = document.createElement("li");
+        row.append(document.createTextNode(file.name + " (" + file.size.toLocaleString() + " bytes) "));
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "Remove";
+        remove.setAttribute("aria-label", "Remove " + file.name);
+        remove.disabled = uploading;
+        remove.addEventListener("click", () => {
+          files.splice(index, 1);
+          renderFiles();
+          (list.querySelectorAll("button")[Math.min(index, files.length - 1)] || picker).focus();
+        });
+        row.append(remove);
+        list.append(row);
+      });
+    }
+
+    picker.addEventListener("change", () => {
+      const selected = Array.from(picker.files);
+      picker.value = "";
+      const combined = files.concat(selected);
+      if (combined.length > maxFiles) {
+        status.textContent = "Choose up to " + maxFiles + " supporting files.";
+        return;
+      }
+      const invalid = selected.find(file => !/\.(png|jpe?g|pdf|docx)$/i.test(file.name) ||
+                                           file.size < 1 || file.size > maxBytes);
+      if (invalid) {
+        status.textContent = invalid.name + " must be a nonempty PNG, JPEG, PDF, or DOCX up to " +
+          (maxBytes / 1048576) + " MiB.";
+        return;
+      }
+      files = combined;
+      status.textContent = "";
+      renderFiles();
+    });
+
+    form.addEventListener("submit", event => {
+      if (files.length === 0) return;
+      event.preventDefault();
+      if (uploading) return;
+      const data = new FormData(form);
+      data.delete("attachment");
+      for (const file of files) data.append("attachment", file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", form.action);
+      xhr.responseType = "json";
+      xhr.setRequestHeader("Accept", "application/json");
+      xhr.timeout = 120000;
+      uploading = true;
+      submit.disabled = picker.disabled = true;
+      renderFiles();
+      progress.hidden = files.length === 0;
+      progress.removeAttribute("value");
+      status.textContent = files.length ? "Uploading supporting files…" : "Saving feedback…";
+      xhr.upload.addEventListener("progress", update => {
+        if (update.lengthComputable) progress.value = Math.round(100 * update.loaded / update.total);
+      });
+      xhr.upload.addEventListener("load", () => {
+        progress.hidden = true;
+        status.textContent = "Validating and saving feedback…";
+      });
+      function failed(message) {
+        uploading = false;
+        submit.disabled = picker.disabled = false;
+        progress.hidden = true;
+        status.textContent = message;
+        renderFiles();
+      }
+      xhr.addEventListener("load", () => {
+        if (xhr.status === 201 && xhr.response?.location) {
+          window.location.assign(xhr.response.location);
+          return;
+        }
+        failed(xhr.response?.message || "Feedback could not be saved. Please try again.");
+      });
+      for (const eventName of ["error", "timeout", "abort"]) {
+        xhr.addEventListener(eventName, () => {
+          failed("The connection was interrupted. Check your saved feedback before trying again.");
+        });
+      }
+      xhr.send(data);
+    });
+  }
+});
+</script>

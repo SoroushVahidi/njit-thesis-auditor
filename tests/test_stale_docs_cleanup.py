@@ -87,7 +87,7 @@ def test_manual_qa_checklist_no_open_pdf_page_in_actionability_section() -> None
 def test_index_page_sample_download_and_upload_ui_present(
     client: tuple[TestClient, object],
 ) -> None:
-    """Samples must be downloaded and uploaded through the normal audit form."""
+    """Direct sample audits coexist with downloads and ordinary PDF uploads."""
     c, _ = client
     resp = c.get("/")
     assert resp.status_code == 200
@@ -101,7 +101,10 @@ def test_index_page_sample_download_and_upload_ui_present(
 
     assert 'href="/sample.pdf"' in body
     assert "Download sample PDF" in body
-    assert "then upload the saved PDF above to start an audit" in body
+    assert "Sample Documents" in body
+    assert 'action="/sample-audits"' in body
+    assert "Audit Selected Sample" in body
+    assert "New_Submitted_Thesis.pdf" in body
     sample = c.get("/sample.pdf")
     assert sample.status_code == 200
     assert sample.headers["content-type"].startswith("application/pdf")

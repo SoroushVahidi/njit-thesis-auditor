@@ -12,6 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import fitz
+import pytest
 
 from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.pdf_models import (
@@ -87,9 +88,11 @@ def _load(doc: fitz.Document, tmp_path: Path) -> PdfDocument:
 # ---------------------------------------------------------------------------
 
 
-def _make_span(italic: bool, font: str | None = "Helvetica") -> PdfTextSpan:
+def _make_span(
+    italic: bool, font: str | None = "Helvetica", *, text: str = "placeholder span text"
+) -> PdfTextSpan:
     return PdfTextSpan(
-        text="placeholder span text",
+        text=text,
         bbox=BBox(x0=200.0, y0=300.0, x1=400.0, y1=316.0),
         font=font,
         italic=italic,
@@ -244,6 +247,53 @@ def test_non_italic_dedication_emits_italic_finding() -> None:
     assert len(italic_findings) == 1
     d = italic_findings[0].details
     assert float(d["italic_span_ratio"]) < _ITALIC_RATIO_THRESHOLD
+
+
+@pytest.mark.parametrize(
+    "texts",
+    [
+        ("Synthetic Δοκιμή", "Placeholder Δείγμα", "Placeholder Κείμενο"),
+        ("Synthetic", "Placeholder", "Example", "Δοκιμή"),
+        ("Δοκιμή", "Δείγμα", "Κείμενο"),
+    ],
+)
+def test_italics_abstains_when_dedication_is_not_unambiguously_latin(
+    texts: tuple[str, ...],
+) -> None:
+    lines = [
+        _set_bbox(
+            _make_line_from_spans([_make_span(italic=False, text=text)], y=y),
+            _centered_bbox(y, y + 16.0),
+        )
+        for text, y in zip(texts, (250.0, 280.0, 310.0, 340.0), strict=False)
+    ]
+    doc = _make_doc_with_dedication_and_lines(120.0, lines)
+    assert check_pdf_dedication_centering_italic(doc) == []
+
+
+def test_accented_latin_letters_still_receive_the_italics_check() -> None:
+    lines = [
+        _set_bbox(
+            _make_line_from_spans([_make_span(italic=False, text="ÉÇÜ")], y=y),
+            _centered_bbox(y, y + 16.0),
+        )
+        for y in (250.0, 280.0, 310.0)
+    ]
+    doc = _make_doc_with_dedication_and_lines(120.0, lines)
+    assert [
+        finding.details["issue_type"] for finding in check_pdf_dedication_centering_italic(doc)
+    ] == ["dedication_text_not_italic"]
+
+
+def test_centering_still_reports_off_center_mixed_script_dedication() -> None:
+    lines = [
+        _make_line_from_spans([_make_span(italic=False, text="Synthetic Δοκιμή")], y=y)
+        for y in (250.0, 280.0, 310.0)
+    ]
+    doc = _make_doc_with_dedication_and_lines(120.0, lines)
+    assert [
+        finding.details["issue_type"] for finding in check_pdf_dedication_centering_italic(doc)
+    ] == ["dedication_text_not_centered"]
 
 
 # ---------------------------------------------------------------------------

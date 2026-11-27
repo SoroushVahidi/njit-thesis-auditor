@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pymupdf
 import pytest
 
+from njit_auditor.pdf_layout import load_pdf_layout
 from njit_auditor.pdf_models import (
     BBox,
     PdfDocument,
@@ -18,6 +22,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     detect_toc_like_pages,
     extract_toc_entry_lines,
     extract_toc_logical_entry_lines,
+    has_trailing_page_number_token,
 )
 
 
@@ -402,3 +407,54 @@ def test_leader_token_outside_right_folio_region_is_insufficient() -> None:
     doc = _doc("LIST OF FIGURES", rows)
     assert _target(doc, "9.2", presence_recovery=True).page_number_token is None
     assert _findings(doc, "missing_page_number")
+
+
+@pytest.mark.parametrize(("heading", "kind"), [
+    ("LIST OF FIGURES", "Figure"), ("LIST OF TABLES", "Table"),
+])
+@pytest.mark.parametrize(("layout", "expected"), [
+    ("open_gap", True), ("inline", False), ("detached", False),
+    ("no_folio", False), ("off_column", False), ("short_gap", False), ("sparse", False),
+])
+def test_wrapped_list_leaders_respect_final_row_folio_geometry(
+    tmp_path: Path, heading: str, kind: str, layout: str, expected: bool,
+) -> None:
+    source = tmp_path / "wrapped.pdf"
+    with pymupdf.open() as pdf:
+        page = pdf.new_page()
+        page.insert_text((210, 72), heading, fontsize=14)
+        for number, baseline in enumerate((124, 150, 176, 220, 246), start=1):
+            if number == 3:
+                page.insert_text(
+                    (108, baseline), f"{kind} 3 A synthetic wrapped description", fontsize=10
+                )
+                tail = "continued measurements on the final row"
+                if layout == "inline":
+                    tail += " ...."
+                left = 108
+                if layout == "short_gap":
+                    left = 527 - pymupdf.get_text_length(tail, fontsize=10)
+                page.insert_text((left, baseline + 14), tail, fontsize=10)
+                if layout == "detached":
+                    page.insert_text((400, baseline + 14), ". . . .", fontsize=10)
+                if layout != "no_folio":
+                    x = 507 if layout == "off_column" else 530
+                    page.insert_text((x, baseline + 14), "13", fontsize=10)
+            elif layout != "sparse" or number < 3:
+                page.insert_text(
+                    (108, baseline), f"{kind} {number} Reference measurement ....", fontsize=10
+                )
+                page.insert_text((530, baseline), str(10 + number), fontsize=10)
+        pdf.save(source)
+    doc = load_pdf_layout(str(source))
+    if layout == "open_gap":
+        target = _target(doc, f"{kind} 3")
+        assert target.is_wrapped and target.page_number_token == "13"
+        assert not has_trailing_page_number_token(target)
+    findings = _findings(doc, "inconsistent_leader_dots")
+    assert bool(findings) is expected
+    if expected:
+        finding, = findings
+        assert finding.details["worst_entry_index"] == "2"
+        assert finding.details["affected_entry_count"] == "1"
+        assert finding.details["_preserve_prior_finding_ids"] == "true"

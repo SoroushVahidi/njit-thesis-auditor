@@ -9,7 +9,7 @@ the codebase as of this audit (2026-07-13) so future changes don't add more of i
 | Term | Meaning |
 |---|---|
 | **Q-rule** | A rule from Esther's original formatting-review spreadsheets (`data/specs/ester_q_matrix.json`, `data/specs/ester_p_rule_feedback.json`). Not all Q-rules are automatable; many require human/manual review. |
-| **P-rule** ("project-added rule") | This project's internal rule ID (`P001`-`P087` today). A P-rule may implement one Q-rule, several Q-rules (a "broad" rule), or no Q-rule at all (project-added, e.g. infrastructure rules). |
+| **P-rule** ("project-added rule") | This project's internal rule ID (`P001`-`P088` today). A P-rule may implement one Q-rule, several Q-rules (a "broad" rule), or no Q-rule at all (project-added, e.g. infrastructure rules). |
 | **Public question / public rule card** | The student-facing rendering of a P-rule on `/rules` and per-finding pages. Not every P-rule is a standalone public card — see "Detector vs. reporting-only" below. |
 | **Issue type** | A specific machine-readable string a detector emits (e.g. `possible_body_font_size_issue`). One P-rule can emit several issue types. |
 | **Detector** | The `src/njit_auditor/rules/*.py` function that actually inspects the document and produces `AuditFinding` objects. |
@@ -110,6 +110,11 @@ Checks TeX source files without compiling — recursively loads `\input{}`/`\inc
 | Q006 | Graduation month validation (Aug/Dec/May) |
 
 ### PDF layout audit (P011-P068, P074-P075, P078, P084-P087 standalone; P069-P073/P076/P077/P079/P081 infrastructure)
+
+This table preserves the rule coverage of the architecture audit. See the
+[rule inventory](rules/rule_inventory.md) and the
+[current project-added catalog](../data/processed/rules/project_added_rules.json)
+for subsequent additions, including P088.
 
 | Rule | Area | Check |
 |------|------|-------|

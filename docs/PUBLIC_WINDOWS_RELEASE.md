@@ -38,8 +38,10 @@ size and checksum. Do not claim byte identity or inherit earlier test results.
 
 ## Build and smoke checks
 
-`.github/workflows/windows-desktop.yml` uses the hosted `windows-2025` runner.
-It checks out the actual PR source head, installs isolated tools, runs focused native
+`.github/workflows/windows-desktop.yml` defaults to the hosted `windows-2025`
+runner. Explicit dispatch can select a self-hosted Windows 11 runner for native
+qualification. The workflow checks out the actual PR source head when run on
+a pull request, installs isolated tools, runs focused native
 regressions, executes the established packaging script through **Windows PowerShell
 5.1**, and runs a packaged startup/synthetic audit/export/Help/Rules/shutdown smoke
 check. Installer/uninstaller lifecycle qualification is not a publication gate.

@@ -1,8 +1,9 @@
 # Open PR Triage (2026-07-06, #25: Sample A correctness alignment) — historical archive
 
-> **Superseded.** As of the 2026-07-13 repository-polish audit, the current open-PR list lives in
-> [`docs/status/CURRENT_STATUS.md`](CURRENT_STATUS.md#active-open-prs-as-of-this-audit). Every PR
-> number below has since been merged, closed, or superseded — kept as a dated historical record.
+> **Superseded.** See the [dated project status](CURRENT_STATUS.md) and the
+> [live PR list](https://github.com/SoroushVahidi/njit-thesis-auditor/pulls) for
+> active work. The PRs below have been merged, closed, or superseded. This
+> record preserves the 2026-07-06 triage.
 
 > **Original framing (historical, kept verbatim below for context):** Pair with
 > [current_project_state_and_next_steps.md](current_project_state_and_next_steps.md).

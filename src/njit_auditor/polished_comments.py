@@ -6,11 +6,17 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+from njit_auditor.caption_continuation_preview import caption_continuation_explanation
 from njit_auditor.ester_warning_wording import student_warning_remediation
 from njit_auditor.float_layout_advice import float_layout_suggested_fix
 from njit_auditor.issue_type_explanations import humanize_issue_type
+from njit_auditor.p018_guidance import (
+    P018_MISSING_PAGE_NUMBER_FIX,
+    P018_WRAPPED_TITLE_FIX,
+)
 from njit_auditor.report_outputs import derive_source_issue_type
 from njit_auditor.resource_paths import resource_path
+from njit_auditor.toc_order_evidence import P062_ISSUE, describe_p062_pair
 
 REVIEW_PREFIX = "Review needed:"
 VERIFY_SUFFIX = "Automated finding — please verify against NJIT guidelines manually."
@@ -167,6 +173,10 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "List of Figures on page {page} does not include the correct continued "
         "heading. Add the correct continued heading on this continuation page."
     ),
+    ("P030", "missing_symbols_continued_heading"): (
+        "The List of Symbols continues on page {page}. "
+        "Add LIST OF SYMBOLS (Continued) above the entries."
+    ),
     ("P034", "copyright_year_mismatch"): (
         "Copyright page year format on page {page} may need review. "
         "Confirm the copyright block includes the required year format."
@@ -210,6 +220,11 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "The appendix heading on page {page} repeats a letter already used "
         "by another appendix. NJIT requires each appendix to have a unique "
         "letter. Correct the labeling so each letter is used once."
+    ),
+    ("P063", "appendix_subsection_missing_letter_prefix"): (
+        "The appendix subsection identifier '{actual_identifier}' in the {appendix_location} "
+        "on page {page} is missing its appendix letter. Add '{expected_letter}' at the start "
+        "so it reads '{expected_identifier}'."
     ),
     # --- P027 heading-level style: one template per level, never combined ---
     ("P027", "level1_not_all_caps"): (
@@ -286,12 +301,21 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "NJIT requires body text to be double-spaced, except for tables, figure "
         "descriptions, bullet points, and multi-line titles."
     ),
+    ("P023", "blank_line_before_opening_level_three_heading"): (
+        "An extra blank line appears above the level-three heading on page {page}."
+    ),
     ("P023", "multiline_body_heading_not_single_spaced"): (
         "The highlighted lines of a numbered body heading on page {page} appear "
         "to use the same double-spaced line pitch as the surrounding prose. "
         "Multi-line titles must be single-spaced within the title."
     ),
+    ("P023", "blank_line_above_level_three_heading"): (
+        "The level-three heading on page {page} appears to have a blank line above it."
+    ),
     # --- P016 paragraph/line spacing gaps ---
+    ("P016", "blank_line_above_continuing_body_text"): (
+        "An extra blank line appears above the continuing body text on page {page}."
+    ),
     ("P016", "excessive_line_gap"): (
         "Unusually large spacing (about {largest_gap_pt}pt) was detected between "
         "lines on page {page}. Excluding necessary page breaks, text should flow "
@@ -352,8 +376,7 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P065", "dedication_text_not_italic"): (
         "The dedication text on page {page} does not appear to be "
-        "italicized. NJIT requires dedication text to be in italic font. "
-        "Apply italic formatting to the dedication text."
+        "italicized. NJIT requires italics for dedication text that uses the Latin alphabet."
     ),
     ("P078", "abstract_pdf_forbidden_term"): (
         "The abstract on page {page} appears to contain \"paper\" or "
@@ -368,14 +391,13 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "remove first-person pronouns."
     ),
     ("P075", "toc_mixed_leader_styles"): (
-        "Problem: Table of Contents entries on page {page} use more than one "
-        "leader style before page numbers. Use one leader style, such as dots "
-        "or hyphens, consistently throughout the Table of Contents."
+        "Problem: The Table of Contents mixes dot and hyphen leaders before "
+        "page numbers. The entry identified on page {page} is one example."
     ),
     ("P075", "toc_missing_leader_style"): (
-        "Problem: Some Table of Contents entries on page {page} are missing a "
-        "leader before the page number while other entries use one. Add the "
-        "same leader style before every Table of Contents page number."
+        "Problem: The Table of Contents has entries without a leader before "
+        "the page number while other entries use one. The entry identified "
+        "on page {page} is one example."
     ),
     ("P084", "biosketch_birth_information_present"): (
         "Problem: The Biographical Sketch on page {page} appears to include "
@@ -438,9 +460,11 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "appears to end with a terminal period. Remove the final period."
     ),
     ("P017", "missing_terminal_punctuation"): (
-        "Likely problem: A {caption_type} caption on page {page} appears to "
-        "be missing terminal punctuation where NJIT expects a period, question "
-        "mark, or exclamation point. Add appropriate ending punctuation."
+        "Likely problem: A figure description on page {page} appears to be missing "
+        "terminal punctuation."
+    ),
+    ("P017", "excessive_caption_line_spacing"): (
+        "The wrapped caption on page {page} appears to have wide internal line spacing."
     ),
     ("P017", "possible_sentence_case_issue"): (
         "Likely problem: A {caption_type} caption on page {page} appears to use "
@@ -462,8 +486,8 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P018", "missing_page_number"): (
         "Likely problem: A TOC, List of Tables, or List of Figures entry on "
-        "page {page} appears to be missing its trailing page number. Add the "
-        "correct page number for this entry."
+        "page {page} appears to be missing its trailing page number. "
+        + P018_MISSING_PAGE_NUMBER_FIX
     ),
     ("P018", "inconsistent_leader_dots"): (
         "Likely problem: Leader dots or spacing before page numbers on page "
@@ -476,10 +500,9 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "so chapter, section, and subsection entries visually reflect their level."
     ),
     ("P018", "wrapped_title_continuation_misaligned"): (
-        "Likely problem: A Table of Contents title on page {page} runs onto a "
-        "second line that does not start under the first line's title text. "
-        "When a title runs longer than one line, align the second line exactly "
-        "with the text of the first line, not with the section number."
+        "Likely problem: A continuation line of a wrapped Table of Contents "
+        "title on page {page} starts left of the first word of the title text. "
+        + P018_WRAPPED_TITLE_FIX
     ),
     ("P018", "title_to_leader_gap_too_wide"): (
         "Likely problem: On page {page}, the leader dots in a Table of Contents, "
@@ -512,8 +535,7 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P024", "list_of_tables_title_case"): (
         "Likely problem: A List of Tables entry on page {page} may not use "
-        "Title Case or may include terminal punctuation. Table titles in the "
-        "List of Tables should use Title Case with no ending period."
+        "Title Case."
     ),
     ("P024", "list_of_figures_title_case"): (
         "Likely problem: A List of Figures entry on page {page} may not use "
@@ -613,8 +635,8 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "but describes a table. Move this entry to the List of Tables."
     ),
     ("P055", "lot_entry_missing_table_prefix"): (
-        "Problem: A List of Tables entry on page {page} is missing the required 'Table' prefix "
-        "before its number. Prepend 'Table ' to each List of Tables entry."
+        "A List of Tables entry on page {page} starts with a number. The auditor could "
+        "not identify a 'Table' column heading above the entry numbers."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
         "This saved List of Figures prefix advisory reflects an older policy."
@@ -633,9 +655,21 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
         "Remove Abstract from the TOC; keep only the front-matter Abstract."
     ),
     ("P087", "toc_generic_title_repeated"): (
-        "Likely problem: The Table of Contents repeats a generic heading across "
-        "chapters on or near page {page}. Qualify each repeated heading so readers "
-        "can tell the sections apart."
+        "Review: The Table of Contents repeats the same generic section title "
+        "in distinct entries, beginning on page {page}. Check whether the "
+        "chapter or section context distinguishes them; if not, qualify the headings."
+    ),
+    ("P088", "figure_number_malformed"): (
+        "Likely problem: A figure caption on page {page} uses a malformed number "
+        "with extra concatenated segments. Use a chapter.sequence label such as 4.20."
+    ),
+    ("P088", "figure_number_duplicate"): (
+        "Likely problem: A figure number on page {page} is repeated within the same "
+        "chapter. Give each figure a unique sequence number."
+    ),
+    ("P088", "figure_number_out_of_order"): (
+        "Likely problem: A figure number on page {page} appears out of increasing "
+        "order within its chapter. Keep body figure numbers rising in reading order."
     ),
     ("P060", "toc_entry_numbers_not_nondecreasing"): (
         "Problem: Table of Contents section numbers on page {page} do not "
@@ -790,9 +824,18 @@ _REMEDIATION_OVERRIDES: dict[str, str] = {
 # that do not apply here. An empty string means "this finding's comment body
 # already states the complete fix; do not append anything else."
 _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
+    ("P016", "blank_line_above_continuing_body_text"): (
+        "Remove the extra blank line so the continuing body text starts at its normal top margin."
+    ),
+    ("P023", "blank_line_before_opening_level_three_heading"): (
+        "Remove the blank line above the heading. Keep the prescribed 8 pt of heading spacing."
+    ),
     ("P023", "multiline_body_heading_not_single_spaced"): (
         "Single-space the wrapped lines within this heading. Keep the normal "
         "spacing between the heading and the body paragraph."
+    ),
+    ("P023", "blank_line_above_level_three_heading"): (
+        "Remove the blank line above this level-three heading. Keep the normal body spacing."
     ),
     # P078 has two issue types; the rule-level remediation covers both, so a
     # pronoun finding told students to replace "paper"/"article". Give each
@@ -812,13 +855,23 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "Indent the highlighted level-3 TOC entries to the right of level-2 entries."
     ),
     ("P020", "possible_title_capitalization_issue"): "",
-    ("P027", "level1_not_all_caps"): "",
-    ("P027", "level2_title_case_issue"): "",
-    ("P027", "level3_sentence_case_issue"): "",
-    ("P027", "level4_sentence_case_issue"): "",
-    ("P027", "level4_sentence_case_or_punctuation_issue"): "",
-    ("P027", "level5_sentence_case_issue"): "",
-    ("P027", "level5_sentence_case_or_punctuation_issue"): "",
+    ("P027", "level1_not_all_caps"): "Use all capital letters in the Level 1 heading title.",
+    ("P027", "level2_title_case_issue"): "Use title case for this Level 2 heading.",
+    ("P027", "level3_sentence_case_issue"): "Use sentence case for this Level 3 heading.",
+    ("P027", "level4_sentence_case_issue"): "Use sentence case for this Level 4 heading.",
+    ("P027", "level4_sentence_case_or_punctuation_issue"): (
+        "Add a period at the end of this Level 4 heading."
+    ),
+    ("P027", "level5_sentence_case_issue"): "Use sentence case for this Level 5 heading.",
+    ("P027", "level5_sentence_case_or_punctuation_issue"): (
+        "Add a period at the end of this Level 5 heading."
+    ),
+    ("P065", "dedication_text_not_centered"): (
+        "Center the dedication text block horizontally within the text area."
+    ),
+    ("P065", "dedication_text_not_italic"): (
+        "If the dedication text uses the Latin alphabet, apply italic formatting to the full text."
+    ),
     ("P025", "missing_abstract_body"): (
         "Add the abstract body text directly below the ABSTRACT heading."
     ),
@@ -878,7 +931,7 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "Align this entry's page number with the dominant right-hand column "
         "on this list page."
     ),
-    ("P018", "missing_page_number"): "Add the missing trailing page number to this entry.",
+    ("P018", "missing_page_number"): P018_MISSING_PAGE_NUMBER_FIX,
     ("P018", "inconsistent_leader_dots"): (
         "Make the leader-dot spacing before this entry's page number match "
         "nearby entries."
@@ -887,11 +940,7 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
         "Align this entry's left indent with the other TOC entries at the "
         "same level."
     ),
-    ("P018", "wrapped_title_continuation_misaligned"): (
-        "Start the second line of this wrapped title directly under the first "
-        "word of the title, not under the section number and not indented past "
-        "the title text."
-    ),
+    ("P018", "wrapped_title_continuation_misaligned"): P018_WRAPPED_TITLE_FIX,
     ("P018", "title_to_leader_gap_too_wide"): (
         "Start the leader dots right after the last letter of the title, "
         "leaving no more than one space."
@@ -904,7 +953,7 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P017", "unexpected_terminal_period"): (
         "Remove the final period from this table title or List of Tables entry."
     ),
-    ("P017", "missing_terminal_punctuation"): "",
+    ("P017", "missing_terminal_punctuation"): "End the figure description with a period.",
     ("P017", "possible_sentence_case_issue"): "",
     ("P017", "possible_title_case_issue"): (
         "Edit the table title to title case: capitalize the first word and "
@@ -933,11 +982,8 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P054", "toc_entry_has_terminal_period"): "",
     ("P055", "lot_entry_is_figure"): "Move this misplaced entry to the List of Figures.",
     ("P055", "lof_entry_is_table"): "Move this misplaced entry to the List of Tables.",
-    # The P055 catalog remediation describes misplaced entries; a numeric-only
-    # entry needs the literal prefix instead (Ester, 2026-09-04).
     ("P055", "lot_entry_missing_table_prefix"): (
-        "Begin this List of Tables entry with the word 'Table' before its "
-        "number (for example, Table 1.1)."
+        "Place the 'Table' column heading above the entry numbers on this List of Tables page."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
         "List of Figures entries may begin with a number; the word Figure is not required "
@@ -946,11 +992,43 @@ _ISSUE_REMEDIATION_OVERRIDES: dict[tuple[str, str], str] = {
     ("P055", "body_figure_reference_abbreviated"): (
         "Use the full word 'Figure' before the number in this body reference."
     ),
+    ("P063", "single_appendix_uses_letter_label"): (
+        "For a sole appendix, remove the letter after APPENDIX in the heading."
+    ),
+    ("P063", "multiple_appendix_missing_letter"): (
+        "Add the missing letter to the appendix heading in alphabetical order."
+    ),
+    ("P063", "appendix_letter_sequence_gap"): (
+        "Correct the appendix labels so their letters are consecutive."
+    ),
+    ("P063", "appendix_letter_sequence_repeat"): (
+        "Give each appendix a distinct letter in alphabetical order."
+    ),
+    ("P063", "appendix_subsection_missing_letter_prefix"): (
+        "Add the owning appendix's letter before the leading dot in the subsection number."
+    ),
+    ("P064", "references_entry_indentation_inconsistent"): (
+        "Use either hanging indent or flush-left consistently for all reference entries, "
+        "following the style agreed with your advisor."
+    ),
+    ("P064", "references_entry_spacing_inconsistent"): (
+        "Use consistent double spacing between consecutive reference entries."
+    ),
     ("P068", "approval_page_advisor_role_label_missing"): "",
     ("P068", "approval_page_signature_blocks_sparse"): "",
+    ("P075", "toc_missing_leader_style"): (
+        "Add a leader before each affected Table of Contents page number, "
+        "using the same style as the other entries."
+    ),
+    ("P075", "toc_mixed_leader_styles"): (
+        "Use one leader style, dots or hyphens, throughout the Table of Contents."
+    ),
 }
 
 _NO_ISSUE_OVERRIDE = object()
+_P075_GENERIC_LEADER_FIX = (
+    "Right-align page numbers and use one consistent leader style (dots or hyphens)."
+)
 
 
 def _resolve_remediation(rule_id: str, issue_type: str) -> str:
@@ -1106,6 +1184,10 @@ def _format_template(template: str, *, page: int | None, details: dict[str, str]
         candidate_text=details.get("candidate_text", "") or "unknown",
         page_type=page_type.replace("_", " "),
         letter_found=details.get("letter_found", "") or "A",
+        appendix_location=details.get("appendix_location", "") or "appendix section",
+        actual_identifier=details.get("actual_identifier", "") or "subsection number",
+        expected_letter=details.get("expected_letter", "") or "the appendix letter",
+        expected_identifier=details.get("expected_identifier", "") or "the corrected number",
         expected_heading=details.get("expected_heading", "") or "the required heading",
         toc_page=details.get("toc_page", "") or "unknown",
         substantial_line_count=details.get("substantial_line_count", "") or "0",
@@ -1286,8 +1368,7 @@ def _p024_lot_title_case_comment(*, page: int | None, details: dict[str, str]) -
     reason_text = _TITLE_CASE_REASON_TEXT.get(reason, "a word is not capitalized as expected")
     return (
         f"Likely problem: A List of Tables entry on page {page_label} may not use "
-        f"Title Case: {reason_text}. Table titles in the List of Tables should use "
-        "Title Case with no ending period."
+        f"Title Case: {reason_text}."
     )
 
 
@@ -2033,6 +2114,9 @@ def build_polished_comment(
         k: v for k, v in (details or {}).items() if k not in _BLOCKED_DETAIL_KEYS
     }
     issue = issue_type or safe_details.get("issue_type", "")
+    if rule_id == "P062" and issue == P062_ISSUE:
+        if pair := describe_p062_pair(safe_details):
+            return _finish_comment(pair, rule_id=rule_id, issue_type=issue, specific=True)
     if rule_id in _SOURCE_RULE_IDS and not issue:
         issue = derive_source_issue_type(rule_id, safe_details)
     if (
@@ -2046,6 +2130,20 @@ def build_polished_comment(
     if rule_id == "P013" and issue == "page_number_candidate":
         body = _p013_candidate_comment(page=page, details=safe_details)
         return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
+
+    if rule_id == "P017" and issue == "missing_terminal_punctuation":
+        continuation = caption_continuation_explanation(safe_details)
+        if continuation:
+            return _finish_comment(continuation, rule_id=rule_id, issue_type=issue, specific=True)
+        if (
+            safe_details.get("caption_context") == "list_of_figures"
+            or safe_details.get("source_q_rule_id") == "Q075"
+        ):
+            body = (
+                f"Likely problem: A List of Figures description on page {_safe_page_label(page)} "
+                "appears to be missing terminal punctuation."
+            )
+            return _finish_comment(body, rule_id=rule_id, issue_type=issue, specific=True)
 
     if rule_id == "P017" and issue == "unexpected_terminal_period":
         subject = (
@@ -2237,14 +2335,25 @@ def resolve_suggested_fix_for_display(
     existing: str = "",
     float_number: str = "",
 ) -> str:
-    """Resolve advice, retaining recorded R035 identity over older generic text."""
+    """Resolve advice while preserving recorded occurrence-specific fixes."""
     if rule_id == "P035" and float_number.strip():
         numbered_fix = float_layout_suggested_fix(issue_type, float_number)
         if numbered_fix:
             return numbered_fix
     cleaned = sanitize_suggested_fix_for_web(rule_id, existing.strip())
+    if (
+        rule_id == "P075"
+        and (rule_id, issue_type) in _ISSUE_REMEDIATION_OVERRIDES
+        and cleaned in {_P075_GENERIC_LEADER_FIX, _remediation_by_rule().get(rule_id)}
+    ):
+        return _resolve_remediation(rule_id, issue_type)
+    if rule_id in {"P027", "P065"} and cleaned == _remediation_by_rule().get(rule_id):
+        # Older reports may already contain the combined catalog wording.
+        return _resolve_remediation(rule_id, issue_type)
     if cleaned:
-        return cleaned
+        # Stored reports can carry the old generic action alongside a specific finding.
+        if rule_id not in {"P063", "P064"} or cleaned != _remediation_by_rule().get(rule_id):
+            return cleaned
     return sanitize_suggested_fix_for_web(rule_id, _resolve_remediation(rule_id, issue_type))
 
 

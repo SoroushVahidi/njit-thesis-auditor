@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}About Us — NJIT Thesis Auditor{% endblock %}
 {% block content %}
-<main id="about-content">
+<div id="about-content">
   <h1>About Us</h1>
   <section class="section" aria-labelledby="about-tool-heading">
     <h2 id="about-tool-heading">About the tool</h2>
@@ -25,5 +25,5 @@
     <p><a href="https://github.com/SoroushVahidi/njit-thesis-auditor-desktop" rel="noreferrer" referrerpolicy="no-referrer">Windows desktop downloads and release notes</a>. The public desktop releases repository provides installers, checksums, and release notes.</p>
     {% if offline_mode %}<p class="file-hint">This page is bundled with the app. Email and release links require an internet connection.</p>{% endif %}
   </section>
-</main>
+</div>
 {% endblock %}

@@ -14,7 +14,7 @@
 {% macro confidence_badge(level, label="", css_class="") -%}
   {% set normalized = (level or "") | lower %}
   {% if label %}
-    {% set badge_label = label %}
+    {% set badge_label = label if "confidence" in (label | lower) else label ~ " confidence" %}
   {% elif normalized == "high" %}
     {% set badge_label = "High confidence" %}
   {% elif normalized == "medium" %}

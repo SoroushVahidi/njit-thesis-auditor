@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from statistics import median as _median
 
-import fitz
+import pymupdf as fitz
 
 from njit_auditor.pdf_models import (
     LANDSCAPE_ASPECT_THRESHOLD,
@@ -42,6 +43,8 @@ _LEADER_ONLY_SPAN_RE = re.compile(r"^[.\u2026\u00b7]+$")
 # LaTeX dotfill leaders extract as one span per dot; a line carrying at least
 # this many dot-only spans is treated as a leader-bearing line.
 _MIN_DOT_ONLY_SPANS_FOR_LEADER = 4
+_PREFIXLESS_SECTION_HINT_RE = re.compile(r"^\s*\.[0-9]")
+LIST_COLUMN_PAIR_RE = re.compile(r"\s*(tables?|figures?)\s+(pages?)\s*", re.IGNORECASE)
 
 
 def _parse_line_dir(raw_dir: object) -> tuple[float, float] | None:
@@ -143,6 +146,31 @@ def _page_has_leader_run(page_dict: dict) -> bool:
     return False
 
 
+def _prefixless_section_lines(page_dict: dict) -> set[tuple[int, int]]:
+    """Find lines that may need precise geometry for a leading .1-style identifier."""
+    return {
+        (block_index, line_index)
+        for block_index, block in enumerate(page_dict.get("blocks", []))
+        for line_index, line in enumerate(block.get("lines", []))
+        if _PREFIXLESS_SECTION_HINT_RE.match(
+            "".join(span["text"] for span in line.get("spans", []))
+        )
+    }
+
+
+def _list_column_pair_lines(page_dict: dict) -> set[tuple[int, int]]:
+    """Locate paired list labels that may share one extracted text span."""
+    return {
+        (block_index, line_index)
+        for block_index, block in enumerate(page_dict.get("blocks", []))
+        for line_index, line in enumerate(block.get("lines", []))
+        if any(
+            LIST_COLUMN_PAIR_RE.fullmatch(span.get("text", ""))
+            for span in line.get("spans", [])
+        )
+    }
+
+
 def _char_x_bounds_by_span(
     page: fitz.Page,
     *,
@@ -219,7 +247,10 @@ def _page_dict_reading_rotation(page: fitz.Page, page_dict: dict) -> int:
     return reading_frame_rotation(int(page.rotation), directions)
 
 
-def _horizontal_rule_bboxes(page: fitz.Page, reading_rotation: int = 0) -> list[BBox]:
+def _horizontal_rule_bboxes(
+    page: fitz.Page, reading_rotation: int = 0, *,
+    drawing_rects: Iterable[fitz.Rect] | None = None,
+) -> list[BBox]:
     """Join adjacent thin drawing segments into full visible horizontal rules.
 
     PDF table borders are often emitted as several touching filled rectangles,
@@ -231,14 +262,17 @@ def _horizontal_rule_bboxes(page: fitz.Page, reading_rotation: int = 0) -> list[
     reads upright only after ``/Rotate`` (*reading_rotation* != 0, e.g. a
     pdflscape landscape page) a visually horizontal rule is vertical in
     unrotated space, so segments are grouped in the displayed frame and the
-    resulting rules are mapped back to unrotated space.
+    resulting rules are mapped back to unrotated space. Callers measuring
+    individual path items can supply their visible segment rectangles.
     """
     to_frame = page.rotation_matrix if reading_rotation else fitz.Identity
     segments: list[fitz.Rect] = []
-    for drawing in page.get_drawings():
-        rect = drawing["rect"] * to_frame
-        if not _drawing_is_visible(drawing):
-            continue
+    if drawing_rects is None:
+        drawing_rects = (
+            drawing["rect"] for drawing in page.get_drawings() if _drawing_is_visible(drawing)
+        )
+    for drawing_rect in drawing_rects:
+        rect = drawing_rect * to_frame
         if (
             0 <= rect.height <= _MAX_HORIZONTAL_RULE_HEIGHT_PT
             and rect.width >= _MIN_HORIZONTAL_SEGMENT_WIDTH_PT
@@ -336,11 +370,17 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                         )
                     )
 
+            has_leaders = _page_has_leader_run(page_dict)
+            measured_lines = set()
+            if not has_leaders:
+                measured_lines = _prefixless_section_lines(page_dict) | _list_column_pair_lines(
+                    page_dict
+                )
             glyph_map = (
                 _char_x_bounds_by_span(
                     page, exclude_annotation_appearances=exclude_annotation_appearances
                 )
-                if _page_has_leader_run(page_dict)
+                if has_leaders or measured_lines
                 else {}
             )
             for block_index, block in enumerate(page_dict.get("blocks", [])):
@@ -360,7 +400,11 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                         text = str(span.get("text", ""))
                         if not text.strip():
                             continue
-                        glyphs = glyph_map.get((block_index, line_index, span_index))
+                        glyphs = (
+                            glyph_map.get((block_index, line_index, span_index))
+                            if has_leaders or (block_index, line_index) in measured_lines
+                            else None
+                        )
                         char_x_bounds = (
                             glyphs[1]
                             if glyphs is not None

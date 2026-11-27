@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import re
 
+from njit_auditor.p018_guidance import (
+    P018_MISSING_PAGE_NUMBER_FIX,
+    P018_WRAPPED_TITLE_FIX,
+)
 from njit_auditor.pdf_models import BBox
 
 _ENTRY_PREVIEW_MAX = 72
@@ -173,8 +177,8 @@ _P018_SHORT_LIKELY: dict[str, str] = {
         "the same hierarchy level."
     ),
     "wrapped_title_continuation_misaligned": (
-        "Likely problem: The second line of this wrapped title does not start "
-        "under the first line's title text."
+        "Likely problem: A continuation line of this wrapped title starts left "
+        "of the first word of the title text."
     ),
     "title_to_leader_gap_too_wide": (
         "Likely problem: The leader dots for this entry start after a visible gap "
@@ -191,7 +195,7 @@ _P018_SHORT_FIX: dict[str, str] = {
         "Align this entry's page number with the dominant right-hand column on this "
         "list page."
     ),
-    "missing_page_number": "Add the missing trailing page number to this entry.",
+    "missing_page_number": P018_MISSING_PAGE_NUMBER_FIX,
     "inconsistent_leader_dots": (
         "Make the leader-dot spacing before this entry's page number match nearby "
         "entries."
@@ -199,10 +203,7 @@ _P018_SHORT_FIX: dict[str, str] = {
     "inconsistent_hierarchy_indent": (
         "Align this entry's left indent with the other TOC entries at the same level."
     ),
-    "wrapped_title_continuation_misaligned": (
-        "Start the second line directly under the first word of the title text, "
-        "not under the section number and not indented past it."
-    ),
+    "wrapped_title_continuation_misaligned": P018_WRAPPED_TITLE_FIX,
     "title_to_leader_gap_too_wide": (
         "Start the leader dots right after the last letter of the title, leaving no "
         "more than one space."

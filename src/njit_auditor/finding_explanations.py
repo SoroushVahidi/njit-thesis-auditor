@@ -6,6 +6,12 @@ semantics, thresholds, rule IDs, or stored finding data.
 
 from __future__ import annotations
 
+from njit_auditor.caption_continuation_preview import caption_continuation_explanation
+from njit_auditor.p018_guidance import (
+    P018_MISSING_PAGE_NUMBER_FIX,
+    P018_WRAPPED_TITLE_EXPECTED,
+    P018_WRAPPED_TITLE_FIX,
+)
 from njit_auditor.title_case_student_preview import (
     affected_title_phrase,
     sanitize_title_case_line_preview,
@@ -15,6 +21,7 @@ from njit_auditor.toc_list_student_preview import (
     sanitize_toc_list_entry_preview,
     spacing_entries_phrase,
 )
+from njit_auditor.toc_order_evidence import P062_ISSUE, describe_p062_pair
 
 # ---------------------------------------------------------------------------
 # Action kind / label helpers
@@ -259,6 +266,14 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "the page number unless this page type is intentionally numbered."
     ),
     # --- P023 body spacing ---
+    ("P023", "blank_line_above_level_three_heading"): (
+        "Problem: The gap above this level-three heading appears to contain a blank line. "
+        "Remove the extra line above the heading and keep the surrounding body spacing."
+    ),
+    ("P023", "blank_line_before_opening_level_three_heading"): (
+        "Problem: An extra blank line appears above this level-three heading at the page start. "
+        "Remove the blank line and keep the prescribed 8 pt of heading spacing."
+    ),
     ("P023", "possible_body_text_not_double_spaced"): (
         "Problem: Body text on this page does not appear to be double-spaced. "
         "NJIT requires body text to be double-spaced, except for tables, figure "
@@ -273,6 +288,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "(centered, near the top of the page, bold, and in all capital letters)."
     ),
     # --- P016 paragraph/line spacing gaps ---
+    ("P016", "blank_line_above_continuing_body_text"): (
+        "Problem: An extra blank line appears above the continuing body text. "
+        "Remove the extra line so the text starts at its normal top margin."
+    ),
     ("P016", "excessive_line_gap"): (
         "Unusually large spacing was detected between lines on this page. "
         "Excluding necessary page breaks for new chapters or to keep figures "
@@ -433,6 +452,10 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Tables, or List of Figures does not include the correct continued heading. "
         "Add the correct continued heading on this continuation page."
     ),
+    ("P030", "missing_symbols_continued_heading"): (
+        "Problem: The List of Symbols continues on this page without its continued heading. "
+        "Add LIST OF SYMBOLS (Continued) above the symbol entries."
+    ),
     # --- P033 title consistency ---
     ("P033", "frontmatter_title_mismatch"): (
         "The dissertation title appears to differ between two or more front-matter "
@@ -515,6 +538,11 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Apply italic formatting to the dedication text."
     ),
     # --- P063 appendix/body headings ---
+    ("P063", "appendix_subsection_missing_letter_prefix"): (
+        "Add the owning appendix's letter to the beginning of the subsection number. "
+        "For a single bare APPENDIX, use A as the letter. Correct the number in the heading "
+        "and its Table of Contents entry wherever the prefix is missing."
+    ),
     ("P063", "single_appendix_uses_letter_label"): (
         "Observed: The document appears to have only one appendix, but its "
         "heading is labeled 'APPENDIX {letter_found}' with a letter. "
@@ -560,8 +588,7 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P065", "dedication_text_not_italic"): (
         "The dedication text does not appear to be italicized. "
-        "NJIT requires dedication text to be in italic font. "
-        "Apply italic formatting to the dedication text."
+        "If the dedication text uses the Latin alphabet, apply italic formatting to the full text."
     ),
     # --- P078 abstract keywords ---
     ("P078", "abstract_pdf_forbidden_term"): (
@@ -580,9 +607,11 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "a period. Remove the final period."
     ),
     ("P017", "missing_terminal_punctuation"): (
-        "A figure or table caption on this page appears to be missing terminal "
-        "punctuation. Add a period, question mark, or exclamation point as "
-        "appropriate for the caption style."
+        "A figure description on this page appears to be missing terminal punctuation."
+    ),
+    ("P017", "excessive_caption_line_spacing"): (
+        "The highlighted caption lines appear widely spaced. Apply single line spacing "
+        "within the figure description or table title, then check the exported PDF."
     ),
     ("P017", "possible_sentence_case_issue"): (
         "A caption on this page appears to use Title Case where sentence case may "
@@ -601,7 +630,7 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P018", "missing_page_number"): (
         "A TOC or list entry on this page appears to be missing its trailing "
-        "page number. Add the correct page number for this entry."
+        "page number. " + P018_MISSING_PAGE_NUMBER_FIX
     ),
     ("P018", "inconsistent_leader_dots"): (
         "Leader dots or spacing before page numbers on this list page are "
@@ -613,9 +642,8 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "hierarchy level. Adjust indentation so entries visually reflect their level."
     ),
     ("P018", "wrapped_title_continuation_misaligned"): (
-        "A Table of Contents title on this page wraps onto a second line that does "
-        "not start under the first line's title text. Align the second line with "
-        "the text of the first line, not the section number."
+        "A continuation line of a wrapped Table of Contents title on this page "
+        "starts left of the first word of the title text. " + P018_WRAPPED_TITLE_FIX
     ),
     ("P018", "title_to_leader_gap_too_wide"): (
         "Leader dots in a list entry on this page start after a visible gap "
@@ -633,8 +661,7 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Level 3 = sentence case)."
     ),
     ("P024", "list_of_tables_title_case"): (
-        "A List of Tables entry on this page may not use Title Case or may include "
-        "terminal punctuation. Table titles should use Title Case with no ending period."
+        "A List of Tables entry on this page may not use Title Case."
     ),
     ("P024", "list_of_figures_title_case"): (
         "A figure description in the List of Figures appears to use Title Case. "
@@ -716,6 +743,18 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "A Table of Contents entry on this page ends with a final period. "
         "Remove the final period from each Table of Contents entry."
     ),
+    ("P075", "toc_mixed_leader_styles"): (
+        "The Table of Contents uses both dot and hyphen leaders between titles "
+        "and page numbers. The identified entry on page {page} is one example "
+        "of the differing style; inspect the other TOC entries as well. NJIT "
+        "requires one consistent leader style throughout the TOC."
+    ),
+    ("P075", "toc_missing_leader_style"): (
+        "Some Table of Contents entries have no leader between the title and "
+        "page number, while other entries use one. The identified entry on "
+        "page {page} is one example without a leader. Inspect the other TOC "
+        "entries and add the same leader style where it is absent."
+    ),
     # --- P055 misplaced list entries ---
     ("P055", "lot_entry_is_figure"): (
         "A table entry appears in the List of Tables but describes a figure. "
@@ -726,8 +765,8 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Move this entry to the List of Tables."
     ),
     ("P055", "lot_entry_missing_table_prefix"): (
-        "A List of Tables entry on this page is missing the required 'Table' prefix. "
-        "Each entry in the List of Tables must begin with the word 'Table' (e.g., Table 1.1)."
+        "This List of Tables entry starts with a number. Check that the 'Table' column "
+        "heading is present above the entry numbers on this page."
     ),
     ("P055", "lof_entry_missing_figure_prefix"): (
         "List of Figures entries may begin with a number; the word Figure is not required "
@@ -755,9 +794,24 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Remove this Abstract entry from the TOC."
     ),
     ("P087", "toc_generic_title_repeated"): (
-        "The Table of Contents repeats the same generic heading on multiple "
-        "entries. Qualify each repeated heading with the chapter topic or another "
-        "distinctive title so readers can tell the sections apart."
+        "The Table of Contents repeats the same generic section title in "
+        "distinct entries. This is a review prompt: check whether chapter or "
+        "section context already distinguishes the entries. If readers cannot "
+        "tell them apart, add the chapter topic or another distinctive label."
+    ),
+    ("P088", "figure_number_malformed"): (
+        "A figure caption on page {page} uses a malformed number with extra "
+        "concatenated segments. NJIT figure numbers follow a chapter.sequence "
+        "form such as 4.20. Correct the label and match the List of Figures."
+    ),
+    ("P088", "figure_number_duplicate"): (
+        "A figure number on page {page} is repeated within the same chapter. "
+        "Assign a unique sequence number to each figure in the chapter."
+    ),
+    ("P088", "figure_number_out_of_order"): (
+        "A figure number on page {page} appears out of increasing order within "
+        "its chapter. Renumber or reorder body figures so sequence numbers rise "
+        "in reading order."
     ),
     ("P057", "lot_page_numbers_not_nondecreasing"): (
         "List of Tables page numbers on this page do not appear to be in "
@@ -976,6 +1030,10 @@ _RULE_FALLBACKS: dict[str, str] = {
         "A Table of Contents title-structure issue was detected. Remove Abstract "
         "entries from the TOC, and qualify repeated generic headings so readers "
         "can tell chapter sections apart."
+    ),
+    "P088": (
+        "A body figure-numbering issue was detected. Use a simple chapter.sequence "
+        "label, keep numbers unique within each chapter, and keep them in order."
     ),
 }
 
@@ -1381,11 +1439,12 @@ _P036_SECTION_LABELS: dict[str, str] = {
 
 
 _P018_EXPECTED_BY_ISSUE_TYPE: dict[str, str] = {
+    "missing_page_number": (
+        "Each entry ends with its page number aligned to the list's page-number column. "
+        + P018_MISSING_PAGE_NUMBER_FIX
+    ),
     "wrapped_title_continuation_misaligned": (
-        "when a title runs longer than one line, the second line aligns with the "
-        "text of the first line, not the section number. What to check or fix: "
-        "move the wrapped line so it starts directly under the first word of the "
-        "title, neither left of it nor indented past it."
+        P018_WRAPPED_TITLE_EXPECTED + " What to check or fix: " + P018_WRAPPED_TITLE_FIX
     ),
     "title_to_leader_gap_too_wide": (
         "leader dots begin right after the last letter of the title, with at most "
@@ -1955,6 +2014,13 @@ def _build_explanation_text(
     page: int | None,
 ) -> str:
     effective_issue_type = _resolve_issue_type(rule_id, issue_type, details)
+    if rule_id == "P062" and effective_issue_type == P062_ISSUE:
+        if pair := describe_p062_pair(details):
+            return pair
+    if rule_id == "P017" and effective_issue_type == "missing_terminal_punctuation":
+        continuation = caption_continuation_explanation(details)
+        if continuation:
+            return continuation
     if rule_id == "P011" and effective_issue_type == "margin_boundary_violation":
         return _p011_margin_explanation(details, page=page)
     if rule_id == "P012" and effective_issue_type == "pdf_annotation_detected":

@@ -166,8 +166,9 @@
 
 {% if notice %}
 <div class="alert-warn" role="alert">
-  <strong>Audit result no longer available.</strong><br>
+  <strong>{{ notice_title or "Audit result no longer available." }}</strong><br>
   {{ notice }}
+  {% if notice_audit_url %}<br><a href="{{ notice_audit_url }}">Return to audit results</a>{% endif %}
 </div>
 {% endif %}
 {% if error %}
@@ -189,6 +190,23 @@
 </div>
 
 <div class="input-methods section">
+  {% if not offline_mode %}
+  <div class="card">
+    <h2 style="margin-top:0;">Audit a Sample Document</h2>
+    <p>Try an approved PDF directly. The audit opens in the same results view as your own upload.</p>
+    <form action="/sample-audits" method="post">
+      <label for="sample-id">Sample document</label>
+      <select id="sample-id" name="sample_id" required>
+        <option value="synthetic_example">Synthetic Example</option>
+        <option value="ester_sample_a">Historical Sample A</option>
+        <option value="ester_sample_b">Historical Sample B</option>
+        <option value="ester_sample_c">Historical Sample C</option>
+        <option value="ester_sample_d">Historical Sample D</option>
+      </select>
+      <button type="submit">Audit Selected Sample</button>
+    </form>
+  </div>
+  {% endif %}
   <div class="card">
     <h2 style="margin-top:0;">Upload a file</h2>
     <form action="/audits" method="post" enctype="multipart/form-data">
@@ -237,9 +255,18 @@
   </div>
 
   <div class="card">
-    <h2 style="margin-top:0;">Try a sample PDF</h2>
-    <p>Download a synthetic sample with no student material, then upload the saved PDF above to start an audit.</p>
-    <a href="/sample.pdf" class="btn btn-secondary" download>Download sample PDF</a>
+    <h2 style="margin-top:0;">Sample Documents</h2>
+    <p>Downloads are available if you want a copy of a sample PDF. You can audit the approved samples directly above.</p>
+    <ul class="bullet-list">
+      <li><strong>Synthetic example:</strong> A small generated PDF with no student material. <a href="/sample.pdf" download>Download sample PDF</a>.</li>
+      {% if not offline_mode %}
+      <li><strong>Historical Sample A:</strong> First-review, reviewer-annotated PDF. <a href="/samples/ester_sample_a.pdf" download>Download Sample A</a>.</li>
+      <li><strong>Historical Sample B:</strong> Second-review PDF with reviewer feedback. <a href="/samples/ester_sample_b.pdf" download>Download Sample B</a>.</li>
+      <li><strong>Historical Sample C:</strong> Second-review PDF with reviewer comments. <a href="/samples/ester_sample_c.pdf" download>Download Sample C</a>.</li>
+      <li><strong>Historical Sample D:</strong> Compressed fourth-review, reviewer-annotated PDF. <a href="/samples/ester_sample_d.pdf" download>Download Sample D</a>.</li>
+      <li><strong>Real thesis example:</strong> Christopher Anson’s 39-page thesis, released by its author into the public domain on Wikimedia Commons. Its format is not an NJIT template. <a href="https://commons.wikimedia.org/wiki/Special:Redirect/file/New_Submitted_Thesis.pdf" target="_blank" rel="noopener noreferrer">Download real thesis PDF</a> from Wikimedia Commons.</li>
+      {% endif %}
+    </ul>
   </div>
 </div>
 

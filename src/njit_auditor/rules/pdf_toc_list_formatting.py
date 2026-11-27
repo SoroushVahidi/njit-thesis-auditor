@@ -309,7 +309,10 @@ def _check_toc_page(
             # The shared title tokenizer accepts straight apostrophes. PDF
             # text often uses a curly possessive apostrophe; normalize it
             # here so the trailing "s" is not treated as a separate word.
-            issues = check_apa_title_case_phrase(entry_text.replace("\u2019", "'"))
+            issues = check_apa_title_case_phrase(
+                entry_text.replace("\u2019", "'"),
+                preserve_initial_lowercase_terms=True,
+            )
             if issues:
                 first = issues[0]
                 findings.append(
@@ -484,7 +487,9 @@ def _check_list_case_page(
         # nomenclature signals to hide a title that is plainly not title case.
         if not _lot_title_case_is_unreliable(head_text):
             issues = check_apa_title_case_phrase(
-                entry_text, skip_hyphenated_fragments=True
+                entry_text,
+                skip_hyphenated_fragments=True,
+                preserve_initial_lowercase_terms=True,
             )
         is_figure = context.page_type == "list_of_figures"
         if is_figure:

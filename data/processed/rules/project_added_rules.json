@@ -291,7 +291,7 @@
     "id": "P017",
     "section": "PDF caption and title formatting",
     "question": "Are figure descriptions in sentence case and ending with terminal punctuation, and are table titles in title case without a final period?",
-    "rule_definition": "Heuristically detect punctuation and case-style issues in figure/table caption-like PDF lines. Figure captions (body): check terminal punctuation and sentence case. LoF entries: check terminal punctuation (Q075) only; LoF capitalization is owned by P024 (R024E, sentence case per Ester 2026-11-09). Table titles (body) and LoT entries: check title case and unexpected terminal period (Q065). Each finding carries source_q_rule_id for LoT/LoF context findings. Body-context findings have no direct Q-rule. Complements P024 (TOC/LoT/LoF level formatting), P040 (LoF terminal punct), P053 (LoT terminal period).",
+    "rule_definition": "Heuristically detect punctuation and case-style issues in figure/table caption-like PDF lines. Figure captions (body): check terminal punctuation and sentence case. LoF entries: check terminal punctuation (Q075) only; LoF capitalization is owned by P024 (R024E, sentence case per Ester 2026-11-09). Table titles (body) and LoT entries: check title case and unexpected terminal period (Q065). Each finding carries source_q_rule_id for LoT/LoF context findings. Body-context findings have no direct Q-rule. Complements P024 (TOC/LoT/LoF level formatting), P040 (LoF terminal punct), P053 (LoT terminal period). Strongly supported figure descriptions crossing one adjacent physical page boundary are checked at the reconstructed logical end. Ambiguous continuations retain page-local behavior; a page crossing alone is not reported as a violation.",
     "remediation": "For figure captions: use sentence case (only first word and proper nouns capitalized) and end with a period. List of Figures entries end with a period; their capitalization is checked under R024E. For table titles and LoT entries: use title case and do not end with a period. Ester: figure descriptions → sentence case + terminal period; table titles → title case + no period.",
     "severity": "warning",
     "source_file": "project_added",
@@ -983,8 +983,8 @@
     "id": "P055",
     "section": "PDF List of Tables / List of Figures cross-type entry check",
     "question": "Are list entries in the correct list, and is 'Figure' written out in body references?",
-    "rule_definition": "List entry checks extend Q063/Q072. Check complete LoT entries starting with Figure or lacking Table, complete LoF entries starting with Table, and explicit Fig. abbreviations in body references. Numeric-only List of Figures entries are valid. Body references require Figure (Ester 2026-11-17); bare numbers and ambiguous text are not classified as references. Caption checks remain separate.",
-    "remediation": "Move misplaced entries to the correct list. Keep Table prefixes in the List of Tables. Write Figure in full in body references; numeric-only List of Figures entries need no prefix.",
+    "rule_definition": "List entry checks extend Q063/Q072. Check complete LoT entries starting with Figure or starting with a number without a recognized Table column heading, complete LoF entries starting with Table, and explicit Fig. abbreviations in body references. Numeric-only List of Figures entries are valid. Body references require Figure (Ester 2026-11-17); bare numbers and ambiguous text are not classified as references. Caption checks remain separate.",
+    "remediation": "Move misplaced entries to the correct list. List of Tables entries under the Table column heading may begin with their number. Write Figure in full in body references. List of Figures entries do not need that prefix.",
     "severity": "warning",
     "source_file": "project_added",
     "implementation_status": "implemented",
@@ -994,7 +994,7 @@
       "compiled_pdf"
     ],
     "priority": "medium",
-    "notes": "Q063/Q072 list-entry type extension. Ester 2026-11-17 supersedes the earlier LoF per-entry prefix interpretation. Q072 concerns the Figure column header, checked separately. issue_types: lot_entry_is_figure, lof_entry_is_table, lot_entry_missing_table_prefix, body_figure_reference_abbreviated. Legacy lof_entry_missing_figure_prefix is no longer emitted. Body checks require explicit prose reference cues and exclude detected list pages and captions.",
+    "notes": "Q063/Q072 list-entry type extension. The November 17 LoF clarification and November 19–20 LoT feedback allow entries to begin with their number in the supported contexts. Column-header diagnostics are separate. issue_types: lot_entry_is_figure, lof_entry_is_table, lot_entry_missing_table_prefix, body_figure_reference_abbreviated. Legacy lof_entry_missing_figure_prefix is no longer emitted. Body checks require explicit prose reference cues and exclude detected list pages and captions.",
     "implementation_module": "njit_auditor.rules.pdf_lot_lof_entry_type"
   },
   {
@@ -1166,8 +1166,8 @@
   },
   {
     "id": "P063",
-    "title": "Appendix body heading label check",
-    "description": "Emits warnings when body-page appendix headings do not follow NJIT label conventions: a single appendix must be labeled APPENDIX (no letter suffix); multiple appendices must each be labeled APPENDIX A, APPENDIX B, etc. with consecutive letters starting from A. Companion to P042 (TOC-side).",
+    "title": "Appendix heading labels and subsection prefixes",
+    "description": "Checks top-level appendix labels in the body and missing letter prefixes on appendix subsection headings in the body and their Table of Contents entries when appendix ownership is clear. P042 continues to check top-level appendix entries in the Table of Contents.",
     "phase": "pdf_layout",
     "source_q_rule_ids": [
       "Q058",
@@ -1180,13 +1180,14 @@
       "single_appendix_uses_letter_label",
       "multiple_appendix_missing_letter",
       "appendix_letter_sequence_gap",
-      "appendix_letter_sequence_repeat"
+      "appendix_letter_sequence_repeat",
+      "appendix_subsection_missing_letter_prefix"
     ],
     "scope_doc": "docs/planning/p063_scope_and_design.md",
     "section": "PDF Layout — Appendices",
-    "question": "Do body-page appendix headings follow the NJIT label convention (APPENDIX vs APPENDIX A/B/C)?",
-    "rule_definition": "Body-page appendix headings must follow NJIT labeling rules: if there is one appendix, its heading must be APPENDIX (without a letter); if there are multiple appendices, each heading must be APPENDIX A, APPENDIX B, APPENDIX C, etc. with consecutive letter identifiers. Applies to body pages only; the TOC side is handled by P042.",
-    "remediation": "For a single appendix: rename the heading to APPENDIX (remove any letter suffix). For multiple appendices: ensure each appendix heading uses APPENDIX A, APPENDIX B, etc. in consecutive alphabetical order.",
+    "question": "Are appendix headings labeled correctly and subsection numbers prefixed with the appendix letter?",
+    "rule_definition": "Use APPENDIX for a single top-level appendix heading in the body. For multiple appendices, use APPENDIX A, APPENDIX B, APPENDIX C, etc. in order. Subsection numbers in the body and Table of Contents begin with the owning appendix letter, such as A.1 or B.1. A single bare APPENDIX still uses A for its subsection numbers. Top-level Table of Contents appendix entries are checked separately.",
+    "remediation": "For a single appendix: rename the heading to APPENDIX (remove any letter suffix). For multiple appendices: ensure each appendix heading uses APPENDIX A, APPENDIX B, etc. in consecutive alphabetical order. Add the owning appendix letter to any subsection number missing it in the body or Table of Contents. For a single APPENDIX, change .1 to A.1. Under APPENDIX B, change .1 to B.1.",
     "severity": "warning",
     "source_file": "project_added",
     "checkability": "deterministic",
@@ -1194,7 +1195,7 @@
       "pdf"
     ],
     "priority": "medium",
-    "notes": "Requires body region detection (CHAPTER/APPENDIX heading in body triggers detection). Conservative: skips documents where no body region is detected. Companion to P042 which checks the TOC side (Q058/Q059). Guideline basis: Self-Assessment Sheet p.4 and Q058/Q059."
+    "notes": "Body checks use structurally supported appendix headings. Subsection warnings require clear appendix ownership. P042 covers top-level Table of Contents entries. Basis: Self-Assessment Sheet p.4 and Q058/Q059 for top-level labels, plus R063 reviewer guidance for subsection prefixes."
   },
   {
     "id": "P064",
@@ -1879,7 +1880,7 @@
     "title": "TOC Abstract Entries and Repeated Generic Titles",
     "description": "Detects Abstract entries listed in the Table of Contents and repeated generic article-style TOC titles that make navigation ambiguous.",
     "section": "PDF front matter / Table of Contents",
-    "question": "Does the Table of Contents list Abstract entries, or repeat indistinguishable generic section titles across chapters?",
+    "question": "Does the Table of Contents list Abstract, or repeat the same generic section title (such as Introduction) in distinct numbered sections or on different TOC pages?",
     "rule_definition": "TABLE OF CONTENTS pages only. F03: flag reliable TOC entries whose normalized title is Abstract (front-matter Abstract heading is not a TOC entry and is not flagged). F02: when an allowlisted generic title (Introduction, Materials and Methods, Methods, Results and Discussion, Results, Discussion, Conclusion/Conclusions) appears at least twice with distinct section numbers or pages, emit one review-level finding listing structural section numbers. Does not invent replacement titles, does not ban article-based chapter structure, and does not scan LoT/LoF or body prose.",
     "severity": "warning",
     "phase": "pdf_layout",
@@ -1894,8 +1895,27 @@
       "toc_abstract_entry_present",
       "toc_generic_title_repeated"
     ],
-    "remediation": "Remove Abstract from the TOC (keep only the front-matter Abstract). For repeated generic titles, qualify each TOC heading with the chapter topic or another distinctive label.",
+    "remediation": "Remove Abstract from the TOC (keep only the front-matter Abstract). If repeated generic titles are hard to distinguish, qualify each TOC heading with the chapter topic or another distinctive label.",
     "source_file": "project_added",
     "notes": "Batch A from Ester Flaim November 9/10 2026 feedback (F03/F02). Abstract prohibition is an explicit requirement; repeated generic titles are review-level navigation advice without a universal ban on recurring section names."
+  },
+  {
+    "id": "P088",
+    "title": "Body Figure Number Structure and Succession",
+    "description": "Detects malformed concatenated body figure numbers and per-chapter duplicate or out-of-order well-formed chapter.sequence labels.",
+    "section": "PDF body / figures",
+    "question": "Are body figure caption numbers well-formed chapter.sequence labels that stay unique and increasing within each chapter?",
+    "rule_definition": "Body figure captions only (detect_caption_lines). Flag arabic figure numbers with more than two segments (e.g., 4.204.1) as malformed. Among well-formed two-segment arabic numbers, flag duplicates and decreases within a chapter. Does not scan List of Figures, table captions, panel letters, or in-text cross-references. Does not invent a corrected number from LoF text. Bounded figure-description continuation association retains the original caption anchor and counts an evidenced repeated continued label as the same figure identity.",
+    "severity": "warning",
+    "phase": "pdf_layout",
+    "implementation_status": "implemented",
+    "implementation_module": "njit_auditor.rules.pdf_figure_number_structure",
+    "rule_type": "detection",
+    "source_q_rule_ids": [],
+    "source_files": ["src/njit_auditor/rules/pdf_figure_number_structure.py"],
+    "issue_types": ["figure_number_malformed", "figure_number_duplicate", "figure_number_out_of_order"],
+    "remediation": "Correct malformed figure labels to a simple chapter.sequence form, keep numbers unique within each chapter, and keep them increasing in reading order. Match the List of Figures.",
+    "source_file": "project_added",
+    "notes": "F08 from November 2026 feedback. Body-caption evidence is required; ambiguous extraction is excluded."
   }
 ]

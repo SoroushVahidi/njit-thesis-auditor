@@ -12,6 +12,7 @@
       --color-bg: #f4f6f8;
       --color-surface: #fff;
       --color-border: #dde3ea;
+      --color-control-border: #748396;
       --color-muted: #5c6b7a;
       --color-text: #1a2332;
       --radius: 8px;
@@ -25,6 +26,21 @@
       color: var(--color-text);
       background: var(--color-bg);
       line-height: 1.55;
+    }
+    :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+      outline: 3px solid var(--color-primary);
+      outline-offset: 3px;
+    }
+    .skip-link {
+      position: absolute;
+      inset-inline-start: 1rem;
+      inset-block-start: 1rem;
+      z-index: 1;
+      transform: translateY(-200%);
+    }
+    .skip-link:focus { transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .spinner { animation: none !important; }
     }
     h1 { font-size: 1.75rem; margin: 0 0 0.35rem; font-weight: 700; }
     h2 { font-size: 1.15rem; margin: 0 0 0.75rem; font-weight: 600; }
@@ -55,7 +71,7 @@
       padding: 0.45rem 0.5rem;
       margin-bottom: 0.65rem;
       width: 100%;
-      border: 1px solid var(--color-border);
+      border: 1px solid var(--color-control-border);
       border-radius: 5px;
       font-size: 0.95rem;
       background: #fff;
@@ -487,6 +503,7 @@
   {% block head_extra %}{% endblock %}
 </head>
 <body>
+  <a class="skip-link btn" href="#main-content">Skip to main content</a>
   <nav class="site-nav" aria-label="Site navigation">
     <a href="/" class="site-nav__brand">NJIT Thesis Auditor</a>
     <span class="site-nav__sep" aria-hidden="true">|</span>
@@ -495,9 +512,25 @@
     <a href="/rules" class="site-nav__link">Rule Reference</a>
     <span class="site-nav__sep" aria-hidden="true">|</span>
     <a href="/about" class="site-nav__link"{% if request.url.path == "/about" %} aria-current="page"{% endif %}>About Us</a>
+    {% if not offline_mode %}
+      <span class="site-nav__sep" aria-hidden="true">|</span>
+      {% if admin_mode %}
+        <a href="/admin/feedback" class="site-nav__link">Feedback dashboard</a>
+        <a href="/reviewer/general-feedback" class="site-nav__link">General feedback</a>
+        <form action="/admin/logout" method="post" style="display:inline;margin:0"><input type="hidden" name="csrf_token" value="{{ admin_csrf_token }}"><button type="submit" class="btn btn-secondary">Log out</button></form>
+      {% elif reviewer_mode %}
+        <span class="site-nav__link">Reviewer Access</span>
+        <a href="/reviewer/finding-feedback" class="site-nav__link">My finding feedback</a>
+        <a href="/reviewer/general-feedback" class="site-nav__link">General feedback</a>
+        <form action="/reviewer/logout" method="post" style="display:inline;margin:0"><input type="hidden" name="csrf_token" value="{{ reviewer_csrf_token }}"><button type="submit" class="btn btn-secondary">Log out</button></form>
+      {% elif reviewer_beta_enabled %}<a href="/reviewer/login" class="site-nav__link">Reviewer Access</a>
+      {% else %}<a href="/admin/login" class="site-nav__link">Admin Login</a>{% endif %}
+    {% endif %}
     {% if offline_mode %}<form action="/quit" method="post" style="display:inline;margin-left:auto"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Quit</button></form>{% endif %}
   </nav>
-  {% block content %}{% endblock %}
+  <main id="main-content" tabindex="-1">
+    {% block content %}{% endblock %}
+  </main>
   <footer>
     NJIT Thesis Auditor — automated checks only; all findings require human review.<br>
     Created by Soroush Vahidi &middot; Questions, suggestions, and feedback welcome &middot; <a href="mailto:sv96@njit.edu">sv96@njit.edu</a>

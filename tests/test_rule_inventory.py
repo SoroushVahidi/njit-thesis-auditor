@@ -24,6 +24,26 @@ def test_inventory_and_project_rule_files_exist() -> None:
     assert Path("data/processed/rules/project_added_rules.json").exists()
 
 
+def test_p063_subsection_issue_is_registered_and_described_by_public_catalog() -> None:
+    from njit_auditor.web_app import _build_rule_catalog
+
+    rules = _load_json("data/processed/rules/project_added_rules.json")
+    p063 = next(rule for rule in rules if rule["id"] == "P063")
+    assert p063["issue_types"] == [
+        "single_appendix_uses_letter_label",
+        "multiple_appendix_missing_letter",
+        "appendix_letter_sequence_gap",
+        "appendix_letter_sequence_repeat",
+        "appendix_subsection_missing_letter_prefix",
+    ]
+    card = next(rule for rule in _build_rule_catalog()["student_rules"] if rule["id"] == "P063")
+    assert "subsection" in card["title"].lower()
+    assert "body and Table of Contents" in card["what_it_checks"]
+    assert "top-level appendix heading" in card["what_it_checks"]
+    assert "owning appendix letter" in card["how_to_correct"]
+    assert "A.1" in card["how_to_correct"] and "B.1" in card["how_to_correct"]
+
+
 def test_all_ester_rules_represented_in_inventory() -> None:
     inventory = _load_json("data/processed/rules/njit_rule_inventory.json")
     assert len(inventory) == 79
@@ -72,7 +92,7 @@ def test_q001_q052_q007_classifications() -> None:
 def test_project_added_rules_implemented() -> None:
     project_rules = _load_json("data/processed/rules/project_added_rules.json")
     assert project_rules
-    assert len(project_rules) == 87
+    assert len(project_rules) == 88
     by_id = {str(item["id"]): item for item in project_rules}
     assert by_id["P028"]["phase"] == "pdf_layout"
     assert (
@@ -493,6 +513,21 @@ def test_project_added_rules_implemented() -> None:
         "toc_generic_title_repeated",
     ]
     assert public_display_rule_id("P087") == "R087"
+    assert "P088" in by_id
+    assert by_id["P088"]["implementation_status"] == "implemented"
+    assert by_id["P088"]["phase"] == "pdf_layout"
+    assert (
+        by_id["P088"]["implementation_module"]
+        == "njit_auditor.rules.pdf_figure_number_structure"
+    )
+    assert by_id["P088"]["rule_type"] == "detection"
+    assert by_id["P088"]["source_q_rule_ids"] == []
+    assert by_id["P088"]["issue_types"] == [
+        "figure_number_malformed",
+        "figure_number_duplicate",
+        "figure_number_out_of_order",
+    ]
+    assert public_display_rule_id("P088") == "R088"
     assert all(
         item["implementation_status"] == "implemented"
         for item in project_rules

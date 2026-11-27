@@ -12,18 +12,24 @@ license = { text = "MIT" }
 authors = [{ name = "Soroush Vahidi" }]
 dependencies = [
   "pymupdf>=1.25.0",
-  "pdfplumber>=0.11.0",
-  "pypdf>=5.0.0",
+  "pdfplumber>=0.11.0; sys_platform == 'win32'",
+  "pypdf>=6.21.4; sys_platform != 'win32'",
+  "pypdf>=5.0.0; sys_platform == 'win32'",
   "typer>=0.12.0",
   "rich>=13.7.0",
   "pydantic>=2.7.0",
   "pylatexenc>=2.10",
-  "fastapi>=0.111.0",
+  "fastapi>=0.141.1",
+  "starlette>=1.6.0",
   "uvicorn[standard]>=0.30.0",
-  "python-multipart>=0.0.9",
+  "python-multipart>=0.0.32",
   "jinja2>=3.1.0",
   "python-docx>=1.0.0",
   "reportlab>=4.0.0",
+  "pillow>=13.0.0; python_version >= '3.11' and sys_platform != 'win32'",
+  "pillow>=12.3.0; python_version < '3.11' and sys_platform != 'win32'",
+  "pillow>=12.0.0; sys_platform == 'win32'",
+  "argon2-cffi>=23.1.0",
 ]
 
 [project.optional-dependencies]
@@ -38,9 +44,29 @@ dev = [
 
 [project.scripts]
 njit-audit = "njit_auditor.cli:app"
+njit-admin = "njit_auditor.admin_accounts:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+include-package-data = false
+
+[tool.setuptools.package-data]
+njit_auditor = [
+  "offline_templates/index.html",
+  "templates/_macros.html",
+  "templates/_windows_download.html",
+  "templates/about.html",
+  "templates/admin_feedback.html",
+  "templates/admin_login.html",
+  "templates/base.html",
+  "templates/general_feedback.html",
+  "templates/help.html",
+  "templates/index.html",
+  "templates/job.html",
+  "templates/problem_group.html",
+  "templates/reviewer_login.html",
+  "templates/rules.html",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -67,7 +93,7 @@ mypy_path = "src"
 packages = ["njit_auditor"]
 
 [[tool.mypy.overrides]]
-module = ["fitz", "pymupdf"]
+module = ["pymupdf"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

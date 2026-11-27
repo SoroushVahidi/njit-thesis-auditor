@@ -216,9 +216,9 @@ def _repeated_generic_findings(
                 page=first_page,
                 message=(
                     f"The Table of Contents repeats the generic heading “{display}” "
-                    f"across {len(occurrences)} entries. Repeated article-style titles "
-                    "make the TOC hard to navigate because readers cannot tell the "
-                    "sections apart."
+                    f"in {len(occurrences)} distinct entries. Check whether their "
+                    "chapter or section context already distinguishes them; "
+                    "otherwise readers may have trouble navigating the TOC."
                 ),
                 details={
                     "issue_type": "toc_generic_title_repeated",
@@ -237,8 +237,8 @@ def _repeated_generic_findings(
                     "confidence": "medium",
                     "suggested_fix": (
                         f"Review the repeated “{display}” TOC headings"
-                        f" ({number_list}). Qualify each with the chapter topic or "
-                        "another distinctive title so readers can tell them apart. "
+                        f" ({number_list}). Qualify each with the chapter topic "
+                        "or another distinctive title if readers cannot tell them apart. "
                         "Do not remove legitimate chapter structure; improve the "
                         "heading labels in the TOC."
                     ),

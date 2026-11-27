@@ -799,7 +799,10 @@ _SPLIT_BASELINE_TOLERANCE_PT = 2.0
 _SPLIT_MAX_GAP_PT = 72.0
 
 
-def _split_number_headings(page: PdfPage) -> dict[int, PdfTextLine]:
+def _split_number_headings(
+    page: PdfPage, *, number_pattern: re.Pattern[str] = _NUMBER_ONLY_RE,
+    require_unique_title: bool = False,
+) -> dict[int, PdfTextLine]:
     """Map each split heading's title line to one line carrying number + title.
 
     Some PDFs extract a numbered heading's number and its title as two lines
@@ -807,13 +810,14 @@ def _split_number_headings(page: PdfPage) -> dict[int, PdfTextLine]:
     which need "3.4.3 Title" on one line, never see the heading. Rejoin them
     only when both parts are bold and share a baseline, with the title just
     to the right of the number; the number-only line then matches no pattern
-    on its own, so the heading is checked exactly once.
+    on its own, so the heading is checked exactly once. Callers can require
+    a unique title to abstain when multiple columns could match the number.
     """
     lines = [line for block in page.text_blocks for line in block.lines]
     numbers = [
         line
         for line in lines
-        if _NUMBER_ONLY_RE.match(line.text.strip()) and _is_bold_line(line)
+        if number_pattern.match(line.text.strip()) and _is_bold_line(line)
     ]
     merged: dict[int, PdfTextLine] = {}
     for number in numbers:
@@ -829,7 +833,7 @@ def _split_number_headings(page: PdfPage) -> dict[int, PdfTextLine]:
             and line.text.strip()
             and not line.text.strip()[0].isdigit()
         ]
-        if not candidates:
+        if not candidates or (require_unique_title and len(candidates) != 1):
             continue
         title = min(candidates, key=lambda line: line.bbox.x0)
         merged[id(title)] = PdfTextLine(

@@ -104,6 +104,7 @@ _INTERNAL_STUDENT_EXPORT_DETAIL_KEYS: frozenset[str] = frozenset(
         "source_q_rule_ids",
         "source_q_rule",
         "source_q_rule_basis",
+        "_preserve_prior_finding_ids",
     }
 )
 
@@ -592,21 +593,20 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Remove the final period from each Table of Contents entry."
         ),
     },
-    # Ester 2026-11-17: numeric-only LoF entries are valid. Body references
-    # use Figure; preserve the separate LoT and misplaced-entry requirements.
     "P055": {
         "question": ("Are list entries in the correct list, and is 'Figure' "
                      "written out in body references?"),
         "rule_definition": (
             "Checks misplaced entries between the List of Tables and List of Figures, "
-            "missing 'Table' prefixes in the List of Tables, and explicit 'Fig.' "
-            "abbreviations in body references. List of Figures entries may begin "
-            "with only a number. Bare body numbers are not classified as figure references."
+            "numbered List of Tables entries without a recognized 'Table' column heading, "
+            "and explicit 'Fig.' abbreviations in body references. List of Figures entries "
+            "may begin with only a number. Bare body numbers are not classified as "
+            "figure references."
         ),
         "remediation": (
-            "Move any misplaced entry to the correct list. Begin List of Tables "
-            "entries with 'Table'. Use the full word 'Figure' in body references; "
-            "List of Figures entries do not need that prefix."
+            "Move any misplaced entry to the correct list. List of Tables entries under "
+            "the 'Table' column heading may begin with their number. Write 'Figure' in "
+            "full in body references. List of Figures entries do not need that prefix."
         ),
     },
     "P074": {
@@ -833,16 +833,6 @@ _RULE_TEXT_OVERRIDES: dict[str, dict[str, str]] = {
             "Findings contain only structural metadata -- no title text."
         ),
     },
-    "P063": {
-        "rule_definition": (
-            "Body-page appendix headings must follow NJIT labeling rules: "
-            "if there is one appendix, its heading must be APPENDIX "
-            "(without a letter); if there are multiple appendices, each "
-            "heading must be APPENDIX A, APPENDIX B, APPENDIX C, etc. with "
-            "consecutive letter identifiers. Applies to body pages only; "
-            "the Table of Contents side is handled by a separate check."
-        ),
-    },
 }
 
 
@@ -997,7 +987,7 @@ def _prepare_findings_for_export(
 
 
 def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFinding]:
-    """Return findings ordered by PDF page, earliest first, page-less findings last.
+    """Order JSON rows by PDF page, keeping list-wide P046 identities stable.
 
     The audit pipeline emits findings grouped by detector/rule (each rule sweeps
     the whole document before the next one runs), not by page, so without this
@@ -1016,10 +1006,26 @@ def _findings_sorted_for_export(findings: list[AuditFinding]) -> list[AuditFindi
     slot -- it only reorders the page groups themselves, so finding counts and
     representative-finding choices are unchanged; only display order changes.
     """
-    return sorted(
-        findings,
-        key=lambda finding: (finding.page is None, finding.page or 0),
-    )
+    def sort_key(finding: AuditFinding) -> tuple[int, bool, int]:
+        page = finding.page
+        if finding.rule_id == "P046" and page is not None:
+            # Raw JSON indexes back finding IDs. Keep the list-wide warning's
+            # slot while the card and annotation follow its actual evidence page.
+            start = finding.details.get("list_start_page", "")
+            if start.isascii() and start.isdecimal() and len(start) <= len(str(page)):
+                start_page = int(start)
+                if 0 < start_page < page:
+                    page = start_page
+        page_start_finding = (finding.rule_id, finding.details.get("issue_type")) in {
+            ("P016", "blank_line_above_continuing_body_text"),
+            ("P023", "blank_line_before_opening_level_three_heading"),
+        }
+        priority = int(page_start_finding)
+        if finding.details.get("_preserve_prior_finding_ids") == "true":
+            priority = 2
+        return priority, page is None, page or 0
+
+    return sorted(findings, key=sort_key)
 
 
 def build_source_report(
@@ -2365,12 +2371,18 @@ def audit_findings_to_json_dict(
     findings: list[AuditFinding], metadata: dict[str, str]
 ) -> dict[str, Any]:
     """Convert findings + metadata into a structured serializable payload."""
+    from njit_auditor.polished_comments import resolve_suggested_fix_for_display
+
     audit_type = metadata.get("audit_type", "pdf")
     prepared = _findings_sorted_for_export(_prepare_findings_for_export(findings, audit_type))
 
     serialized_findings: list[dict[str, Any]] = []
     for finding in prepared:
         details = _sanitize_details(finding.details)
+        if finding.rule_id == "P075" and "suggested_fix" in details:
+            details["suggested_fix"] = resolve_suggested_fix_for_display(
+                finding.rule_id, details.get("issue_type", ""), existing=details["suggested_fix"]
+            )
         _, student_facing_role = _student_export_role(finding.rule_id, details)
         entry: dict[str, Any] = {
             "rule_id": finding.rule_id,
@@ -3285,7 +3297,7 @@ def _group_findings_by_rule(findings: list[dict[str, Any]]) -> dict[str, list[di
     return dict(sorted(grouped.items()))
 
 
-def _p012_document_stats_for_markdown(
+def _p012_document_summary_stats(
     p012_count_by_page: dict[int, int] | None,
 ) -> Any:
     """Return document-level P012 stats when presentation summary mode applies."""
@@ -3515,8 +3527,7 @@ def _problem_number_map(
     )
     from njit_auditor.title_case_student_preview import consume_p020_display_slot
 
-    mapping: dict[int, int] = {}
-    next_problem_number = 1
+    visible_indexes: list[int] = []
     p020_display_seen: set[tuple] = set()
     page_number_display_seen: set[tuple] = set()
     grouped_display_seen: set[tuple] = set()
@@ -3576,9 +3587,19 @@ def _problem_number_map(
             claimed_page_number_keys=frozenset(claimed_page_number_keys),
         ):
             continue
-        mapping[index] = next_problem_number
-        next_problem_number += 1
-    return mapping
+        visible_indexes.append(index)
+
+    def page_order(index: int) -> tuple[bool, int]:
+        # The roll-up keeps its raw page and ID, but its card is document-wide.
+        if index == p012_display_state.summary_anchor_index:
+            return True, 0
+        page = serialized_findings[index].get("page")
+        return page is None, page or 0
+
+    return {
+        index: number
+        for number, index in enumerate(sorted(visible_indexes, key=page_order), start=1)
+    }
 
 
 def format_source_location(details: dict[str, str]) -> str:
@@ -3679,7 +3700,7 @@ def individual_finding_comment_and_fix(
             p012_rolled_up_comment,
         )
 
-        doc_stats = _p012_document_stats_for_markdown(p012_count_by_page)
+        doc_stats = _p012_document_summary_stats(p012_count_by_page)
         if doc_stats is not None:
             comment = p012_document_rolled_up_comment(doc_stats)
             fix = p012_document_suggested_fix()
@@ -4002,7 +4023,7 @@ def _problem_location_text(
             p012_location_label,
         )
 
-        doc_stats = _p012_document_stats_for_markdown(p012_count_by_page)
+        doc_stats = _p012_document_summary_stats(p012_count_by_page)
         if doc_stats is not None:
             return p012_document_location_label(doc_stats)
         annotation_count = 1
@@ -4143,11 +4164,14 @@ def write_markdown_report(
         p044_section = _format_p044_triage_section(payload["grouped_summary"])
         lines.extend(p044_section)
 
-    visible_problem_findings = [
-        finding
-        for finding in serialized_findings
-        if isinstance(finding.get("problem_number"), int) and finding["problem_number"] > 0
-    ]
+    visible_problem_findings = sorted(
+        (
+            finding
+            for finding in serialized_findings
+            if isinstance(finding.get("problem_number"), int) and finding["problem_number"] > 0
+        ),
+        key=lambda finding: finding["problem_number"],
+    )
     from njit_auditor.p011_student_preview import (
         collect_p011_margin_pages_from_serialized,
         init_p011_display_state,

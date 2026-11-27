@@ -10,11 +10,15 @@ assertions remain unchanged.
 `CI` runs on pushes and pull requests. Its Python 3.10–3.12 matrix runs Ruff,
 mypy, boundary regression tests, and the explicit synthetic/nonconfidential
 selection in [tests.json](../.github/ci/tests.json). The separate Python 3.12
-browser job runs four explicit targets with generated PDFs and loopback services;
+browser job runs six explicit targets with generated PDFs and loopback services;
 zero tests or any browser skip fails that job.
 
-The inventory classifies 208 hosted modules and 17 local-only modules.
-The latter include private replay/correctness/geometry tests, mixed modules with
+At the [2026-11-22 baseline](status/CURRENT_STATUS.md#historical-snapshot--2026-11-22),
+the inventory classified 226 hosted modules, 18 local-only modules, and five
+support modules. The [test manifest](../.github/ci/tests.json) is the current
+source of truth. The six browser targets are a selection from the hosted inventory.
+
+The local-only modules include private replay/correctness/geometry tests, mixed modules with
 private cases, reviewer spreadsheets, a public guideline PDF, and four modules
 using authorized synthetic web-demo binaries stored in LFS. Those binaries are
 kept local too: hosted CI downloads **no LFS objects**, including public ones.
@@ -33,8 +37,8 @@ browser job requires its full coverage. Private test exclusions are reported
 separately from pytest skips.
 
 Every checkout uses `lfs: false`, `GIT_LFS_SKIP_SMUDGE=1`, no persisted credentials,
-one-commit history, and sparse exclusions for `data/raw/`, `data/evaluation/` and
-`results/`. Before executing tests, jobs remove the checkout remote and set
+one-commit history, and sparse exclusions for raw and private evaluation inputs,
+reviewer evidence, and local results. Before executing tests, jobs remove the checkout remote and set
 `lfs.fetchexclude=*`. The boundary checker rejects private roots, replay manifest
 environment variables, materialized LFS files, enabled smudging, remotes, and an
 incomplete test inventory. It prints generic failures rather than private paths
@@ -51,20 +55,26 @@ uses the same sparse exclusions, shallow history, fetch exclusion and preflight.
 Its explicit native test targets and smoke PDF are synthetic. Its existing artifact
 allowlist contains installer files, checksums, test XML and synthetic smoke logs,
 not fixture directories; it uses no Actions cache. Its build job runs only for
-`release/windows-beta-publish-*` PRs or explicit workflow dispatch. Updating #653
-or the CI privacy PR triggers the path-filtered workflow but skips that build job.
-This correction does not authorize a native build or publication.
+`release/windows-beta-publish-*` PRs or explicit workflow dispatch. A qualifying
+path change on another PR can register a workflow run with the native build
+job skipped. Windows Server validation and self-hosted Windows 11 qualification
+are documented separately in the [desktop release procedure](PUBLIC_WINDOWS_RELEASE.md#build-and-smoke-checks).
 
-These controls protect the reviewed workflow from accidental fixture fetching or
-test inclusion. They are not a sandbox for malicious changes to workflows/code.
-Workflow edits still require review. The source repository remains private;
-sparse checkout and this change do not authorize publishing its Git history.
+On 2026-11-22 the [main CI run](https://github.com/SoroushVahidi/njit-thesis-auditor/actions/runs/45063874204)
+was blocked by the account billing or spending limit. All seven jobs recorded
+zero executed steps. Record a zero-step run as a hosted infrastructure blocker.
+List local results separately with their exact SHA or Git tree. Review the
+saved job annotation before considering a rerun.
+
+The source repository is public. Sparse checkout keeps fixture inputs out of the
+hosted test workspace. Review workflow edits for any changes to the files the
+runner fetches or processes.
 
 ## Reproducing the hosted selection locally
 
-Use a separate disposable clone, not a checkout holding private evidence. Set
-`GIT_LFS_SKIP_SMUDGE=1` **before cloning**, clone with `--no-checkout --depth 1`,
-then use the sparse patterns shown in `.github/workflows/ci.yml` before checkout.
+Use a separate, authorized fixture-free source checkout. Set
+`GIT_LFS_SKIP_SMUDGE=1` before checkout and apply the sparse patterns shown in
+`.github/workflows/ci.yml`. Do not fetch protected LFS payloads.
 Remove `origin` and set `git config --local lfs.fetchexclude '*'` only in that
 disposable clone. Install `.[dev]` in an isolated environment, then run:
 
@@ -94,7 +104,7 @@ passes/failures/skips and missing prerequisites. Keep inputs, full logs, finding
 and manuscript-derived artifacts local. No private assertion, detector rule,
 threshold, or report-generation code is changed by this separation.
 
-The six additional #653 modules are classified by fixture dependency:
+The six modules added by PR #653 were classified by fixture dependency:
 
 | Test module | Execution | Fixture dependency |
 |---|---|---|

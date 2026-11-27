@@ -11,11 +11,15 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import fitz
+import pymupdf as fitz
+
+from njit_auditor.pdf_publication import atomic_pdf_output
 
 _HIGHLIGHT_STROKE_RGB = (1.0, 0.55, 0.0)
 _HIGHLIGHT_FILL_RGB = (1.0, 1.0, 0.0)
 _HIGHLIGHT_OPACITY = 0.35
+RECT_ANNOT_PADDING_PT = 1.0
+NO_RIGHT_PADDING_KIND = "no_right_padding"
 
 # Caps annotations per page in case a single request matches many findings.
 MAX_HIGHLIGHT_BOXES_PER_PAGE = 100
@@ -346,7 +350,11 @@ def _draw_highlight_box(
     original appearance.
     """
     stroke, fill, opacity = _BOX_STYLES.get(kind, _BOX_STYLES["default"])
-    annot = page.add_rect_annot(fitz.Rect(*clipped))
+    rect = fitz.Rect(*clipped)
+    if kind == NO_RIGHT_PADDING_KIND:
+        # PyMuPDF expands rectangle annotations by one point on every side.
+        rect.x1 -= RECT_ANNOT_PADDING_PT
+    annot = page.add_rect_annot(rect)
     if fill is not None:
         annot.set_colors(stroke=stroke, fill=fill)
     else:
@@ -412,6 +420,7 @@ def _draw_boxes_for_page(
     return drawn, skipped
 
 
+@atomic_pdf_output
 def build_highlighted_pdf(
     source_pdf: Path,
     output_pdf: Path,
@@ -459,6 +468,7 @@ def build_highlighted_pdf(
     )
 
 
+@atomic_pdf_output
 def build_highlighted_single_page_pdf(
     source_pdf: Path,
     output_pdf: Path,
@@ -495,6 +505,7 @@ def build_highlighted_single_page_pdf(
     )
 
 
+@atomic_pdf_output
 def build_single_page_pdf(
     source_pdf: Path,
     output_pdf: Path,
