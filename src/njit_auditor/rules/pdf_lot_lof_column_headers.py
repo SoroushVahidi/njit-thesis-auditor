@@ -10,7 +10,8 @@ import re
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
-from njit_auditor.pdf_models import PdfDocument, PdfTextLine
+from njit_auditor.pdf_layout import LIST_COLUMN_PAIR_RE
+from njit_auditor.pdf_models import BBox, PdfDocument, PdfTextLine
 from njit_auditor.rules.pdf_headings import normalize_heading_text
 from njit_auditor.rules.pdf_margins import LEFT_MARGIN_PT
 from njit_auditor.rules.pdf_toc_alignment import (
@@ -20,6 +21,7 @@ from njit_auditor.rules.pdf_toc_alignment import (
     detect_toc_like_pages,
     extract_toc_entry_lines,
 )
+from njit_auditor.toc_entry_geometry import row_font_size, row_glyphs
 
 HEADER_ZONE_ABOVE_HEADING_PT = 12.0
 HEADER_ZONE_BELOW_HEADING_PT = 60.0
@@ -75,6 +77,37 @@ def _matches_page_label(text: str) -> bool:
     return _normalize_label(text) in PAGE_LABELS
 
 
+def _paired_header_labels(
+    line: PdfTextLine, page_type: str, left_column: float, page_column: float
+) -> list[PdfTextLine]:
+    # Some PDFs use one text run with spaces between both column labels.
+    # Recognize it only when both visible labels occupy the list's columns.
+    if line.line_dir not in (None, (1.0, 0.0)):
+        return []
+    glyphs = row_glyphs(line)
+    match = LIST_COLUMN_PAIR_RE.fullmatch("".join(g.char for g in glyphs))
+    if match is None or not _matches_left_label(match[1], page_type):
+        return []
+    left_start, left_end = match.span(1)
+    right_start, right_end = match.span(2)
+    left_x0 = glyphs[left_start].x0
+    left_x1 = glyphs[left_end - 1].x1
+    right_x0 = glyphs[right_start].x0
+    right_x1 = glyphs[right_end - 1].x1
+    if (
+        left_x0 is None or left_x1 is None or right_x0 is None or right_x1 is None
+        or not left_x0 < left_x1 < right_x0 < right_x1
+        or right_x0 - left_x1 < row_font_size(glyphs)
+        or abs(left_x0 - left_column) > LEFT_HEADER_TOLERANCE_PT
+        or abs(right_x0 - page_column) > PAGE_HEADER_TOLERANCE_PT
+    ):
+        return []
+    return [
+        PdfTextLine(text=text, bbox=BBox(x0=x0, y0=line.bbox.y0, x1=x1, y1=line.bbox.y1))
+        for text, x0, x1 in ((match[1], left_x0, left_x1), (match[2], right_x0, right_x1))
+    ]
+
+
 def _collect_header_zone_lines(context: TocPageContext) -> list[PdfTextLine]:
     y_min = context.heading_bottom_y - HEADER_ZONE_ABOVE_HEADING_PT
     y_max = context.heading_bottom_y + HEADER_ZONE_BELOW_HEADING_PT
@@ -93,6 +126,26 @@ def _collect_header_zone_lines(context: TocPageContext) -> list[PdfTextLine]:
     return header_lines
 
 
+def _column_header_lines(
+    context: TocPageContext, entries: list[TocEntryLine]
+) -> list[PdfTextLine]:
+    left_column = _expected_left_x(entries)
+    page_column = _expected_page_x(entries)
+    first_numbered_top = min(
+        (entry.line.bbox.y0 for entry in entries if entry.page_number_token is not None),
+        default=context.heading_bottom_y + HEADER_ZONE_BELOW_HEADING_PT,
+    )
+    result: list[PdfTextLine] = []
+    for line in _collect_header_zone_lines(context):
+        paired = (
+            _paired_header_labels(line, context.page_type, left_column, page_column)
+            if line.bbox.y1 <= first_numbered_top
+            else []
+        )
+        result.extend(paired or [line])
+    return result
+
+
 def _expected_left_x(entries: list[TocEntryLine]) -> float:
     indents = [entry.indent_x for entry in entries if entry.page_number_right_x is not None]
     if not indents:
@@ -106,11 +159,12 @@ def has_lot_table_column_header(context: TocPageContext, entries: list[TocEntryL
     """Confirm a Table label above the entries and near their number column."""
     if context.page_type != "list_of_tables" or not entries:
         return False
-    # A separately drawn continuation subtitle can appear as a logical
-    # row. It is part of the heading and cannot own the Table label.
+    # A continuation subtitle or paired header can be recovered as an
+    # unnumbered logical row. Neither starts the list of entries.
     first_entry_top = min(
         (entry.line.bbox.y0 for entry in entries
-         if _normalize_label(entry.cleaned_text) != "(continued)"),
+         if _normalize_label(entry.cleaned_text) != "(continued)"
+         and not LIST_COLUMN_PAIR_RE.fullmatch(entry.cleaned_text)),
         default=None,
     )
     if first_entry_top is None:
@@ -121,7 +175,7 @@ def has_lot_table_column_header(context: TocPageContext, entries: list[TocEntryL
         and context.heading_bottom_y <= line.bbox.y0
         and line.bbox.y1 <= first_entry_top
         and abs(line.bbox.x0 - expected_left_x) <= LEFT_HEADER_TOLERANCE_PT
-        for line in _collect_header_zone_lines(context)
+        for line in _column_header_lines(context, entries)
     )
 
 
@@ -187,7 +241,7 @@ def check_pdf_lot_lof_column_headers(pdf_document: PdfDocument) -> list[AuditFin
         if len(entries) < 1:
             continue
 
-        header_lines = _collect_header_zone_lines(context)
+        header_lines = _column_header_lines(context, entries)
         left_matches = [
             line
             for line in header_lines
