@@ -161,6 +161,11 @@ def _terminal_punctuation(text: str) -> bool:
     return bool(TERMINAL_PUNCT_RE.search(text))
 
 
+def has_terminal_caption_punctuation(text: str) -> bool:
+    """Recognize a terminal mark immediately inside closing quotation marks."""
+    return _terminal_punctuation(text.rstrip().rstrip("\"'”’"))
+
+
 def _starts_new_caption(text: str) -> bool:
     clean = normalize_caption_candidate_text(text)
     match = CAPTION_START_RE.match(clean)
@@ -392,6 +397,7 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
     from njit_auditor.rules.pdf_caption_spacing import check_page_caption_spacing
 
     pages = {page.page_number: page for page in pdf_document.pages}
+    quoted_list_rows: set[tuple[int, float, float]] | None = None
     for caption in detect_logical_caption_lines(pdf_document):
         if caption.context in {"toc", "references"}:
             continue
@@ -421,7 +427,18 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
                     "unexpected period."
                 )
         elif caption.context == "list_of_figures" and caption.caption_type == "figure":
-            if not _terminal_punctuation(caption.caption_body):
+            if not has_terminal_caption_punctuation(caption.caption_body):
+                if quoted_list_rows is None:
+                    from njit_auditor.rules.pdf_lof_terminal_punctuation import (
+                        quoted_lof_terminal_rows,
+                    )
+
+                    quoted_list_rows = quoted_lof_terminal_rows(pdf_document)
+                box = caption.bbox
+                if box is not None and (
+                    caption.page_number, round(box.x0, 1), round(box.y0, 1)
+                ) in quoted_list_rows:
+                    continue
                 issue_type = "missing_terminal_punctuation"
                 confidence = "medium"
                 message = (
@@ -433,12 +450,12 @@ def check_pdf_captions(pdf_document: PdfDocument) -> list[AuditFinding]:
             # in P024 to avoid duplicate List of Figures findings.
         elif caption.context == "body":
             if caption.caption_type == "figure":
-                if end_is_resolved and not _terminal_punctuation(terminal_text):
+                if end_is_resolved and not has_terminal_caption_punctuation(terminal_text):
                     issue_type = "missing_terminal_punctuation"
                     confidence = "high"
                     message = "Figure caption appears to be missing terminal punctuation."
                 elif (
-                    _terminal_punctuation(caption.caption_body)
+                    has_terminal_caption_punctuation(caption.caption_body)
                     and _likely_sentence_case_issue(caption.caption_body)
                 ):
                     issue_type = "possible_sentence_case_issue"
