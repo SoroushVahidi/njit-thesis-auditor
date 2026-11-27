@@ -661,8 +661,7 @@ _EXPLANATION_TEMPLATES: dict[tuple[str, str], str] = {
         "Level 3 = sentence case)."
     ),
     ("P024", "list_of_tables_title_case"): (
-        "A List of Tables entry on this page may not use Title Case or may include "
-        "terminal punctuation. Table titles should use Title Case with no ending period."
+        "A List of Tables entry on this page may not use Title Case."
     ),
     ("P024", "list_of_figures_title_case"): (
         "A figure description in the List of Figures appears to use Title Case. "
