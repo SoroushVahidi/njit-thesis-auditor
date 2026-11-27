@@ -158,16 +158,39 @@ def snapshot(request, job: str) -> dict:
     return normalized(result)
 
 
-def capture(url: str, directory: Path) -> None:
-    assert url.rstrip("/") == PRODUCTION_URL, "Capture must use the authoritative production host"
+def checkout_sha() -> str:
+    root = Path(__file__).resolve().parents[1]
+    status = subprocess.check_output(
+        ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=no"], text=True
+    )
+    if status.strip():
+        raise ValueError("Same-SHA qualification requires a clean source checkout")
+    return subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+
+
+def capture(url: str, directory: Path, *, local: bool = False) -> None:
+    if local:
+        parsed = urlparse(url)
+        if (
+            parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or not parsed.port
+            or parsed.path not in {"", "/"} or parsed.query or parsed.fragment
+            or parsed.username or parsed.password
+        ):
+            raise ValueError("Same-SHA reference capture requires a literal loopback HTTP server")
+        source = checkout_sha()
+    else:
+        assert url.rstrip("/") == PRODUCTION_URL, (
+            "Capture must use the authoritative production host"
+        )
+        source = BASELINE
     directory.mkdir(parents=True, exist_ok=False)
     with sync_playwright() as p:
         request = p.request.new_context(base_url=url, timeout=120000)
         version = request.get("/version").json()
-        assert version["commit"] == BASELINE, (
-            "Production changed; refresh parity baseline deliberately"
-        )
-        manifest = {"source_commit": BASELINE, "references": references(request), "fixtures": {}}
+        assert version["commit"] == source, "Reference server source commit does not match"
+        if local:
+            assert version.get("environment") == "local-dev", "Expected a local development server"
+        manifest = {"source_commit": source, "references": references(request), "fixtures": {}}
         for name, data in fixtures().items():
             (directory / name).write_bytes(data)
             response = request.post(
@@ -179,10 +202,10 @@ def capture(url: str, directory: Path) -> None:
             manifest["fixtures"][name] = snapshot(request, response.headers["location"])
         (directory / "reference.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         after = request.get("/version").json()
-        assert after["commit"] == version["commit"] == BASELINE, "Production changed during capture"
+        assert after["commit"] == version["commit"] == source, "Reference changed during capture"
         provenance = {
-            "capture_kind": "live-production-http",
-            "capture_url": PRODUCTION_URL,
+            "capture_kind": "same-sha-loopback" if local else "live-production-http",
+            "capture_url": url.rstrip("/"),
             "captured_at_utc": datetime.now(timezone.utc).isoformat(),
             "version_before": version,
             "version_after": after,
@@ -196,14 +219,47 @@ def capture(url: str, directory: Path) -> None:
             json.dumps(provenance, indent=2), encoding="utf-8"
         )
         request.dispose()
-    load_reference(directory)
-    print("Captured six synthetic audits from verified production source")
+    if local:
+        load_local_reference(directory)
+    else:
+        load_reference(directory)
+    print(f"Captured six synthetic audits from {source}")
+
+
+def load_local_reference(directory: Path, executable: Path | None = None) -> dict:
+    source = checkout_sha()
+    provenance = json.loads((directory / "provenance.json").read_text(encoding="utf-8"))
+    reference = json.loads((directory / "reference.json").read_text(encoding="utf-8"))
+    if (
+        provenance.get("capture_kind") != "same-sha-loopback"
+        or reference.get("source_commit") != source
+        or any(
+            provenance[key].get("commit") != source
+            for key in ("version_before", "version_after")
+        )
+    ):
+        raise ValueError("Local reference does not identify the current checkout")
+    names = set(fixtures())
+    if set(reference["fixtures"]) != names or set(provenance["payload_sha256"]) != (
+        names | {"reference.json"}
+    ):
+        raise ValueError("Unexpected local parity fixture inventory")
+    for name, expected in provenance["payload_sha256"].items():
+        if hashlib.sha256((directory / name).read_bytes()).hexdigest() != expected:
+            raise ValueError(f"Local parity fixture changed: {name}")
+    if executable is not None:
+        info_path = executable.parent / "_internal" / "desktop-build-info.json"
+        info = json.loads(info_path.read_text(encoding="utf-8"))
+        if info.get("commit") != source:
+            raise ValueError("Desktop bundle and reference use different source revisions")
+    return reference
 
 
 def validate(
-    executable: Path | None, directory: Path, output: Path, profile_root: Path | None = None
+    executable: Path | None, directory: Path, output: Path, profile_root: Path | None = None,
+    *, local: bool = False,
 ) -> None:
-    reference = load_reference(directory)
+    reference = load_local_reference(directory, executable) if local else load_reference(directory)
     if executable and os.name == "nt":
         import psutil
         from validate_windows_install import require_no_auditor_processes
@@ -323,13 +379,14 @@ def main() -> None:
     parser.add_argument("--reference", type=Path, required=True)
     parser.add_argument("--executable", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--same-sha-loopback", action="store_true")
     args = parser.parse_args()
     if args.capture_url:
-        capture(args.capture_url, args.reference)
+        capture(args.capture_url, args.reference, local=args.same_sha_loopback)
     else:
         if args.output is None:
             parser.error("--output required for validation")
-        validate(args.executable, args.reference, args.output)
+        validate(args.executable, args.reference, args.output, local=args.same_sha_loopback)
 
 
 if __name__ == "__main__":

@@ -75,9 +75,21 @@ python -m venv .venv-build
 
 `dist/NJIT Thesis Auditor/` is the one-folder application bundle; keep it together
 when testing a portable build. The Windows build also produces an installer under
-`dist/installers/`. Neither output is a new release until selected, versioned and
-published separately. Do not run another Windows build for documentation changes
-or overwrite rc.3. A future installer must use its own version and checksum.
+`dist/installers/`. Local and CI builds use a candidate identity such as
+`0.2.0-rc.4+g0123456789ab`. About Us displays the build identity and the full
+source commit. The installer receipt identifies the exact bytes by SHA-256.
+Keep published installers and their checksums immutable, and qualify the exact
+candidate selected for release.
+
+For same-SHA verification, start the shared web app from the verified checkout
+with a new disposable runtime directory. Set `NJIT_AUDITOR_WEB_RUNTIME_DIR` to that
+directory and `NJIT_AUDITOR_WEB_ENVIRONMENT` to `local-dev`, then run
+`python -m uvicorn njit_auditor.web_app:app --host 127.0.0.1 --port 17821`.
+Capture the synthetic references with
+`python scripts/validate_desktop_parity.py --same-sha-loopback --capture-url http://127.0.0.1:17821 --reference reference-dir`.
+Run the same command with `--executable "dist/NJIT Thesis Auditor/NJIT Thesis Auditor.exe"`
+and `--output parity-output` in place of `--capture-url`. The tool checks the reference
+hashes and embedded desktop commit before comparing the audits and reports.
 
 ## Validation records and remaining checks
 
