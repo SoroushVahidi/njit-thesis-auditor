@@ -3559,7 +3559,19 @@ async def help_page(request: Request) -> HTMLResponse:
 
 @app.get("/about", response_class=HTMLResponse)
 async def about_page(request: Request) -> HTMLResponse:
-    return _render(request, "about.html", {})
+    context: dict[str, Any] = {}
+    if getattr(request.app.state, "offline_mode", False):
+        from njit_auditor.desktop_metadata import desktop_build_info
+
+        info = desktop_build_info()
+        context["desktop_version"] = info.get("build_version", info.get("version"))
+        context["desktop_commit"] = info.get(
+            "commit", _GIT_COMMIT if _GIT_COMMIT != "unknown" else ""
+        )
+        context["desktop_build_channel"] = "Packaged candidate" if getattr(
+            sys, "frozen", False
+        ) else "Source checkout"
+    return _render(request, "about.html", context)
 
 
 @app.get("/rules", response_class=HTMLResponse)

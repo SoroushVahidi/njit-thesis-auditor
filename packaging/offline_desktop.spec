@@ -11,15 +11,17 @@ from PyInstaller.utils.hooks import collect_submodules
 
 ROOT = Path(SPECPATH).parent
 sys.path.insert(0, str(ROOT / "src"))
-from njit_auditor.desktop_metadata import DESKTOP_VERSION, FILE_VERSION
+from njit_auditor.desktop_metadata import DESKTOP_VERSION, FILE_VERSION, candidate_version
 
 resources = Path(CONF["workpath"]) / "desktop-resources"
 resources.mkdir(parents=True, exist_ok=True)
 collect_notices = runpy.run_path(str(ROOT / "scripts/collect_desktop_licenses.py"))["collect"]
 collect_notices(resources / "third-party-licenses")
 commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+build_version = candidate_version(commit)
 (resources / "desktop-build-info.json").write_text(json.dumps({
     "version": DESKTOP_VERSION, "commit": commit,
+    "build_version": build_version, "channel": "candidate",
     "system": platform.system(), "architecture": platform.machine(),
     "python": platform.python_version(),
 }), encoding="utf-8")
@@ -30,8 +32,8 @@ version_file.write_text(f"""VSVersionInfo(
   kids=[StringFileInfo([StringTable('040904B0', [
     StringStruct('CompanyName', 'Soroush Vahidi'),
     StringStruct('FileDescription', 'NJIT Thesis Auditor — local PDF auditing'),
-    StringStruct('FileVersion', '{DESKTOP_VERSION}'),
-    StringStruct('ProductVersion', '{DESKTOP_VERSION}'),
+    StringStruct('FileVersion', '{build_version}'),
+    StringStruct('ProductVersion', '{build_version}'),
     StringStruct('ProductName', 'NJIT Thesis Auditor'),
     StringStruct('OriginalFilename', 'NJIT Thesis Auditor.exe')])]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])])""", encoding="utf-8")

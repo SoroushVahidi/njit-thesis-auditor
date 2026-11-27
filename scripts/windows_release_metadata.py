@@ -9,15 +9,23 @@ import platform
 import subprocess
 from pathlib import Path
 
-from njit_auditor.desktop_metadata import DESKTOP_VERSION
+from njit_auditor.desktop_metadata import DESKTOP_VERSION, candidate_version
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--installer", type=Path, required=True)
+    parser.add_argument("--bundle", type=Path, required=True)
     args = parser.parse_args()
     installer = args.installer
-    if installer.name != f"NJIT-Thesis-Auditor-Setup-{DESKTOP_VERSION}.exe":
+    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    info = json.loads((args.bundle / "_internal" / "desktop-build-info.json").read_text())
+    version = candidate_version(commit)
+    if (info.get("commit"), info.get("version"), info.get("build_version")) != (
+        commit, DESKTOP_VERSION, version
+    ):
+        raise ValueError("Bundle and installer provenance mismatch")
+    if installer.name != f"NJIT-Thesis-Auditor-Setup-{version}.exe":
         raise ValueError("Installer filename/version mismatch")
     if installer.read_bytes()[:2] != b"MZ":
         raise ValueError("Expected Windows executable")
@@ -26,11 +34,13 @@ def main() -> None:
     data = {
         "application": "NJIT Thesis Auditor",
         "edition": "njit",
-        "version": DESKTOP_VERSION,
+        "version": version,
+        "base_version": DESKTOP_VERSION,
+        "channel": "candidate",
         "filename": installer.name,
         "size_bytes": installer.stat().st_size,
         "sha256": digest,
-        "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+        "source_commit": commit,
         "architecture": "x64",
         "build_os": platform.platform(),
         "native_tested": False,
