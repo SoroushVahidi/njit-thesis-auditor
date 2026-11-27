@@ -159,6 +159,10 @@ def test_reviewer_named_controls_and_keyboard_feedback(tmp_path: Path):
             assert comments.evaluate("el => getComputedStyle(el).outlineStyle") == "solid"
             page.keyboard.type("Synthetic reviewer input")
             page.keyboard.press("Tab")
+            assert main.get_by_label("Supporting files (optional)").evaluate(
+                "el => el === document.activeElement"
+            )
+            page.keyboard.press("Tab")
             assert main.get_by_role("button", name="Save Feedback").evaluate(
                 "el => el === document.activeElement"
             )
