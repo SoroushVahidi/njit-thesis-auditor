@@ -73,7 +73,7 @@ a = Analysis(
         "njit_auditor.specs",
         "openpyxl",
         "pytest",
-    ],
+    ] + (["tkinter", "_tkinter"] if sys.platform == "win32" else []),
     noarchive=False,
 )
 pyz = PYZ(a.pure)

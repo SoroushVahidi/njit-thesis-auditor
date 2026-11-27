@@ -64,6 +64,7 @@ def test_launcher_without_console_streams_starts_and_quits(tmp_path: Path) -> No
         **os.environ,
         "LOCALAPPDATA": str(tmp_path / "profile"),
         "XDG_DATA_HOME": str(tmp_path / "profile"),
+        "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
     }
     code = """
 import sys, threading, traceback
@@ -77,6 +78,8 @@ sys.stdout = None
 sys.stderr = None
 from njit_auditor.offline_launcher import run_desktop
 run_desktop(headless=True, open_browser=False, state_file=Path(sys.argv[1]))
+assert 'njit_auditor.windows_launcher' not in sys.modules
+assert 'tkinter' not in sys.modules
 """
     process = subprocess.Popen([sys.executable, "-c", code, str(state), str(diagnostic)], env=env)
     try:
@@ -145,3 +148,197 @@ def test_same_profile_second_launch_is_rejected_without_touching_first_audit(tmp
         assert server.process.poll() is None
         assert server.client.get(job + "/download/json").content == before
         assert server.client.get("/help").status_code == 200
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Requires stock Win32 controls")
+@pytest.mark.parametrize("dpi", [96, 120, 144, 192])
+def test_native_dialog_keyboard_states_and_simulated_dpi(dpi):
+    """Real controls, focus and callbacks; DPI values are simulated, not monitor changes."""
+    import ctypes as c
+    from ctypes import wintypes as w
+
+    from njit_auditor.windows_launcher import (
+        BROWSER_ERROR,
+        OPENED,
+        READY,
+        STARTING,
+        STOP_ERROR,
+        STOPPING,
+        WindowsLauncher,
+    )
+
+    alive = True
+    server = SimpleNamespace(started=False, should_exit=False)
+    events = []
+    outcomes = iter([False, OSError("synthetic browser failure"), True, True])
+
+    def open_browser():
+        events.append("open")
+        value = next(outcomes)
+        if isinstance(value, Exception):
+            raise value
+        return value
+
+    def quit_auditor():
+        events.append("quit")
+        return False
+
+    window = WindowsLauncher(server, SimpleNamespace(is_alive=lambda: alive),
+                             open_browser, quit_auditor)
+    user = window.user
+    user.GetFocus.restype = w.HWND
+    user.GetFocus.argtypes = []
+    user.IsWindowEnabled.argtypes = [w.HWND]
+    user.GetClientRect.argtypes = [w.HWND, c.POINTER(w.RECT)]
+    user.MapWindowPoints.argtypes = [w.HWND, w.HWND, c.c_void_p, w.UINT]
+    user.GetKeyboardState.argtypes = [c.c_void_p]
+    user.SetKeyboardState.argtypes = [c.c_void_p]
+
+    def key(vk, shift=False):
+        # Only this test thread's keyboard state and this owned dialog receive input.
+        original = (c.c_ubyte * 256)()
+        assert user.GetKeyboardState(original)
+        modified = (c.c_ubyte * 256).from_buffer_copy(original)
+        modified[0x10] = 0x80 if shift else 0
+        try:
+            assert user.SetKeyboardState(modified)
+            for message in (0x100, 0x101):
+                msg = w.MSG()
+                msg.hWnd = user.GetFocus()
+                msg.message, msg.wParam = message, vk
+                msg.lParam = 1 if message == 0x100 else 0xC0000001
+                window._message(msg)
+        finally:
+            assert user.SetKeyboardState(original)
+        window.update()
+
+    try:
+        assert window.status == STARTING
+        assert not user.IsWindowEnabled(window.controls["open"])
+        assert user.GetFocus() == window.controls["quit"]
+        server.started = True
+        window.poll()
+        assert window.status == READY
+        assert user.GetFocus() == window.controls["open"]
+        key(9)
+        assert user.GetFocus() == window.controls["quit"]
+        key(9, shift=True)
+        assert user.GetFocus() == window.controls["open"]
+        key(13)
+        assert events == ["open"]
+        assert window.status == BROWSER_ERROR
+        key(32)
+        assert events == ["open", "open"]
+        assert window.status == BROWSER_ERROR
+        key(13)
+        assert window.status == OPENED
+        key(32)
+        assert events.count("open") == 4
+        user.SetFocus(window.controls["quit"])
+        key(13)
+        assert events[-1] == "quit"
+        assert events.count("open") == 4  # Enter on Quit must not invoke the default Open.
+        assert window.status == STOP_ERROR
+        key(32)
+        assert events.count("quit") == 2
+        assert window.status == STOP_ERROR
+        suggested = w.RECT()
+        assert user.GetWindowRect(window.hwnd, c.byref(suggested))
+        # Deliver WM_DPICHANGED on the owner thread with a valid suggested RECT.
+        # This exercises the real handler without changing desktop settings.
+        window._dispatch(window.hwnd, 0x2E0, dpi | (dpi << 16), c.addressof(suggested))
+        window.update()
+        client = w.RECT()
+        assert user.GetClientRect(window.hwnd, c.byref(client))
+        for child in window.controls.values():
+            bounds = w.RECT()
+            assert user.GetWindowRect(child, c.byref(bounds))
+            user.MapWindowPoints(None, window.hwnd, c.byref(bounds), 2)
+            assert 0 <= bounds.left < bounds.right <= client.right
+            assert 0 <= bounds.top < bounds.bottom <= client.bottom
+        server.should_exit = True
+        window.poll()
+        assert window.status == STOPPING
+        assert not user.IsWindowEnabled(window.controls["open"])
+        alive = False
+        window.poll()
+        assert window.hwnd is None
+    finally:
+        window.destroy()
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Requires native Windows dialog")
+def test_native_source_gui_quit_cleans_up(tmp_path):
+    import ctypes as c
+    from ctypes import wintypes as w
+
+    import psutil
+
+    state = tmp_path / "state.json"
+    profile = tmp_path / "profile"
+    env = {
+        **os.environ, "LOCALAPPDATA": str(profile), "XDG_DATA_HOME": str(profile),
+        "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
+    }
+    process = subprocess.Popen(
+        [sys.executable, "-B", "-c",
+         "from pathlib import Path; import sys; "
+         "from njit_auditor.offline_launcher import run_desktop; "
+         "run_desktop(open_browser=False, state_file=Path(sys.argv[1]))", str(state)],
+        env=env, creationflags=0x08000000,
+    )
+    user = c.WinDLL("user32")
+    user.GetWindowThreadProcessId.argtypes = [w.HWND, c.POINTER(w.DWORD)]
+    user.GetDlgItem.argtypes = [w.HWND, c.c_int]
+    user.GetDlgItem.restype = w.HWND
+    user.PostMessageW.argtypes = [w.HWND, w.UINT, w.WPARAM, w.LPARAM]
+    user.GetClassNameW.argtypes = [w.HWND, w.LPWSTR, c.c_int]
+    user.IsWindowVisible.argtypes = [w.HWND]
+    callback_type = c.WINFUNCTYPE(w.BOOL, w.HWND, w.LPARAM)
+    user.EnumWindows.argtypes = [callback_type, w.LPARAM]
+    owned = {}
+    try:
+        deadline = time.monotonic() + 30
+        hwnd = None
+        while hwnd is None or not state.exists():
+            assert process.poll() is None
+            assert time.monotonic() < deadline
+            root = psutil.Process(process.pid)
+            owned.update({p.pid: p for p in [root, *root.children(recursive=True)]})
+            found = []
+
+            def inspect(handle, _):
+                pid = w.DWORD()
+                user.GetWindowThreadProcessId(handle, c.byref(pid))
+                if pid.value in owned and user.IsWindowVisible(handle):
+                    kind = c.create_unicode_buffer(100)
+                    user.GetClassNameW(handle, kind, 100)
+                    if kind.value == "#32770":
+                        found.append(handle)
+                return True
+
+            user.EnumWindows(callback_type(inspect), 0)
+            hwnd = found[0] if found else None
+            time.sleep(0.05)
+        # A synthetic file verifies the normal launcher's final temp cleanup.
+        temp = profile / "NJIT Thesis Auditor" / "tmp"
+        (temp / "synthetic-cleanup.txt").write_text("qualification only", encoding="utf-8")
+        quit_button = user.GetDlgItem(hwnd, 102)
+        assert quit_button
+        assert user.PostMessageW(quit_button, 0x100, 32, 1)
+        assert user.PostMessageW(quit_button, 0x101, 32, 0xC0000001)
+        assert process.wait(timeout=20) == 0
+        assert not state.exists()
+        assert not list(temp.iterdir())
+        _, remaining = psutil.wait_procs(list(owned.values()), timeout=5)
+        assert not remaining, [(p.pid, p.name()) for p in remaining]
+    finally:
+        # Include interpreter-shim descendants rather than leaving an orphan GUI.
+        for child in reversed(list(owned.values())):
+            try:
+                if child.is_running():
+                    child.terminate()
+                    child.wait(timeout=5)
+            except psutil.NoSuchProcess:
+                pass
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)

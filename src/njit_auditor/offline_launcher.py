@@ -106,38 +106,51 @@ def run_desktop(
         try:
             window = None
             if not headless:
-                try:
-                    import tkinter as tk
-                except ImportError:
-                    # Browser mode is usable on Linux builds without Tcl/Tk;
-                    # the interface itself has a visible Quit action.
-                    pass
+                if sys.platform == "win32":
+                    from njit_auditor.windows_launcher import WindowsLauncher
+
+                    window = WindowsLauncher(
+                        server, thread, lambda: webbrowser.open(url), application.state.request_quit
+                    )
+                    open_from_launcher = window.open_browser
                 else:
-                    _request_system_dpi_awareness()
                     try:
-                        window = tk.Tk()
-                    except tk.TclError:
-                        window = None
-                    if window is not None:
-                        open_from_launcher = _configure_window(
-                            window,
-                            server,
-                            thread,
-                            lambda: webbrowser.open(url),
-                            application.state.request_quit,
-                        )
-                        window.update_idletasks()
+                        import tkinter as tk
+                    except ImportError:
+                        # Browser mode remains usable without Tcl/Tk.
+                        pass
+                    else:
+                        try:
+                            window = tk.Tk()
+                        except tk.TclError:
+                            window = None
+                        if window is not None:
+                            open_from_launcher = _configure_window(
+                                window, server, thread, lambda: webbrowser.open(url),
+                                application.state.request_quit,
+                            )
+                            window.update_idletasks()
             for _ in range(100):
+                if window is not None and sys.platform == "win32":
+                    window.update()
                 if server.started or not thread.is_alive():
                     break
                 thread.join(0.05)
+            if server.should_exit:
+                # Quit during native startup is an ordinary shutdown, not a
+                # startup failure or a reason to auto-open a browser.
+                return
             if not server.started:
                 if window is not None:
-                    from tkinter import messagebox
+                    if sys.platform == "win32":
+                        window.startup_error()
+                    else:
+                        from tkinter import messagebox
 
-                    messagebox.showerror(
-                        "NJIT Thesis Auditor", "The local auditor could not start.", parent=window
-                    )
+                        messagebox.showerror(
+                            "NJIT Thesis Auditor", "The local auditor could not start.",
+                            parent=window,
+                        )
                     window.destroy()
                 raise RuntimeError("The local auditor server did not start")
             if state_file is not None:
@@ -156,6 +169,8 @@ def run_desktop(
             else:
                 window.mainloop()
         finally:
+            if window is not None and sys.platform == "win32":
+                window.destroy()
             if state_written and state_file is not None:
                 state_file.unlink(missing_ok=True)
             application.state.request_quit()
