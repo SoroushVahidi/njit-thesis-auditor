@@ -15,6 +15,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from reviewer_storage_support import private_reviewer_directory
 from test_about_browser import guard_external
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,8 +49,7 @@ uvicorn.run(web.app, host='127.0.0.1', port=int(sys.argv[1]),
 
 @contextmanager
 def reviewer_site(directory: Path, password: str | None = None):
-    private = directory / "private"
-    private.mkdir(mode=0o700, exist_ok=True)
+    private = private_reviewer_directory(directory / "private")
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -61,6 +61,8 @@ def reviewer_site(directory: Path, password: str | None = None):
            "NJIT_TEST_REVIEWER_PASSWORD": password,
            "NJIT_AUDITOR_ADMIN_DB_PATH": str(private / "feedback.sqlite3"),
            "NJIT_AUDITOR_WEB_RUNTIME_DIR": str(directory / "jobs")}
+    if os.name == "nt":
+        env["NJIT_AUDITOR_REVIEWER_WINDOWS_STORAGE"] = "1"
     with (directory / "server.log").open("wb") as log:
         process = subprocess.Popen(
             [sys.executable, "-c", BOOTSTRAP, str(port), JOB_ID],

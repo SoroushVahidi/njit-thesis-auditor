@@ -23,6 +23,18 @@ group/world-accessible parent directory, a path inside the repository or audit r
 unknown schema version. Operators should use a dedicated service account and restrict access to
 the environment file and backups as well. Do not put passwords, the session key, or database in Git.
 
+For Windows reviewer development and testing, install the `reviewer-windows` extra, explicitly set
+`NJIT_AUDITOR_REVIEWER_WINDOWS_STORAGE=1`, and provision
+the database directory on a local fixed NTFS volume. The directory must be owned by the process
+user and have a protected DACL granting full control to that user's SID only. The grant must
+inherit to files, including SQLite journals. Existing database and journal files must also be
+owned by that user and grant access only to that SID. Network volumes and reparse points are
+rejected. The service holds directory handles that deny rename and deletion during each connection.
+SQLite temporary tables are kept in memory on Windows. The service validates the DACL at open and
+does not rewrite directory permissions.
+The offline desktop does not use this backend. The production deployment requirements above
+continue to apply.
+
 Provision the first individual account locally on the server, with the database path set and
 administrator login still disabled, using `njit-admin create <username>`. The command prompts
 twice for the password on a terminal; never pass it as a command argument. Usernames are
