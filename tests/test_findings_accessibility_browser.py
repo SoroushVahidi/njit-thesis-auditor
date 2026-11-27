@@ -97,6 +97,10 @@ def test_findings_first_keyboard_and_stable_reference(tmp_path: Path, width: int
 
             sort = findings.get_by_role("combobox", name="Sort findings")
             page.keyboard.press("Tab")
+            assert findings.get_by_role("searchbox", name="Search findings").evaluate(
+                "el => el === document.activeElement"
+            )
+            page.keyboard.press("Tab")
             assert sort.evaluate("el => el === document.activeElement")
             page.keyboard.press("ArrowDown")
             assert page.url.endswith("#section-findings")
@@ -117,7 +121,7 @@ def test_findings_first_keyboard_and_stable_reference(tmp_path: Path, width: int
             assert low.get_attribute("aria-pressed") == "true"
             assert not card.is_visible()
             assert "Showing 0 of 1 findings" in findings.get_by_role("status").aria_snapshot()
-            empty = findings.get_by_text("No findings match these filters.", exact=False)
+            empty = findings.get_by_text("No findings match your search and filters.", exact=False)
             assert empty.is_visible()
             reset = findings.get_by_role("button", name="Reset filters")
             _tab_to(page, reset)
@@ -202,6 +206,26 @@ def test_desktop_labeled_upload_and_results_at_narrow_width(tmp_path: Path):
             page.reload()
             main = _enter_main(page)
             assert main.get_by_role("heading", level=1, name="Audit complete").is_visible()
+            search = main.get_by_role("searchbox", name="Search findings")
+            findings = main.get_by_role("region", name="Findings in page order")
+            cards = findings.locator("article[data-rule]:visible")
+            total = cards.count()
+            assert total > 1
+            rule = cards.first.get_attribute("data-rule")
+            assert rule
+            search.fill(rule.lower())
+            page.wait_for_function(
+                "([rule, total]) => { const cards = [...document.querySelectorAll("
+                "'.finding-row:not(.finding-row--hidden)')]; return cards.length < total "
+                "&& cards.some(card => card.dataset.rule === rule); }",
+                arg=[rule, total],
+            )
+            assert main.locator("#filter-count").get_attribute("role") == "status"
+            search.fill("zz_no_such_synthetic_finding zz")
+            main.get_by_text("No findings match your search and filters.", exact=False).wait_for()
+            assert cards.count() == 0
+            main.get_by_role("button", name="Reset filters").click()
+            assert search.input_value() == "" and cards.count() == total
             manual = main.locator(".coverage-details summary")
             actions = main.get_by_role("navigation", name="Audit actions")
             assert actions.get_by_role("link", name="Download PDF report").get_attribute(
