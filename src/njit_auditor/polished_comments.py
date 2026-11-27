@@ -535,8 +535,7 @@ _ISSUE_TEMPLATES: dict[tuple[str, str], str] = {
     ),
     ("P024", "list_of_tables_title_case"): (
         "Likely problem: A List of Tables entry on page {page} may not use "
-        "Title Case or may include terminal punctuation. Table titles in the "
-        "List of Tables should use Title Case with no ending period."
+        "Title Case."
     ),
     ("P024", "list_of_figures_title_case"): (
         "Likely problem: A List of Figures entry on page {page} may not use "
@@ -1369,8 +1368,7 @@ def _p024_lot_title_case_comment(*, page: int | None, details: dict[str, str]) -
     reason_text = _TITLE_CASE_REASON_TEXT.get(reason, "a word is not capitalized as expected")
     return (
         f"Likely problem: A List of Tables entry on page {page_label} may not use "
-        f"Title Case: {reason_text}. Table titles in the List of Tables should use "
-        "Title Case with no ending period."
+        f"Title Case: {reason_text}."
     )
 
 

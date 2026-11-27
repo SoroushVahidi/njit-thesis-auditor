@@ -5229,3 +5229,64 @@ def test_p075_leader_advice_across_reports(
             expected = issue_type == leader_issue
             assert (action.casefold() in rendered) is expected, (fmt, issue_type)
         assert ("dominant right-hand column" in rendered) is alignment_issue, fmt
+
+
+@pytest.mark.parametrize(
+    ("title", "capitalization", "punctuation"),
+    [
+        ("Evaluation of eBoss Systems", False, False),
+        ("Evaluation of eBoss systems", True, False),
+        ("Evaluation of eBoss Systems.", False, True),
+        ("Evaluation of eBoss systems.", True, True),
+    ],
+)
+def test_ester_table_title_capitalization_and_period_advice_are_separate(
+    client: tuple[TestClient, Any], title: str, capitalization: bool, punctuation: bool,
+) -> None:
+    import re
+    from html import unescape
+
+    import pymupdf
+
+    with pymupdf.open() as pdf:
+        page = pdf.new_page(width=612, height=792)
+        page.insert_text((220, 85), "LIST OF TABLES", fontname="Times-Bold", fontsize=14)
+        for index, entry in enumerate((title, "Valid Comparison Table", "Valid Control Table")):
+            y = 150 + index * 27
+            page.insert_text((108, y), f"Table 1.{index + 1} {entry}", fontsize=12)
+            page.insert_text((494, y), str(20 + index), fontsize=12)
+        source = pdf.tobytes()
+
+    c, wa = client
+    upload = c.post(
+        "/audits", files={"file": ("synthetic-lot.pdf", source, "application/pdf")},
+        follow_redirects=False,
+    )
+    assert upload.status_code == 303
+    url = upload.headers["location"]
+    assert c.get(url + "/status").json()["state"] == "complete"
+    job = wa._get_job(url.rsplit("/", 1)[-1])
+    assert job is not None
+    responses = {"html": c.get(url)}
+    for fmt in ("json", "markdown", "text", "comments.pdf", "student-report.pdf"):
+        responses[fmt] = c.get(url + "/download/" + fmt)
+    assert all(response.status_code == 200 for response in responses.values())
+
+    issues = {
+        (row["rule_id"], row["details"].get("issue_type"))
+        for row in responses["json"].json()["findings"]
+    }
+    assert (("P024", "list_of_tables_title_case") in issues) is capitalization
+    assert (("P017", "unexpected_terminal_period") in issues) is punctuation
+    for fmt, response in responses.items():
+        if fmt.endswith(".pdf"):
+            with pymupdf.open(stream=response.content, filetype="pdf") as pdf:
+                first = job.pdf_page_count if fmt == "student-report.pdf" else 0
+                content = " ".join(pdf[i].get_text() for i in range(first, len(pdf)))
+        else:
+            content = re.sub(r"<[^>]+>", " ", response.text) if fmt == "html" else response.text
+        content = " ".join(unescape(content).casefold().split())
+        assert "title case with no ending period" not in content, fmt
+        assert ("use title case for this table title" in content) is capitalization, fmt
+        period_action = "remove the final period from this list of tables entry"
+        assert (period_action in content) is punctuation, fmt
