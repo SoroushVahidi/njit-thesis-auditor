@@ -2,10 +2,10 @@
 {% block title %}Feedback dashboard — NJIT Thesis Auditor{% endblock %}
 {% block content %}
 <div>
-  <h1>Administrator feedback</h1>
+  <h1>{{ "My finding feedback" if reviewer_view else "Administrator feedback" }}</h1>
   <p><a href="/reviewer/general-feedback">View general feedback and attachments</a></p>
   {% if notice == 'saved' %}<div class="alert-info" role="status">Feedback saved.</div>{% endif %}
-  <form method="get" action="/admin/feedback" class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.6rem">
+  <form method="get" action="{{ dashboard_url }}" class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.6rem">
     <div><label for="filter-rule">Rule</label><input id="filter-rule" name="rule_id" value="{{ filters.rule_id }}" maxlength="50"></div>
     <div><label for="filter-classification">Classification</label><select id="filter-classification" name="classification"><option value="">All</option>{% for value,label in classifications.items() %}<option value="{{ value }}"{% if filters.classification == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
     <div><label for="filter-status">Status</label><select id="filter-status" name="status"><option value="">All</option>{% for value in statuses %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></div>
@@ -17,10 +17,14 @@
   {% for item in feedback %}
   <article class="card" style="overflow-wrap:anywhere">
     <h2>{{ item.rule_id }} · {{ item.finding_ref }}</h2>
-    <p>Audit reference: {{ item.audit_ref }} · Issue: {{ item.issue_type }}{% if item.pdf_page %} · PDF page {{ item.pdf_page }}{% endif %}</p>
+    <p>Receipt {{ item.id }} · Audit reference: {{ item.audit_ref }} · Issue: {{ item.issue_type }}{% if item.pdf_page %} · PDF page {{ item.pdf_page }}{% endif %}{% if item.printed_folio %} · Printed folio {{ item.printed_folio }}{% endif %}</p>
     <p>Original confidence: {{ item.original_confidence }} · Submitted: {{ item.created_at }} by {{ item.submitted_by_username or 'Legacy (unattributed)' }} · Status: {{ item.status }}</p>
     <p>Last modified by: {{ item.last_modified_by_username or 'Legacy (unattributed)' }}{% if item.resolved_at %} · Resolved by: {{ item.resolved_by_username or 'Legacy (unattributed)' }}{% endif %}</p>
     <p>{{ item.context }}</p>
+    {% include "_finding_feedback_attachments.html" %}
+    {% if reviewer_view %}
+    <p>{{ classifications[item.classification] }}{% if item.comment %} · {{ item.comment }}{% endif %}</p>
+    {% else %}
     <form action="/admin/feedback/{{ item.id }}" method="post">
       <input type="hidden" name="csrf_token" value="{{ admin_csrf_token }}">
       <label for="classification-{{ item.id }}">Classification</label>
@@ -36,6 +40,7 @@
       <label><input type="checkbox" name="confirm_delete" value="yes" required> I confirm deletion of this feedback record.</label>
       <button type="submit" name="action" value="delete" class="btn-secondary">Delete feedback</button>
     </form>
+    {% endif %}
   </article>
   {% endfor %}
   <nav aria-label="Feedback pages">{% if previous_url %}<a href="{{ previous_url }}">Previous page</a>{% endif %}{% if next_url %} <a href="{{ next_url }}">Next page</a>{% endif %}</nav>

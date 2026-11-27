@@ -697,3 +697,150 @@ def test_account_cli_requires_tty_and_never_exposes_password(
     with pytest.raises(sqlite3.IntegrityError):
         existing = admin_accounts.list_accounts()[0]["username"]
         admin_accounts.create_account(existing.upper(), secrets.token_urlsafe(24))
+
+
+def test_finding_attachment_receipt_context_and_cascading_deletion(
+    setup: tuple[TestClient, Any, Path, str],
+) -> None:
+    from test_http_reviewer_beta import _attachment
+
+    client, wa, database, password = setup
+    token = _login(client, password)
+    csrf = _csrf(token)
+    job = _job(wa)
+    wa._get_job(job).manuscript_page_labels[2] = "iv"
+    baseline = _save(client, job, "f1", "unclear", "legacy text")
+    assert baseline.status_code == 303
+    uploaded = [("screenshot.png", _attachment("png")), ("evidence.pdf", _attachment("pdf")),
+                ("excerpt.docx", _attachment("docx"))]
+    response = client.post(
+        f"/audits/{job}/feedback/f1",
+        headers={"Origin": "https://testserver", "Accept": "application/json"},
+        data={"csrf_token": csrf, "classification": "other", "comment": "synthetic evidence"},
+        files=[("attachment", (name, content)) for name, content in uploaded],
+    )
+    assert response.status_code == 201
+    receipt = response.json()["receipt"]
+    dashboard = client.get("/admin/feedback")
+    assert "Printed folio iv" in dashboard.text and receipt in dashboard.text
+    records = admin_feedback.list_feedback_for_audit(job)
+    record = next(item for item in records if item["id"] == receipt)
+    legacy = next(item for item in records if item["id"] != receipt)
+    assert not legacy["attachments"] and legacy["comment"] == "legacy text"
+    assert [record[key] for key in ("audit_ref", "finding_ref", "rule_id", "pdf_page",
+                                   "printed_folio", "classification", "comment")] == [
+        job, "f1", "P011", 2, "iv", "other", "synthetic evidence",
+    ]
+    assert record["submitted_by_username"] and record["created_at"]
+    assert "Check margin" not in record["context"]
+    for attachment, (expected_name, expected_bytes) in zip(
+        record["attachments"], uploaded, strict=True,
+    ):
+        url = f"/feedback/{receipt}/attachments/{attachment['id']}"
+        downloaded = client.get(url)
+        assert attachment["size"] == len(expected_bytes)
+        assert downloaded.content == expected_bytes
+        assert expected_name in downloaded.headers["content-disposition"]
+        assert downloaded.headers["cache-control"] == "no-store"
+        assert downloaded.headers["x-content-type-options"] == "nosniff"
+        assert client.get(url.replace(receipt, legacy["id"])).status_code == 404
+        assert TestClient(wa.app, base_url="https://testserver").get(url).status_code == 403
+    deleted = client.post(f"/admin/feedback/{receipt}",
+                          data={"csrf_token": csrf, "action": "delete", "confirm_delete": "yes"},
+                          headers={"Origin": "https://testserver"}, follow_redirects=False)
+    assert deleted.status_code == 303
+    assert client.get(url).status_code == 404
+    with sqlite3.connect(database) as db:
+        assert db.execute("SELECT count(*) FROM finding_feedback_attachments").fetchone()[0] == 0
+        assert db.execute("SELECT count(*) FROM finding_feedback_page").fetchone()[0] == 1
+        assert db.execute("SELECT count(*) FROM feedback").fetchone()[0] == 1
+
+
+def test_finding_attachment_rejection_and_atomic_rollback(
+    setup: tuple[TestClient, Any, Path, str],
+) -> None:
+    from test_http_reviewer_beta import _attachment
+
+    client, wa, database, password = setup
+    token = _login(client, password)
+    fields = {"csrf_token": _csrf(token), "classification": "false_positive"}
+    path = f"/audits/{_job(wa)}/feedback/f0"
+    png = _attachment("png")
+    headers = {"Origin": "https://testserver", "Accept": "application/json"}
+    for selection, code in [
+        ([("screenshot.jpg", _attachment("jpg")), ("spoof.pdf", png)], 400),
+        ([("../screenshot.png", png)], 400),
+        ([("oversized.png", b"a" * (admin_feedback.MAX_ATTACHMENT_BYTES + 1))], 413),
+        ([(f"{i}.png", png) for i in range(4)], 400),
+    ]:
+        response = client.post(path, data=fields, headers=headers,
+                               files=[("attachment", item) for item in selection])
+        assert response.status_code == code and response.json()["message"]
+    response = client.post(path, data=fields, files={"attachment": ("valid.png", png)},
+                           headers={**headers, "Origin": "https://different.invalid"})
+    assert response.status_code == 403
+    # A complete receipt followed by an incomplete file must not become text-only feedback.
+    request = client.build_request("POST", path, data=fields, headers=headers,
+                                   files={"attachment": ("valid.png", png)})
+    body = request.read()
+    response = client.post(path, content=body[:-8],
+                           headers={**headers, "Content-Type": request.headers["content-type"]})
+    assert response.status_code == 400
+    request = client.build_request("POST", path, data=fields, headers=headers,
+                                   files={"attachment": ("valid.png", png)})
+    body = request.read()
+
+    def disconnecting_body():
+        yield body[:-8]
+        from starlette.requests import ClientDisconnect
+        raise ClientDisconnect
+
+    response = client.post(path, content=disconnecting_body(),
+                           headers={**headers, "Content-Type": request.headers["content-type"]})
+    assert response.status_code == 400
+
+    with sqlite3.connect(database) as db:
+        assert db.execute("SELECT count(*) FROM feedback").fetchone()[0] == 0
+        db.execute("""CREATE TRIGGER synthetic_failed_write BEFORE INSERT
+            ON finding_feedback_attachments WHEN NEW.position=2
+            BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END""")
+    response = client.post(path, data=fields, headers=headers, files=[
+        ("attachment", ("good.png", png)), ("attachment", ("good2.png", png)),
+    ])
+    assert response.status_code == 503
+    with sqlite3.connect(database) as db:
+        assert db.execute("SELECT count(*) FROM feedback").fetchone()[0] == 0
+        assert db.execute("SELECT count(*) FROM finding_feedback_attachments").fetchone()[0] == 0
+        db.execute("DROP TRIGGER synthetic_failed_write")
+    response = client.post(path, data=fields, headers=headers, files={
+        "attachment": ("screenshot.jpeg", _attachment("jpeg")),
+    })
+    assert response.status_code == 201
+
+
+def test_additive_finding_attachment_schema_preserves_v5_rows(
+    setup: tuple[TestClient, Any, Path, str],
+) -> None:
+    from test_http_reviewer_beta import _attachment
+
+    client, wa, database, password = setup
+    token = _login(client, password)
+    job = _job(wa)
+    assert _save(client, job, "f0", "true_positive", "prior comment").status_code == 303
+    proof = _attachment("pdf")
+    assert client.post("/reviewer/general-feedback", data={"csrf_token": _csrf(token)},
+                       files={"attachment": ("existing.pdf", proof)},
+                       headers={"Origin": "https://testserver"},
+                       follow_redirects=False).status_code == 303
+    with sqlite3.connect(database) as db:
+        prior = [db.execute(f"SELECT * FROM {table}").fetchall()
+                 for table in ("feedback", "general_feedback", "admins", "sessions")]
+        db.execute("DROP TABLE finding_feedback_page")
+        db.execute("DROP TABLE finding_feedback_attachments")
+    with admin_feedback._connection() as db:
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 5
+        assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert not db.execute("PRAGMA foreign_key_check").fetchall()
+        after = [[tuple(row) for row in db.execute(f"SELECT * FROM {table}")]
+                 for table in ("feedback", "general_feedback", "admins", "sessions")]
+        assert after == prior

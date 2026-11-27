@@ -23,10 +23,11 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from argon2.low_level import Type
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
+from starlette.requests import ClientDisconnect
 
 from njit_auditor.general_feedback_attachments import MAX_ATTACHMENT_BYTES, valid_attachment
 
@@ -45,9 +46,13 @@ CLASSIFICATIONS = {
     "other": "Other",
 }
 STATUSES = {"Open", "In Progress", "Resolved"}
-_FEEDBACK_SELECT = """SELECT f.*, submitter.username AS submitted_by_username,
+_FINDING_MAX_FILES = 3
+_FINDING_REQUEST_BYTES = _FINDING_MAX_FILES * MAX_ATTACHMENT_BYTES + 16 * 1024
+_FEEDBACK_SELECT = """SELECT f.*, evidence.printed_folio,
+    submitter.username AS submitted_by_username,
     editor.username AS last_modified_by_username, resolver.username AS resolved_by_username
     FROM feedback AS f
+    LEFT JOIN finding_feedback_page AS evidence ON evidence.feedback_id=f.id
     LEFT JOIN admins AS submitter ON submitter.id=f.submitted_by_admin_id
     LEFT JOIN admins AS editor ON editor.id=f.last_modified_by_admin_id
     LEFT JOIN admins AS resolver ON resolver.id=f.resolved_by_admin_id"""
@@ -234,6 +239,19 @@ def _connect() -> sqlite3.Connection:
         )""")
         db.execute("CREATE INDEX IF NOT EXISTS general_feedback_created_idx "
                    "ON general_feedback(created_at)")
+        # Additive version-5 tables keep old binaries and backups readable.
+        db.execute("""CREATE TABLE IF NOT EXISTS finding_feedback_page (
+            feedback_id TEXT PRIMARY KEY REFERENCES feedback(id) ON DELETE CASCADE,
+            printed_folio TEXT NOT NULL
+        )""")
+        db.execute(f"""CREATE TABLE IF NOT EXISTS finding_feedback_attachments (
+            id TEXT PRIMARY KEY,
+            feedback_id TEXT NOT NULL REFERENCES feedback(id) ON DELETE CASCADE,
+            position INTEGER NOT NULL CHECK(position BETWEEN 1 AND {_FINDING_MAX_FILES}),
+            name TEXT NOT NULL,
+            content BLOB NOT NULL CHECK(length(content) BETWEEN 1 AND {MAX_ATTACHMENT_BYTES}),
+            UNIQUE(feedback_id, position)
+        )""")
         db.commit()
     except Exception:
         db.rollback()
@@ -613,9 +631,36 @@ async def reviewer_logout(request: Request) -> Response:
     return response
 
 
-def list_feedback(*, page: int = 1, **filters: str) -> list[dict[str, Any]]:
+def _feedback_with_attachments(
+    db: sqlite3.Connection, sql: str, params: list[str | int],
+) -> list[dict[str, Any]]:
+    records = [dict(row) for row in db.execute(sql, params)]
+    if not records:
+        return records
+    by_id = {record["id"]: record for record in records}
+    for record in records:
+        record["attachments"] = []
+    ids = list(by_id)
+    for offset in range(0, len(ids), 100):
+        batch = ids[offset:offset + 100]
+        placeholders = ",".join("?" for _ in batch)
+        for row in db.execute(
+            "SELECT id, feedback_id, name, length(content) AS size "
+            f"FROM finding_feedback_attachments WHERE feedback_id IN ({placeholders}) "
+            "ORDER BY position", batch,
+        ):
+            by_id[row["feedback_id"]]["attachments"].append(dict(row))
+    return records
+
+
+def list_feedback(
+    *, page: int = 1, owner_id: str | None = None, **filters: str,
+) -> list[dict[str, Any]]:
     clauses: list[str] = []
     params: list[str] = []
+    if owner_id is not None:
+        clauses.append("f.submitted_by_admin_id=?")
+        params.append(owner_id)
     for field in ("rule_id", "classification", "status"):
         if filters.get(field):
             clauses.append(f"f.{field}=?")
@@ -628,48 +673,55 @@ def list_feedback(*, page: int = 1, **filters: str) -> list[dict[str, Any]]:
         params.append(filters["to_date"] + "T23:59:59.999999+00:00")
     sql = _FEEDBACK_SELECT + (" WHERE " + " AND ".join(clauses) if clauses else "")
     with _connection() as db:
-        return [
-            dict(row) for row in db.execute(
-                sql + " ORDER BY f.created_at DESC LIMIT 100 OFFSET ?",
-                [*params, (page - 1) * 100]
-            )
-        ]
+        return _feedback_with_attachments(
+            db, sql + " ORDER BY f.created_at DESC, f.id DESC LIMIT 100 OFFSET ?",
+            [*params, (page - 1) * 100],
+        )
 
 
-def list_feedback_for_audit(audit_ref: str) -> list[dict[str, Any]]:
+def list_feedback_for_audit(audit_ref: str, *, owner_id: str | None = None) -> list[dict[str, Any]]:
+    params: list[str | int] = [audit_ref]
+    sql = _FEEDBACK_SELECT + " WHERE f.audit_ref=?"
+    if owner_id is not None:
+        sql += " AND f.submitted_by_admin_id=?"
+        params.append(owner_id)
     with _connection() as db:
-        return [dict(row) for row in db.execute(
-            _FEEDBACK_SELECT +
-            " WHERE f.audit_ref=? ORDER BY f.created_at DESC, f.id DESC",
-            (audit_ref,))]
+        return _feedback_with_attachments(
+            db, sql + " ORDER BY f.created_at DESC, f.id DESC", params,
+        )
 
 
 @router.get("/admin/feedback", response_class=HTMLResponse)
+@router.get("/reviewer/finding-feedback", response_class=HTMLResponse)
 async def dashboard(request: Request) -> Response:
     from njit_auditor import web_app
 
-    if _require(request) is None:
-        return _deny(request)
+    reviewer_view = request.url.path == "/reviewer/finding-feedback"
+    auth = reviewer_session(request) if reviewer_view else _require(request)
+    if auth is None:
+        return _general_deny(request, reviewer=reviewer_view)
     filters = {key: request.query_params.get(key, "") for key in
                ("rule_id", "classification", "status", "from_date", "to_date")}
     if (filters["classification"] not in (*CLASSIFICATIONS, "")
             or filters["status"] not in (*STATUSES, "")):
-        return _deny(request, 400)
+        return _general_deny(request, 400, reviewer=reviewer_view)
     if any(len(value) > 100 for value in filters.values()):
-        return _deny(request, 400)
+        return _general_deny(request, 400, reviewer=reviewer_view)
     try:
         page = int(request.query_params.get("page", "1"))
     except ValueError:
-        return _deny(request, 400)
+        return _general_deny(request, 400, reviewer=reviewer_view)
     if not 1 <= page <= 100000:
-        return _deny(request, 400)
-    records = list_feedback(page=page, **filters)
+        return _general_deny(request, 400, reviewer=reviewer_view)
+    records = list_feedback(page=page, owner_id=auth["admin_id"] if reviewer_view else None,
+                            **filters)
     page_filters = {key: value for key, value in filters.items() if value}
     def page_url(target: int) -> str:
-        return "/admin/feedback?" + urlencode({**page_filters, "page": target})
+        return request.url.path + urlencode({**page_filters, "page": target})
 
     response = web_app._render(request, "admin_feedback.html", {
         "feedback": records, "filters": filters, "page": page,
+        "reviewer_view": reviewer_view, "dashboard_url": request.url.path,
         "previous_url": page_url(page - 1) if page > 1 else "",
         "next_url": page_url(page + 1) if len(records) == 100 else "",
         "classifications": CLASSIFICATIONS, "statuses": sorted(STATUSES),
@@ -844,73 +896,202 @@ async def download_general_attachment(request: Request, feedback_id: str) -> Res
             is_reviewer and row["submitted_by_admin_id"] != auth["admin_id"]):
         return _general_deny(request, 404, "Attachment unavailable.",
                              reviewer=is_reviewer)
-    response = Response(bytes(row["attachment_data"]),
-                        media_type="application/octet-stream",
-                        headers={"Content-Disposition": "attachment; filename*=UTF-8''" +
-                                 quote(row["attachment_name"] or "attachment")})
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Cache-Control"] = "no-store"
-    return response
+    return _private_attachment(row["attachment_name"], bytes(row["attachment_data"]))
+
+
+def _private_attachment(filename: str | None, content: bytes) -> Response:
+    encoded = quote(filename or "attachment", safe="")
+    return Response(content, media_type="application/octet-stream", headers={
+        "Content-Disposition": f"attachment; filename*=UTF-8''{encoded}",
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "no-store",
+    })
+
+
+@router.get("/feedback/{feedback_id}/attachments/{attachment_id}")
+async def download_finding_attachment(
+    request: Request, feedback_id: str, attachment_id: str,
+) -> Response:
+    auth, is_reviewer = _general_auth(request)
+    if auth is None:
+        return _general_deny(request)
+    with _connection() as db:
+        db.execute("BEGIN")
+        if not _authorization_current(db, request, auth["admin_id"], reviewer=is_reviewer):
+            return _general_deny(request, reviewer=is_reviewer)
+        query = """SELECT a.name, a.content FROM finding_feedback_attachments a
+                   JOIN feedback f ON f.id=a.feedback_id WHERE f.id=? AND a.id=?"""
+        params = [feedback_id, attachment_id]
+        if is_reviewer:
+            query += " AND f.submitted_by_admin_id=?"
+            params.append(auth["admin_id"])
+        row = db.execute(query, params).fetchone()
+    if row is None:
+        return _general_deny(request, 404, "Attachment unavailable.", reviewer=is_reviewer)
+    return _private_attachment(row["name"], bytes(row["content"]))
+
+
+class _FindingMultipart(MultiPartParser):
+    finished = False
+
+    def on_end(self) -> None:
+        self.finished = True
+        super().on_end()
+
+
+class _FindingInputError(MultiPartException):
+    def __init__(self, message: str, status: int = 400) -> None:
+        super().__init__(message)
+        self.status = status
+
+
+async def _finding_form(request: Request) -> FormData:
+    if request.headers.get("content-type", "").split(";", 1)[0] != "multipart/form-data":
+        try:
+            return FormData(await _form(request))
+        except (ValueError, TypeError, ClientDisconnect) as exc:
+            raise _FindingInputError("Use the feedback form and try again.") from exc
+
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        if not re.fullmatch(r"[0-9]{1,12}", declared):
+            raise _FindingInputError("Invalid upload length.")
+        if int(declared) > _FINDING_REQUEST_BYTES:
+            raise _FindingInputError("The files exceed the total upload limit.", 413)
+
+    async def limited_stream() -> AsyncGenerator[bytes, None]:
+        total = 0
+        try:
+            async for chunk in request.stream():
+                total += len(chunk)
+                if total > _FINDING_REQUEST_BYTES:
+                    raise _FindingInputError("The files exceed the total upload limit.", 413)
+                yield chunk
+        except ClientDisconnect as exc:
+            raise _FindingInputError("The upload was interrupted. Please try again.") from exc
+        if not parser.finished or (declared is not None and total != int(declared)):
+            raise _FindingInputError("The upload was incomplete. Please try again.")
+
+    parser = _FindingMultipart(request.headers, limited_stream(), max_files=_FINDING_MAX_FILES,
+                               max_fields=3, max_part_size=12000)
+    return await parser.parse()
+
+
+async def _finding_files(form: FormData) -> list[tuple[str, bytes]]:
+    files: list[tuple[str, bytes]] = []
+    for part in form.getlist("attachment"):
+        if not isinstance(part, UploadFile):
+            raise _FindingInputError("Select files using the attachment field.")
+        name = part.filename or ""
+        if not name and part.size == 0:  # Unselected HTML file control.
+            continue
+        if (not name or len(name) > 120 or name != Path(name).name or "\\" in name
+                or any(not c.isprintable() for c in name)):
+            raise _FindingInputError("Use an attachment name of up to 120 printable characters.")
+        content = await part.read(MAX_ATTACHMENT_BYTES + 1)
+        if len(content) > MAX_ATTACHMENT_BYTES:
+            raise _FindingInputError(f"{name} exceeds the 4 MiB file limit.", 413)
+        if not await run_in_threadpool(valid_attachment, name, content):
+            raise _FindingInputError(f"{name} is not a supported PNG, JPEG, PDF, or DOCX file.")
+        files.append((name, content))
+    return files
 
 
 @router.post("/audits/{job_id}/feedback/{finding_id}")
 async def save_finding_feedback(request: Request, job_id: str, finding_id: str) -> Response:
     from njit_auditor import web_app
 
-    auth = _require(request)
-    is_reviewer = auth is None
-    if is_reviewer:
-        auth = reviewer_session(request)
-    if auth is None:
-        return _deny(request)
+    auth, is_reviewer = _general_auth(request)
+    wants_json = request.headers.get("accept") == "application/json"
+
+    def fail(status: int, message: str) -> Response:
+        if wants_json:
+            return JSONResponse({"message": message}, status_code=status,
+                                headers={"Cache-Control": "no-store"})
+        return _general_deny(request, status, message, reviewer=is_reviewer)
+
+    if auth is None or not _origin_ok(request, reviewer=is_reviewer):
+        return fail(403, "Sign in again before submitting feedback.")
     try:
-        form = await _form(request)
-    except (ValueError, TypeError):
-        return _deny(request, 400)
-    if not _csrf_ok(request, str(form.get("csrf_token", "")), auth,
-                    reviewer=is_reviewer):
-        return _deny(request)
-    classification = str(form.get("classification", ""))
-    comment = str(form.get("comment", ""))
-    if classification not in CLASSIFICATIONS or len(comment) > 4000:
-        return _deny(
-            request, 400, "Choose a classification and keep comments under 4000 characters."
-        )
+        form = await _finding_form(request)
+        try:
+            text_fields = ("csrf_token", "classification", "comment")
+            if (set(form.keys()) - {*text_fields, "attachment"}
+                    or any(len(form.getlist(key)) > 1 for key in text_fields)):
+                raise _FindingInputError("The feedback form contains unexpected fields.")
+            csrf, classification, comment = (form.get(key, "") for key in text_fields)
+            if not isinstance(csrf, str) or not _csrf_ok(request, csrf, auth, reviewer=is_reviewer):
+                return fail(403, "Sign in again before submitting feedback.")
+            if (not isinstance(classification, str) or classification not in CLASSIFICATIONS
+                    or not isinstance(comment, str) or len(comment) > 4000):
+                return fail(400, "Choose a classification and limit comments to 4000 characters.")
+            files = await _finding_files(form)
+        finally:
+            await form.close()
+    except _FindingInputError as exc:
+        return fail(exc.status, exc.message)
+    except MultiPartException as exc:
+        if exc.message.startswith("Too many files"):
+            return fail(400, f"Choose at most {_FINDING_MAX_FILES} attachments.")
+        return fail(400, "The upload could not be read. Select the files again and retry.")
+    except (ValueError, OSError):
+        return fail(400, "The upload could not be read. Select the files again and retry.")
+
     web_app.cleanup_expired_jobs()
     job = web_app._get_job(job_id)
     if job is None or job.state != "complete" or job.audit_type != "pdf":
-        return _deny(request, 404, "This audit has expired or is unavailable.")
+        return fail(404, "This audit has expired or is unavailable.")
     raw_index = web_app.parse_finding_id(finding_id)
     if raw_index is None or raw_index < 0:
-        return _deny(request, 404, "This finding is unavailable.")
+        return fail(404, "This finding is unavailable.")
     finding = next((f for f in job.findings if f.get("finding_id") == finding_id), None)
     if finding is None:
-        return _deny(request, 404, "This finding is unavailable.")
+        return fail(404, "This finding is unavailable.")
     rule_id = str(finding.get("rule_id", ""))
     issue_type = str(finding.get("issue_type", ""))
     confidence = str(finding.get("confidence_level", ""))
     if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,50}", rule_id):
-        return _deny(request, 400, "This finding has an invalid rule reference.")
+        return fail(400, "This finding has an invalid rule reference.")
     if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,100}", issue_type):
         issue_type = "unspecified"
     if confidence not in {"high", "medium", "low"}:
         confidence = "unknown"
     page = web_app._coerce_page_number(finding.get("page"))
+    printed_folio = job.manuscript_page_labels.get(page) if page is not None else None
+    receipt = secrets.token_urlsafe(16)
     now = _now()
-    with _connection() as db:
-        db.execute("BEGIN IMMEDIATE")
-        if not _authorization_current(db, request, auth["admin_id"], reviewer=is_reviewer):
-            return _deny(request)
-        db.execute("""INSERT INTO feedback(id,audit_ref,finding_ref,rule_id,issue_type,
-            pdf_page,original_confidence,classification,comment,status,context,created_at,updated_at,
-            submitted_by_admin_id,last_modified_by_admin_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
-            secrets.token_urlsafe(16), job_id, finding_id, rule_id, issue_type, page,
-            confidence, classification, comment, "Open", f"Rule {rule_id}; issue {issue_type}",
-            now, now, auth["admin_id"], auth["admin_id"],
-        ))
+    try:
+        with _connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if not _authorization_current(db, request, auth["admin_id"], reviewer=is_reviewer):
+                return fail(403, "Sign in again before submitting feedback.")
+            db.execute("""INSERT INTO feedback(id,audit_ref,finding_ref,rule_id,issue_type,
+                pdf_page,original_confidence,classification,comment,status,context,created_at,updated_at,
+                submitted_by_admin_id,last_modified_by_admin_id)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+                receipt, job_id, finding_id, rule_id, issue_type, page,
+                confidence, classification, comment, "Open", f"Rule {rule_id}; issue {issue_type}",
+                now, now, auth["admin_id"], auth["admin_id"],
+            ))
+            if printed_folio and re.fullmatch(
+                r"(?:[0-9]{1,6}|[IVXLCDMivxlcdm]{1,12})", printed_folio,
+            ):
+                db.execute("INSERT INTO finding_feedback_page VALUES (?,?)",
+                           (receipt, printed_folio))
+            db.executemany(
+                "INSERT INTO finding_feedback_attachments (id,feedback_id,position,name,content) "
+                "VALUES (?,?,?,?,?)",
+                ((secrets.token_urlsafe(16), receipt, index, name, data)
+                 for index, (name, data) in enumerate(files, 1)),
+            )
+    except (sqlite3.Error, OSError):
+        return fail(503, "Feedback and attachments were not saved. Please try again.")
     anchor = quote(str(finding.get("problem_anchor", "")))
-    return RedirectResponse(f"/audits/{quote(job_id)}?feedback=saved#{anchor}", status_code=303)
+    location = f"/audits/{quote(job_id)}?feedback=saved#{anchor}"
+    if wants_json:
+        return JSONResponse({"location": location, "receipt": receipt},
+                            status_code=201, headers={"Cache-Control": "no-store"})
+    return RedirectResponse(location, status_code=303)
 
 
 @router.post("/admin/feedback/{feedback_id}")

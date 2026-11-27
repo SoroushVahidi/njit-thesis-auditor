@@ -701,3 +701,40 @@ def test_general_storage_failure_rolls_back_and_retry_succeeds(
     with sqlite3.connect(path) as db:
         rows = db.execute("SELECT comment,attachment_data FROM general_feedback").fetchall()
         assert rows == [("Invented independent observation", content)]
+
+
+def test_finding_evidence_is_private_to_submitting_reviewer(
+    reviewer_site: tuple[TestClient, Path],
+) -> None:
+    from test_admin_feedback import _job
+
+    client, _ = reviewer_site
+    password = secrets.token_urlsafe(24)
+    owner = admin_accounts.create_account("ester", password, role="reviewer")
+    other_password = secrets.token_urlsafe(24)
+    admin_accounts.create_account("soroush", other_password, role="reviewer")
+    assert _login(client, "ester", password).status_code == 303
+    token = client.cookies.get(admin_feedback._REVIEWER_COOKIE)
+    csrf = admin_feedback._session_csrf(token)
+    job_id = _job(web_app)
+    response = client.post(f"/audits/{job_id}/feedback/f0",
+                           data={"csrf_token": csrf, "classification": "other"},
+                           files={"attachment": ("clip.png", _attachment("png"))},
+                           headers={"Origin": "http://testserver", "Accept": "application/json"})
+    assert response.status_code == 201
+    receipt = response.json()["receipt"]
+    item = admin_feedback.list_feedback_for_audit(job_id)[0]
+    assert item["submitted_by_admin_id"] == owner and item["id"] == receipt
+    url = f"/feedback/{receipt}/attachments/{item['attachments'][0]['id']}"
+    assert client.get(url).status_code == 200
+    assert "clip.png" in client.get(f"/audits/{job_id}").text
+    assert "clip.png" in client.get("/reviewer/finding-feedback").text
+    assert client.get("/admin/feedback").status_code == 403
+    assert client.post("/reviewer/logout", data={"csrf_token": csrf},
+                       headers={"Origin": "http://testserver"},
+                       follow_redirects=False).status_code == 303
+    assert client.get(url).status_code == 403
+    assert _login(client, "soroush", other_password).status_code == 303
+    assert client.get(url).status_code == 404
+    assert "clip.png" not in client.get("/reviewer/finding-feedback").text
+    assert "clip.png" not in client.get(f"/audits/{job_id}").text
