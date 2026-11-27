@@ -2574,7 +2574,9 @@ async def job_page(request: Request, job_id: str, sort: str = SORT_MODE_DEFAULT)
     sort_mode = normalize_sort_mode(sort)
     context = _job_page_context(job, sort_mode=sort_mode)
     from njit_auditor.admin_feedback import (
+        _FINDING_MAX_FILES,
         CLASSIFICATIONS,
+        MAX_ATTACHMENT_BYTES,
         list_feedback_for_audit,
         reviewer_session,
         session,
@@ -2582,16 +2584,26 @@ async def job_page(request: Request, job_id: str, sort: str = SORT_MODE_DEFAULT)
 
     admin_auth = session(request)
     reviewer_auth = reviewer_session(request)
-    if admin_auth is not None and job.state == "complete":
+    auth = admin_auth or reviewer_auth
+    response_private = auth is not None and job.state == "complete"
+    if auth is not None and response_private:
         by_finding: dict[str, list[dict[str, Any]]] = {}
-        for record in list_feedback_for_audit(job_id):
+        owner_id = auth["admin_id"] if admin_auth is None else None
+        for record in list_feedback_for_audit(job_id, owner_id=owner_id):
+            if admin_auth is None and not record["attachments"]:
+                continue
             by_finding.setdefault(record["finding_ref"], []).append(record)
-        context["admin_feedback_by_finding"] = by_finding
-        context["admin_feedback_classifications"] = CLASSIFICATIONS
-        context["feedback_notice"] = request.query_params.get("feedback") == "saved"
-    elif reviewer_auth is not None and job.state == "complete":
-        context["feedback_notice"] = request.query_params.get("feedback") == "saved"
-    return _render(request, "job.html", context)
+        context.update(
+            admin_feedback_by_finding=by_finding,
+            admin_feedback_classifications=CLASSIFICATIONS,
+            feedback_notice=request.query_params.get("feedback") == "saved",
+            feedback_max_files=_FINDING_MAX_FILES,
+            feedback_max_bytes=MAX_ATTACHMENT_BYTES,
+        )
+    response = _render(request, "job.html", context)
+    if response_private:
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/audits/{job_id}/problems/category/{category_slug}", response_class=HTMLResponse)

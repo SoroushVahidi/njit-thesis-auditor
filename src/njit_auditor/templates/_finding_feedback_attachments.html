@@ -1,0 +1,7 @@
+{% if item.attachments %}
+<ul aria-label="Attachments for feedback receipt {{ item.id }}">
+  {% for attachment in item.attachments %}
+  <li><a href="/feedback/{{ item.id }}/attachments/{{ attachment.id }}">{{ attachment.name }}</a> ({{ attachment.size }} bytes)</li>
+  {% endfor %}
+</ul>
+{% endif %}

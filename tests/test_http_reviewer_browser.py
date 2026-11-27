@@ -156,3 +156,44 @@ def test_reviewer_submission_survives_server_restart_without_history(tmp_path: P
         assert db.execute("SELECT comment FROM feedback").fetchone() == (
             "Persisted synthetic review",
         )
+
+
+def test_reviewer_attachment_selection_removal_and_download(tmp_path: Path) -> None:
+    from test_http_reviewer_beta import _attachment
+
+    api = pytest.importorskip("playwright.sync_api")
+    with reviewer_site(tmp_path) as (origin, password), api.sync_playwright() as runner:
+        browser = runner.chromium.launch()
+        try:
+            context = browser.new_context(accept_downloads=True)
+            attempts = guard_external(context)
+            page = context.new_page()
+            page.goto(origin + "/reviewer/login")
+            page.get_by_label("Username").fill("ester")
+            page.get_by_label("Password").fill(password)
+            page.get_by_role("button", name="Log in").click()
+            page.goto(f"{origin}/audits/{JOB_ID}")
+            form = page.locator("form.admin-feedback")
+            png, pdf = _attachment("png"), _attachment("pdf")
+            files = [
+                {"name": "screen.png", "mimeType": "image/png", "buffer": png},
+                {"name": "keep.pdf", "mimeType": "application/pdf", "buffer": pdf},
+            ]
+            form.get_by_label("Supporting files (optional)").set_input_files(files)
+            selected = form.get_by_role("list", name="Selected supporting files")
+            assert f"screen.png ({len(png)} bytes)" in selected.inner_text()
+            selected.get_by_role("button", name="Remove screen.png").click()
+            assert "screen.png" not in selected.inner_text()
+            assert "keep.pdf" in selected.inner_text()
+            form.locator('input[value="other"]').check()
+            form.get_by_role("button", name="Save Feedback").click()
+            page.wait_for_url("**/audits/*?feedback=saved#problem-1")
+            page.get_by_role("link", name="My finding feedback").click()
+            with page.expect_download() as saved:
+                page.get_by_role("link", name="keep.pdf").click()
+            assert saved.value.suggested_filename == "keep.pdf"
+            assert saved.value.path().read_bytes() == pdf
+            assert page.get_by_role("link", name="screen.png").count() == 0
+            assert attempts == []
+        finally:
+            browser.close()

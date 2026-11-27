@@ -3,6 +3,7 @@
 {% block title %}Audit {{ job_id[:8] }} — NJIT Thesis Auditor{% endblock %}
 
 {% block head_extra %}
+{% if admin_mode or reviewer_mode %}{% include "_finding_feedback_upload.html" %}{% endif %}
 <style>
   .coverage-card p { margin: 0 0 0.5rem; font-size: 0.92rem; }
   .coverage-list { margin: 0.5rem 0 0; }
@@ -604,15 +605,18 @@
           {% if f.page is not none %}<a href="/audits/{{ job_id }}/problems/page/{{ f.page }}" class="btn btn-secondary">All findings on this page</a>{% endif %}
         </div>
         {% if admin_mode or reviewer_mode %}
-        {% if admin_mode %}
         {% set saved = admin_feedback_by_finding.get(f.finding_id, []) if admin_feedback_by_finding else [] %}
         {% if saved %}
-        <details class="admin-feedback-history"><summary>{{ saved|length }} saved administrator review{% if saved|length != 1 %}s{% endif %}</summary>
-          {% for entry in saved %}<p><strong>{{ admin_feedback_classifications[entry.classification] }}</strong> · {{ entry.status }} · {{ entry.created_at }} · {{ entry.submitted_by_username or 'Legacy (unattributed)' }}{% if entry.comment %}<br>{{ entry.comment }}{% endif %}</p>{% endfor %}
+        <details class="admin-feedback-history"><summary>{{ saved|length }} saved {{ 'administrator review' if admin_mode else 'review' }}{% if saved|length != 1 %}s{% endif %}</summary>
+          {% for item in saved %}
+          <div>
+            <p><strong>{{ admin_feedback_classifications[item.classification] }}</strong> · {{ item.status }} · {{ item.created_at }} · {{ item.submitted_by_username or 'Legacy (unattributed)' }}<br>Receipt {{ item.id }}{% if item.comment %}<br>{{ item.comment }}{% endif %}</p>
+            {% include "_finding_feedback_attachments.html" %}
+          </div>
+          {% endfor %}
         </details>
         {% endif %}
-        {% endif %}
-        <form class="admin-feedback" action="/audits/{{ job_id }}/feedback/{{ f.finding_id }}" method="post">
+        <form class="admin-feedback" action="/audits/{{ job_id }}/feedback/{{ f.finding_id }}" method="post" enctype="multipart/form-data">
           <input type="hidden" name="csrf_token" value="{{ admin_csrf_token if admin_mode else reviewer_csrf_token }}">
           <fieldset><legend>{{ 'Administrator' if admin_mode else 'Reviewer' }} feedback for {{ f.finding_id }}</legend>
             <label><input type="radio" name="classification" value="true_positive" required> True Positive — The flagged problem is genuine and correctly detected.</label>
@@ -622,6 +626,14 @@
           </fieldset>
           <label for="comment-{{ f.finding_id }}">Additional comments (optional)</label>
           <textarea id="comment-{{ f.finding_id }}" name="comment" maxlength="4000"></textarea>
+          <label for="attachment-{{ f.finding_id }}">Supporting files (optional)</label>
+          <input id="attachment-{{ f.finding_id }}" name="attachment" type="file" multiple
+                 accept=".png,.jpg,.jpeg,.pdf,.docx" aria-describedby="attachment-hint-{{ f.finding_id }}"
+                 data-max-files="{{ feedback_max_files }}" data-max-bytes="{{ feedback_max_bytes }}">
+          <p id="attachment-hint-{{ f.finding_id }}" class="file-hint">Up to {{ feedback_max_files }} files, {{ feedback_max_bytes // 1048576 }} MiB each. PNG, JPEG, PDF, or DOCX. Use redacted excerpts where possible.</p>
+          <ul class="feedback-selected-files" aria-label="Selected supporting files" hidden></ul>
+          <progress class="feedback-upload-progress" aria-label="Feedback upload progress" max="100" hidden></progress>
+          <p class="feedback-upload-status" role="status"></p>
           <button type="submit">Save Feedback</button>
         </form>
         {% endif %}

@@ -91,6 +91,25 @@ stores short-lived pseudonymous throttling buckets. Uploaded PDFs, raw extracted
 and student report exports are not written to this database. Reviewers should avoid entering
 personal or confidential dissertation text in free-text comments.
 
+Each finding receipt can have up to three optional supporting files, with the same
+4 MiB per-file limit and PNG, JPEG, PDF and DOCX validation as General Feedback.
+The attachment tables are additive to schema 5, so a code rollback can still
+read the existing feedback database. SQLite commits the receipt, optional folio,
+and all selected files together. The normal administrator deletion transaction
+cascades to those files and the optional folio. No attachment bytes enter the
+deletion tombstone.
+
+Reviewers can retrieve their own attachments from My finding feedback after an
+audit has expired. Administrators can retrieve them from the feedback
+dashboard. Both surfaces force a private download. The linked finding context
+uses the existing rule, issue, audit and finding references, physical PDF page,
+and confidence. A printed folio is saved only if the audit already provides
+a short Arabic or Roman numeric label. Displayed descriptions and arbitrary
+detector details can quote the manuscript, so the application retains only the
+existing safe rule/issue description and does not copy extracted text, geometry
+details, or the uploaded audit input. Use redacted supporting excerpts where
+possible. The transport and role boundaries are the same as General Feedback.
+
 The normal audit retention sweeper only removes the audit workspace. Saved feedback remains after
 expiration, but no new feedback can be submitted for a missing or expired audit. Feedback never
 changes audit rules, confidence, severity, or generated reports. Resolved feedback is retained
