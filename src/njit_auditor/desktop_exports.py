@@ -504,9 +504,7 @@ class PdfExportExecutor:
                         source,
                         media_type="application/pdf",
                         headers={
-                            "Content-Disposition": 'inline; filename="'
-                            + web_app._safe_pdf_disposition_filename(job.file_name)
-                            + '"'
+                            "Content-Disposition": web_app._inline_pdf_disposition(job.file_name)
                         },
                     )
             if job is None:

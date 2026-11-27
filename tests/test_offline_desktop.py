@@ -87,12 +87,14 @@ def _pdf(kind: str) -> bytes:
     return result
 
 
-def _upload(client: TestClient, data: bytes, *, csrf: str | None = None) -> str:
+def _upload(
+    client: TestClient, data: bytes, *, csrf: str | None = None, filename: str = "synthetic.pdf"
+) -> str:
     fields = {"csrf_token": csrf} if csrf else {}
     headers = {"Origin": HOST} if csrf else {}
     response = client.post(
         "/audits",
-        files={"file": ("synthetic.pdf", data, "application/pdf")},
+        files={"file": (filename, data, "application/pdf")},
         data=fields,
         headers=headers,
         follow_redirects=False,
@@ -725,7 +727,9 @@ def test_highlight_failure_does_not_log_job_id_or_exception_message(
         app = create_offline_app(port=17391, data_root=root, launch_ticket="ticket")
         with TestClient(app, base_url=HOST) as client:
             client.get("/_session/start?ticket=ticket")
-            url = _upload(client, _pdf("normal"), csrf=app.state.csrf_token)
+            url = _upload(
+                client, _pdf("normal"), csrf=app.state.csrf_token, filename="پایان نامه.pdf"
+            )
             job_id = url.rsplit("/", 1)[-1]
 
             code = (
@@ -740,6 +744,9 @@ def test_highlight_failure_does_not_log_job_id_or_exception_message(
                 response = client.get(url + "/pdf/highlighted?page=1")
             assert response.status_code == 200
             assert response.headers["content-type"] == "application/pdf"
+            assert response.headers["content-disposition"] == client.get(url + "/pdf").headers[
+                "content-disposition"
+            ]
             assert "synthetic-secret-highlight-text" not in caplog.text
             assert job_id not in caplog.text
             assert "RuntimeError" not in caplog.text  # Child stderr is deliberately suppressed.
