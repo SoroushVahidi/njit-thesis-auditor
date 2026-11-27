@@ -211,6 +211,7 @@ def _configure_window(window, server, thread, open_auditor, request_quit):
 
     def close_window() -> None:
         status.set("Stopping the local auditor…")
+        window.update_idletasks()
         if not request_quit():
             status.set("Could not stop the audit yet. Try Quit again.")
 
@@ -235,7 +236,13 @@ def _configure_window(window, server, thread, open_auditor, request_quit):
 
     window.after(250, update_window)
     window.update_idletasks()
-    window.minsize(window.winfo_reqwidth(), window.winfo_reqheight())
+    # Reserve room for the OS caption and controls at the effective Tk scale.
+    caption_width = round(window.winfo_fpixels("300p"))
+    screen_width_cap = max(1, int(window.winfo_screenwidth() * 0.9))
+    window.minsize(
+        max(window.winfo_reqwidth(), min(caption_width, screen_width_cap)),
+        window.winfo_reqheight(),
+    )
     return open_browser_window
 
 

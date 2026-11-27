@@ -43,6 +43,10 @@ def test_launcher_controls_fit_and_offer_browser_retry(dpi: int) -> None:
         assert all(isinstance(button, ttk.Button) for button in buttons.winfo_children())
         assert window.winfo_reqwidth() <= window.winfo_width()
         assert window.winfo_reqheight() <= window.winfo_height()
+        minimum_title_width = min(
+            round(window.winfo_fpixels("300p")), int(window.winfo_screenwidth() * 0.9)
+        )
+        assert window.winfo_width() >= minimum_title_width
         retry()
         assert "Could not open your browser" in window.getvar(
             frame.winfo_children()[2].cget("textvariable")
