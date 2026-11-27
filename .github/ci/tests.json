@@ -85,6 +85,7 @@
     "tests/test_latex_loader.py",
     "tests/test_latex_rules.py",
     "tests/test_latex_text.py",
+    "tests/test_list_column_glyph_geometry.py",
     "tests/test_live_review_warning_fixes_batch1.py",
     "tests/test_location_clarity_enrichment.py",
     "tests/test_margin_font_actionability.py",

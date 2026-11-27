@@ -44,6 +44,7 @@ _LEADER_ONLY_SPAN_RE = re.compile(r"^[.\u2026\u00b7]+$")
 # this many dot-only spans is treated as a leader-bearing line.
 _MIN_DOT_ONLY_SPANS_FOR_LEADER = 4
 _PREFIXLESS_SECTION_HINT_RE = re.compile(r"^\s*\.[0-9]")
+LIST_COLUMN_PAIR_RE = re.compile(r"\s*(tables?|figures?)\s+(pages?)\s*", re.IGNORECASE)
 
 
 def _parse_line_dir(raw_dir: object) -> tuple[float, float] | None:
@@ -153,6 +154,19 @@ def _prefixless_section_lines(page_dict: dict) -> set[tuple[int, int]]:
         for line_index, line in enumerate(block.get("lines", []))
         if _PREFIXLESS_SECTION_HINT_RE.match(
             "".join(span["text"] for span in line.get("spans", []))
+        )
+    }
+
+
+def _list_column_pair_lines(page_dict: dict) -> set[tuple[int, int]]:
+    """Locate paired list labels that may share one extracted text span."""
+    return {
+        (block_index, line_index)
+        for block_index, block in enumerate(page_dict.get("blocks", []))
+        for line_index, line in enumerate(block.get("lines", []))
+        if any(
+            LIST_COLUMN_PAIR_RE.fullmatch(span.get("text", ""))
+            for span in line.get("spans", [])
         )
     }
 
@@ -357,12 +371,16 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                     )
 
             has_leaders = _page_has_leader_run(page_dict)
-            prefixless_lines = _prefixless_section_lines(page_dict) if not has_leaders else set()
+            measured_lines = set()
+            if not has_leaders:
+                measured_lines = _prefixless_section_lines(page_dict) | _list_column_pair_lines(
+                    page_dict
+                )
             glyph_map = (
                 _char_x_bounds_by_span(
                     page, exclude_annotation_appearances=exclude_annotation_appearances
                 )
-                if has_leaders or prefixless_lines
+                if has_leaders or measured_lines
                 else {}
             )
             for block_index, block in enumerate(page_dict.get("blocks", [])):
@@ -384,7 +402,7 @@ def load_pdf_layout(pdf_path: str) -> PdfDocument:
                             continue
                         glyphs = (
                             glyph_map.get((block_index, line_index, span_index))
-                            if has_leaders or (block_index, line_index) in prefixless_lines
+                            if has_leaders or (block_index, line_index) in measured_lines
                             else None
                         )
                         char_x_bounds = (
