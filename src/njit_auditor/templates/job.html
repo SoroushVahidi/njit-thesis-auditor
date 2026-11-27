@@ -166,6 +166,9 @@
   .finding-sort, .filter-bar > div { min-width: 0; max-width: 100%; }
   .finding-sort__controls { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   .finding-sort__controls .btn { min-height: 2.25rem; }
+  .audit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.85rem 0 1.2rem; }
+  .audit-actions .btn { max-width: 100%; white-space: normal; }
+  .audit-overview:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
   .filter-bar select { max-width: 100%; min-height: 2.25rem; }
   .finding-card__action .btn, .confidence-filter__chip { overflow-wrap: anywhere; }
   .confidence-filter__chip { min-height: 2.25rem; }
@@ -437,7 +440,7 @@
   {% if report_view and report_view.inventory_findings %}<a href="#section-inventory" class="jump-links__advanced">Page-number candidates (technical)</a>{% endif %}
 </nav>
 
-<div class="status-banner status-banner--complete">
+<div id="audit-overview" class="status-banner status-banner--complete audit-overview" tabindex="-1">
   <div class="status-banner__body">
     <h1 class="status-banner__title">Audit complete</h1>
     <p class="status-banner__meta">
@@ -463,6 +466,12 @@
   {{ incomplete_audit_notice }}
 </div>
 {% endif %}
+
+<nav class="audit-actions" aria-label="Audit actions">
+  <a href="/audits/{{ job_id }}/download/student-report.pdf" class="btn">Download PDF report</a>
+  <a href="#section-downloads" class="btn btn-secondary">Other export formats</a>
+  <a href="/" class="btn btn-secondary">Start another audit</a>
+</nav>
 
 {% if text_layer_quality == "image_only" %}
 <div class="alert-warn" role="alert" style="margin-bottom:1rem;">
@@ -744,6 +753,7 @@
     <a href="/audits/{{ job_id }}/download/markdown" class="btn btn-secondary">Download Markdown</a>
     <a href="/audits/{{ job_id }}/download/json" class="btn btn-secondary">Download JSON (structured/developer export)</a>
     <a href="/" class="btn btn-secondary">&larr; Audit another file</a>
+    <a href="#audit-overview" class="btn btn-secondary">Back to audit overview</a>
     {% if offline_mode %}<form action="/audits/{{ job_id }}/delete" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Delete this audit</button></form>{% endif %}
   </div>
 </section>

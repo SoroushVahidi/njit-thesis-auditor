@@ -203,6 +203,24 @@ def test_desktop_labeled_upload_and_results_at_narrow_width(tmp_path: Path):
             main = _enter_main(page)
             assert main.get_by_role("heading", level=1, name="Audit complete").is_visible()
             manual = main.locator(".coverage-details summary")
+            actions = main.get_by_role("navigation", name="Audit actions")
+            assert actions.get_by_role("link", name="Download PDF report").get_attribute(
+                "href"
+            ) == job + "/download/student-report.pdf"
+            other = actions.get_by_role("link", name="Other export formats")
+            page.emulate_media(forced_colors="active")
+            other.focus()
+            page.keyboard.press("Enter")
+            assert page.get_by_role("region", name="Downloads").evaluate(
+                "el => el === document.activeElement"
+            )
+            back = page.get_by_role("link", name="Back to audit overview")
+            back.focus()
+            page.keyboard.press("Enter")
+            assert page.locator("#audit-overview").evaluate(
+                "el => el === document.activeElement"
+            )
+            page.emulate_media(forced_colors=None)
             manual.focus()
             page.keyboard.press("Enter")
             assert main.get_by_text("Check yourself:", exact=True).first.is_visible()
