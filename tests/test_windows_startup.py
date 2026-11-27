@@ -9,12 +9,52 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import urlsplit
 
 import httpx
 import pytest
 from desktop_session_support import desktop, wait_state
 from test_offline_desktop import _pdf
+
+
+@pytest.mark.parametrize("dpi", [96, 120, 144, 192])
+def test_launcher_controls_fit_and_offer_browser_retry(dpi: int) -> None:
+    tk = pytest.importorskip("tkinter")
+    from tkinter import ttk
+
+    from njit_auditor.offline_launcher import _configure_window
+
+    try:
+        window = tk.Tk()
+    except tk.TclError:
+        pytest.skip("Requires a graphical Tk session")
+    try:
+        window.tk.call("tk", "scaling", dpi / 72)
+        server = SimpleNamespace(started=True, should_exit=False)
+        thread = SimpleNamespace(is_alive=lambda: True)
+        retry = _configure_window(window, server, thread, lambda: False, lambda: False)
+        window.update()
+        frame = window.winfo_children()[0]
+        buttons = frame.winfo_children()[3]
+        assert [button.cget("text") for button in buttons.winfo_children()] == [
+            "Open auditor", "Quit",
+        ]
+        assert all(isinstance(button, ttk.Button) for button in buttons.winfo_children())
+        assert window.winfo_reqwidth() <= window.winfo_width()
+        assert window.winfo_reqheight() <= window.winfo_height()
+        minimum_title_width = min(
+            round(window.winfo_fpixels("300p")), int(window.winfo_screenwidth() * 0.9)
+        )
+        assert window.winfo_width() >= minimum_title_width
+        retry()
+        assert "Could not open your browser" in window.getvar(
+            frame.winfo_children()[2].cget("textvariable")
+        )
+        buttons.winfo_children()[1].invoke()
+        assert "Try Quit again" in window.getvar(frame.winfo_children()[2].cget("textvariable"))
+    finally:
+        window.destroy()
 
 
 def test_launcher_without_console_streams_starts_and_quits(tmp_path: Path) -> None:
