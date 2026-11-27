@@ -499,8 +499,19 @@ def test_invalid_pdf_failure_page_parity() -> None:
         assert "Could not start audit" in response_offline.text
 
 
-@pytest.mark.parametrize("filename", ["../odd name.pdf", "nested\\name.pdf", "é résumé.pdf"])
-def test_odd_filename_stays_in_workspace(filename: str) -> None:
+@pytest.mark.parametrize(
+    ("filename", "display"),
+    [
+        ("../odd name.pdf", "odd name.pdf"),
+        ("nested\\name.pdf", "name.pdf"),
+        ("é résumé.pdf", "é résumé.pdf"),
+        ("پایان‌نامه NJIT.pdf", "پایان‌نامه NJIT.pdf"),
+        ("a\u202eevil.pdf", "aevil.pdf"),
+        ("x" * 255 + ".pdf", "x" * 240 + ".pdf"),
+        ("<tag>& `notes`.pdf", "<tag>& `notes`.pdf"),
+    ],
+)
+def test_odd_filename_stays_in_workspace(filename: str, display: str) -> None:
     with TemporaryDirectory() as d:
         root = Path(d)
         audits = prepare_local_storage(root)
@@ -519,7 +530,18 @@ def test_odd_filename_stays_in_workspace(filename: str) -> None:
             assert (audits / job_id / "upload.pdf").exists()
             assert len(list((audits / job_id).glob("*.pdf"))) >= 1
             assert not (root / "odd name.pdf").exists()
-            assert client.get(response.headers["location"] + "/pdf").status_code == 200
+            job = response.headers["location"]
+            assert client.get(job + "/status").json()["file_name"] == display
+            report = client.get(job + "/download/json").json()
+            assert report["metadata"]["input_file_name"] == display
+            assert display in client.get(job + "/download/text").text
+            from html import escape
+
+            assert f"<bdi>{escape(display)}</bdi>" in client.get(job).text
+            assert client.get(job + "/pdf").status_code == 200
+            if "`" in display:
+                markdown = client.get(job + "/download/markdown").text
+                assert f"`` {display} ``" in markdown
 
 
 def test_encrypted_pdf_error_parity() -> None:

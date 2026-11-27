@@ -4462,6 +4462,34 @@ def test_complete_student_pdf_pending_failed_and_job_isolation(
     assert len(list((runtime / second_id).glob("student-report-*.pdf"))) == 1
 
 
+def test_web_upload_keeps_duplicate_unicode_display_names_separate(
+    client: tuple[TestClient, Any], tmp_path: Path,
+) -> None:
+    from urllib.parse import unquote
+
+    c, wa = client
+    pdf = tmp_path / "generated.pdf"
+    _make_real_pdf(pdf, page_count=1)
+    name = "پایان‌نامه Sample résumé.pdf"
+    jobs = []
+    for _ in range(2):
+        response = c.post(
+            "/audits", files={"file": (name, pdf.read_bytes(), "application/pdf")},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        job = response.headers["location"]
+        jobs.append(job)
+        assert c.get(job + "/status").json()["file_name"] == name
+        assert c.get(job + "/download/json").json()["metadata"]["input_file_name"] == name
+        inline = c.get(job + "/pdf")
+        assert inline.status_code == 200
+        disposition = inline.headers["content-disposition"]
+        assert unquote(disposition.split("filename*=UTF-8''", 1)[1]) == name
+        assert (wa.RUNTIME_DIR / job.rsplit("/", 1)[-1] / "upload.pdf").exists()
+    assert jobs[0] != jobs[1]
+
+
 def test_complete_student_pdf_safe_filename(
     client: tuple[TestClient, Any], tmp_path: Path
 ) -> None:

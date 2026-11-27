@@ -98,6 +98,7 @@ from njit_auditor.toc_order_evidence import P062_ISSUE
 from njit_auditor.upload_handling import (
     UploadValidationError,
     sanitize_upload_filename,
+    upload_display_name,
     validate_upload_path,
 )
 from njit_auditor.windows_download import windows_download
@@ -2071,7 +2072,6 @@ def _queue_pdf_audit(
     jdir = _job_dir(job_id)
     jdir.mkdir(parents=True, exist_ok=True)
 
-    safe_name = sanitize_upload_filename(filename, default_ext=".pdf")
     upload_path = _job_pdf_path(jdir)
     upload_path.write_bytes(content)
 
@@ -2085,7 +2085,7 @@ def _queue_pdf_audit(
         job_id=job_id,
         state="pending",
         created_at=datetime.now(timezone.utc).isoformat(),
-        file_name=safe_name,
+        file_name=upload_display_name(filename),
     )
     _set_job(job)
     prepare_audit = getattr(request.app.state, "prepare_audit", None)
@@ -3054,12 +3054,14 @@ def _valid_export_stamp(output: Path, stamp: Path, signature: str) -> bool:
     return stamp.read_text(encoding="ascii") == f"{signature} {file_digest(output)}"
 
 
-def _safe_pdf_disposition_filename(file_name: str) -> str:
-    """Return a Content-Disposition-safe filename for an inline PDF response."""
-    name = (file_name or "document.pdf").strip()
-    for unsafe in ('"', "\\", "\n", "\r"):
-        name = name.replace(unsafe, "_")
-    return name or "document.pdf"
+def _inline_pdf_disposition(file_name: str) -> str:
+    """Supply a safe ASCII fallback and a UTF-8 display basename."""
+    name = upload_display_name(file_name)
+    fallback = sanitize_upload_filename(name, default_ext=".pdf")
+    value = f'inline; filename="{fallback}"'
+    if name != fallback:
+        value += f"; filename*=UTF-8''{urllib.parse.quote(name, safe='')}"
+    return value
 
 
 @app.get("/audits/{job_id}/pdf", response_model=None)
@@ -3073,11 +3075,10 @@ async def serve_job_pdf(job_id: str) -> FileResponse | JSONResponse:
     pdf_path = _job_pdf_path(_job_dir(job_id))
     if not _is_under_runtime(pdf_path) or not pdf_path.exists():
         return JSONResponse({"error": "PDF not found"}, status_code=404)
-    safe_filename = _safe_pdf_disposition_filename(job.file_name)
     return FileResponse(
         path=str(pdf_path),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{safe_filename}"'},
+        headers={"Content-Disposition": _inline_pdf_disposition(job.file_name)},
     )
 
 
@@ -3395,7 +3396,7 @@ def _prepare_highlighted_pdf(
         return _index_notice(request, _expired_job_notice(), status_code=404)
 
     headers = {
-        "Content-Disposition": f'inline; filename="{_safe_pdf_disposition_filename(job.file_name)}"'
+        "Content-Disposition": _inline_pdf_disposition(job.file_name)
     }
     plain_response = FileResponse(
         path=str(pdf_path), media_type="application/pdf", headers=headers

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import ntpath
 import re
 import stat
+import unicodedata
 import zipfile
 from enum import Enum
 from pathlib import Path, PurePosixPath
@@ -32,6 +34,23 @@ ALLOWED_ZIP_EXTENSIONS: frozenset[str] = frozenset(
 PREFERRED_MAIN_TEX_NAMES: tuple[str, ...] = ("main.tex", "thesis.tex", "dissertation.tex")
 
 _SAFE_NAME_RE = re.compile(r"[^a-zA-Z0-9._-]")
+_UNSAFE_NAME_CONTROLS = frozenset(
+    "\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
+)
+
+
+def upload_display_name(name: str) -> str:
+    """Keep a bounded, portable display basename separate from filesystem names."""
+    base = ntpath.basename(name)
+    clean = "".join(
+        char for char in base
+        if unicodedata.category(char) not in {"Cc", "Cs", "Zl", "Zp"}
+        and char not in _UNSAFE_NAME_CONTROLS
+    ).strip()
+    stem, suffix = ntpath.splitext(clean)
+    if suffix.lower() != ".pdf":
+        return "document.pdf"
+    return f"{stem[:240] or 'document'}{suffix}"
 
 
 class UploadKind(str, Enum):

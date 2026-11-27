@@ -386,7 +386,7 @@
   <div class="status-banner__body">
     <h1 class="status-banner__title" aria-live="polite"><span class="spinner" aria-hidden="true"></span> Processing audit&hellip;</h1>
     {% if offline_mode %}<form action="/audits/{{ job_id }}/cancel" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Cancel audit</button></form>{% endif %}
-    <p class="status-banner__meta">{{ file_name }}</p>
+    <p class="status-banner__meta"><bdi>{{ file_name }}</bdi></p>
   </div>
 </div>
 <div class="card">
@@ -398,7 +398,7 @@
 <div class="status-banner" role="status">
   <div class="status-banner__body">
     <h1 class="status-banner__title">Audit canceled</h1>
-    <p class="status-banner__meta">{{ file_name }}</p>
+    <p class="status-banner__meta"><bdi>{{ file_name }}</bdi></p>
   </div>
 </div>
 <p>{{ error_message }}</p>
@@ -441,7 +441,7 @@
   <div class="status-banner__body">
     <h1 class="status-banner__title">Audit complete</h1>
     <p class="status-banner__meta">
-      {{ file_name }}
+      <bdi>{{ file_name }}</bdi>
       &middot; PDF layout audit
       {% if finished_at %} &middot; Finished <time data-local-time datetime="{{ finished_at }}">{{ finished_at }}</time>{% endif %}
     </p>

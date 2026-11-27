@@ -4080,6 +4080,14 @@ def _problem_location_text(
     return f"Page {page}" if page is not None else "Document-wide overview"
 
 
+def _markdown_inline_literal(value: str) -> str:
+    single_line = " ".join(value.splitlines())
+    width = max((len(run) for run in re.findall(r"`+", single_line)), default=0) + 1
+    fence = "`" * width
+    padding = " " if width > 1 else ""
+    return f"{fence}{padding}{single_line}{padding}{fence}"
+
+
 def write_markdown_report(
     findings: list[AuditFinding], metadata: dict[str, str], output_path: Path
 ) -> None:
@@ -4104,7 +4112,7 @@ def write_markdown_report(
     if incomplete_notice:
         lines.append(f"> **{INCOMPLETE_AUDIT_TITLE}** {incomplete_notice}")
         lines.append("")
-    lines.append(f"- Input file: `{meta.get('input_file_name', '-')}`")
+    lines.append(f"- Input file: {_markdown_inline_literal(meta.get('input_file_name', '-'))}")
     lines.append(f"- Input path: `{meta.get('input_file_path', '-')}`")
     lines.append(f"- Audit type: `{meta.get('audit_type', 'pdf')}`")
     if audit_type == "tex":
