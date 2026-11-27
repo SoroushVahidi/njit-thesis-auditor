@@ -11,10 +11,13 @@ P032 (wrap spacing), P036 (inter-entry spacing), or P039 (TOC indentation hierar
 from __future__ import annotations
 
 import re
+from collections import Counter
+from collections.abc import Iterator
 from statistics import median
 
 from njit_auditor.models import AuditFinding, Severity
 from njit_auditor.pdf_models import PdfDocument, format_bbox_detail
+from njit_auditor.rules.pdf_captions import has_terminal_caption_punctuation
 from njit_auditor.rules.pdf_lot_lof_page_number_alignment import RIGHT_EDGE_TOLERANCE_PT
 from njit_auditor.rules.pdf_toc_alignment import (
     TocEntryLine,
@@ -31,7 +34,6 @@ _LOF_PREFIX_RE = re.compile(
     r"^(?:fig(?:ure)?\.?)\s+[0-9]+(?:[.\-][0-9]+)?\s*[.):]?\s*",
     re.IGNORECASE,
 )
-_TERMINAL_PUNCT_RE = re.compile(r"[.?!]\s*$")
 
 
 def _dot_leader_weight(text: str) -> int:
@@ -63,7 +65,7 @@ def _strip_trailing_lof_dot_leaders(text: str) -> str:
         return stripped.strip()
 
     prefix = stripped[:suffix_start].rstrip()
-    if _TERMINAL_PUNCT_RE.search(prefix):
+    if has_terminal_caption_punctuation(prefix):
         return prefix
 
     leader = suffix.lstrip()
@@ -102,12 +104,9 @@ def _extract_description(entry: TocEntryLine) -> str | None:
     return text if len(text) >= MIN_ENTRY_TEXT_LEN else None
 
 
-def _check_lof_terminal_punctuation_page(
-    context: TocPageContext,
+def _owned_descriptions(
     entries: list[TocEntryLine],
-    page_entry_offset: int,
-) -> list[AuditFinding]:
-    findings: list[AuditFinding] = []
+) -> Iterator[tuple[int, TocEntryLine, str]]:
     page_edges = [
         entry.page_number_right_x
         for entry in entries
@@ -133,9 +132,39 @@ def _check_lof_terminal_punctuation_page(
             ):
                 continue
         description = _extract_description(entry)
-        if description is None:
+        if description is not None:
+            yield idx, entry, description
+
+
+def quoted_lof_terminal_rows(pdf_document: PdfDocument) -> set[tuple[int, float, float]]:
+    """Identify owned quoted endings obscured by P017's first-line parsing."""
+    rows = set()
+    for context in detect_toc_like_pages(pdf_document):
+        if context.page_type != "list_of_figures":
             continue
-        if _TERMINAL_PUNCT_RE.search(description):
+        entries = extract_toc_logical_entry_lines(context)
+        positions = [
+            (round(entry.line.bbox.x0, 1), round(entry.line.bbox.y0, 1)) for entry in entries
+        ]
+        counts = Counter(positions)
+        for idx, entry, description in _owned_descriptions(entries):
+            if (
+                counts[positions[idx]] == 1
+                and description.endswith(('"', "'", "”", "’"))
+                and has_terminal_caption_punctuation(description)
+            ):
+                rows.add((context.page.page_number, *positions[idx]))
+    return rows
+
+
+def _check_lof_terminal_punctuation_page(
+    context: TocPageContext,
+    entries: list[TocEntryLine],
+    page_entry_offset: int,
+) -> list[AuditFinding]:
+    findings: list[AuditFinding] = []
+    for idx, entry, description in _owned_descriptions(entries):
+        if has_terminal_caption_punctuation(description):
             continue
         details = {
             "page_number": str(context.page.page_number),

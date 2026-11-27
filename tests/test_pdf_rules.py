@@ -11839,6 +11839,64 @@ def test_p040_lof_entry_with_question_mark_no_finding(tmp_path: Path) -> None:
     assert not findings
 
 
+@pytest.mark.parametrize(
+    ("ending", "needs_punctuation"),
+    [
+        ('A Signal Labeled "Ready."', False),
+        ('A Signal Labeled "Ready?"', False),
+        ('A Signal Labeled "Ready".', False),
+        ('A Signal Labeled "Ready"', True),
+        ('A Signal Labeled "Ready." in the Plot', True),
+        ('Comparison With an Earlier Result (Fig.)', True),
+    ],
+)
+def test_p040_lof_punctuation_at_quotation_boundary(
+    tmp_path: Path, ending: str, needs_punctuation: bool
+) -> None:
+    pdf_path = tmp_path / "quoted_figure_description.pdf"
+    _make_lof_terminal_punct_pdf(
+        pdf_path,
+        [
+            (f"Figure 1. {ending}", "5"),
+            ("Figure 2. An Unquoted Figure Description.", "12"),
+            ("Figure 3. Another Unquoted Figure Description.", "20"),
+        ],
+    )
+    document = load_pdf_layout(str(pdf_path))
+    for check, issue in (
+        (check_pdf_lof_terminal_punctuation, "lof_entry_missing_terminal_punctuation"),
+        (check_pdf_captions, "missing_terminal_punctuation"),
+    ):
+        findings = [f for f in check(document) if f.details["issue_type"] == issue]
+        assert len(findings) == int(needs_punctuation)
+
+
+def test_p040_and_p017_use_the_owned_wrapped_figure_ending(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "wrapped_quoted_figures.pdf"
+    with fitz.open() as pdf:
+        page = pdf.new_page(width=612, height=792)
+        page.insert_text((190, 90), "LIST OF FIGURES", fontsize=16, fontname="Times-Bold")
+        for number, first_y, ending in (
+            (1, 150, 'continues with the label "Ready."'),
+            (2, 205, 'continues with the label "Pending"'),
+        ):
+            page.insert_text((108, first_y), f"Figure 2.{number} A wrapped description")
+            page.insert_text((150, first_y + 15), ending)
+            page.insert_text((421, first_y + 15), f"............. {20 + number}")
+        page.insert_text((108, 265), "Figure 2.3 A correctly punctuated control.")
+        page.insert_text((421, 265), "............. 23")
+        pdf.save(pdf_path)
+
+    document = load_pdf_layout(str(pdf_path))
+    for check, issue in (
+        (check_pdf_lof_terminal_punctuation, "lof_entry_missing_terminal_punctuation"),
+        (check_pdf_captions, "missing_terminal_punctuation"),
+    ):
+        findings = [f for f in check(document) if f.details["issue_type"] == issue]
+        finding, = findings
+        assert float(finding.details["bbox"].split(",")[1]) > 190
+
+
 def test_p040_lof_entry_missing_punct_warns(tmp_path: Path) -> None:
     """LoF entry lacking terminal punctuation → lof_entry_missing_terminal_punctuation."""
     pdf_path = tmp_path / "p040_no_punct.pdf"
