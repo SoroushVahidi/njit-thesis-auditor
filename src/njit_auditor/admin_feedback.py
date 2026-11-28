@@ -104,6 +104,7 @@ def _db_path() -> Path:
         raise ValueError("Administrator database needs an absolute .sqlite3 path")
     if path.is_symlink() or path.parent.is_symlink():
         raise ValueError("Administrator database path may not be a symlink")
+    requested_path = path
     path = path.resolve()
     repo = Path(__file__).resolve().parents[2]
     runtime = web_app.RUNTIME_DIR.resolve()
@@ -111,7 +112,19 @@ def _db_path() -> Path:
         raise ValueError("Administrator database must be outside the repository and audit runtime")
     if not path.parent.is_dir() or path.parent.is_symlink():
         raise ValueError("Administrator database parent must be an existing real directory")
-    if path.parent.stat().st_mode & 0o077:
+    if os.name == "nt":
+        if os.getenv("NJIT_AUDITOR_REVIEWER_WINDOWS_STORAGE") != "1":
+            raise ValueError("Windows reviewer storage is disabled")
+        if path != requested_path or ".." in requested_path.parts or ":" in requested_path.name:
+            raise ValueError("Reviewer storage requires a canonical file path")
+        try:
+            from njit_auditor.windows_reviewer_storage import validate_storage
+        except ImportError as exc:
+            raise ValueError(
+                "Windows reviewer storage requires the reviewer-windows extra"
+            ) from exc
+        validate_storage(requested_path)
+    elif path.parent.stat().st_mode & 0o077:
         raise ValueError("Administrator database parent must be owner-only (0700)")
     return path
 
@@ -121,14 +134,22 @@ def _connect() -> sqlite3.Connection:
     flags = os.O_RDWR | os.O_CREAT
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
-    fd = os.open(path, flags, 0o600)
-    try:
-        os.fchmod(fd, 0o600)
-    finally:
-        os.close(fd)
-    db = sqlite3.connect(path, timeout=10, isolation_level=None)
+    if os.name != "nt":
+        fd = os.open(path, flags, 0o600)
+        try:
+            os.fchmod(fd, 0o600)
+        finally:
+            os.close(fd)
+    if os.name == "nt":
+        from njit_auditor.windows_reviewer_storage import connect_private
+
+        db = connect_private(path)
+    else:
+        db = sqlite3.connect(path, timeout=10, isolation_level=None)
     try:
         db.row_factory = sqlite3.Row
+        if os.name == "nt":
+            db.execute("PRAGMA temp_store=MEMORY")
         db.execute("PRAGMA busy_timeout=10000")
         db.execute("PRAGMA journal_mode=DELETE")
         db.execute("PRAGMA secure_delete=ON")
