@@ -185,6 +185,7 @@
     "tests/test_report_outputs.py",
     "tests/test_report_text.py",
     "tests/test_report_view.py",
+    "tests/test_reviewer_storage.py",
     "tests/test_results_page_wording.py",
     "tests/test_review_labels.py",
     "tests/test_review_ledger/test_code_sha_provenance.py",
@@ -281,6 +282,7 @@
   ],
   "support": [
     "tests/desktop_session_support.py",
+    "tests/reviewer_storage_support.py",
     "tests/pdf_link_helpers.py",
     "tests/test_review_ledger/__init__.py",
     "tests/test_review_ledger/fixtures.py",

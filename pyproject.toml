@@ -34,6 +34,7 @@ dependencies = [
 
 [project.optional-dependencies]
 browser = ["playwright==1.64.1", "psutil==7.2.2"]
+reviewer-windows = ["pywin32>=306; sys_platform == 'win32'"]
 dev = [
   "pytest>=8.0.0",
   "ruff>=0.16.4,<0.17.0",
@@ -94,6 +95,10 @@ packages = ["njit_auditor"]
 
 [[tool.mypy.overrides]]
 module = ["pymupdf"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["ntsecuritycon", "pywintypes", "win32api", "win32con", "win32file", "win32security"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
