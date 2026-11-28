@@ -44,6 +44,20 @@ Use the existing production sample provisioning and verify all four sample
 digests before restarting. When dependencies change, stage and check the
 release environment with `python -m pip check` before selecting it for the unit.
 
+To retain a private exact-checkout CI receipt, use the
+[read-only Actions verifier](../.github/ci/verify_release_ci.py) with your
+authenticated GitHub CLI. It validates all seven jobs of the specified attempt
+and records the checkout SHAs and log digests. For a main push run:
+
+```bash
+python .github/ci/verify_release_ci.py "$main_run_id" "$release_sha" \
+  --output /path/to/private/post-merge-checkout-verification.json
+```
+
+For a proposed merge, pass its checkout SHA with `--pr`, `--head`, and
+`--base`. The receipt verifies GitHub evidence locally and does not create
+or publish a check.
+
 ## Cutover verification
 
 1. Switch only to the exact qualified revision and use the service supervisor
