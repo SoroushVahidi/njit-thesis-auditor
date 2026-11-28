@@ -51,7 +51,7 @@ and records the checkout SHAs and log digests. For a main push run:
 
 ```bash
 python .github/ci/verify_release_ci.py "$main_run_id" "$release_sha" \
-  --output /path/to/private/post-merge-checkout-verification.json
+  --branch main --output /path/to/private/post-merge-checkout-verification.json
 ```
 
 For a proposed merge, pass its checkout SHA with `--pr`, `--head`, and

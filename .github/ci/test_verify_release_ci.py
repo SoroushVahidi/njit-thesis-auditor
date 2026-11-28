@@ -26,7 +26,7 @@ class VerifyReleaseCITests(TestCase):
         self.jobs = [
             dict(
                 id=index, name=name, status="completed", conclusion="success",
-                run_attempt=2, html_url=f"https://example.com/jobs/{index}",
+                run_id=1, run_attempt=2, html_url=f"https://example.com/jobs/{index}",
                 steps=[dict(name="Checkout without confidential fixtures", conclusion="success")],
             )
             for index, name in enumerate(sorted(REQUIRED_JOBS), start=1)
@@ -44,17 +44,23 @@ class VerifyReleaseCITests(TestCase):
         self.assertTrue(all(len(job["log_sha256"]) == 64 for job in receipt["jobs"]))
 
     def test_push_receipt(self):
-        self.run.update(event="push", head_sha=CHECKOUT)
-        self.assertTrue(self.verify(pr=None, head=None, base=None)["gate_passed"])
+        self.run.update(event="push", head_sha=CHECKOUT, head_branch="main")
+        options = dict(pr=None, head=None, base=None, branch="main")
+        self.assertTrue(self.verify(**options)["gate_passed"])
         with self.assertRaisesRegex(ValueError, "Push run"):
-            self.verify(pr=None, head=None, base=None, checkout=HEAD)
+            self.verify(**options, checkout=HEAD)
+        with self.assertRaisesRegex(ValueError, "Push run"):
+            self.verify(pr=None, head=None, base=None, branch="release-candidate")
 
     def test_stale_pr_base_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "head and base"):
             self.verify(base=CHECKOUT)
 
     def test_incomplete_or_wrong_attempt_jobs_are_rejected(self):
-        for field, value in (("conclusion", "skipped"), ("run_attempt", 1), ("steps", [])):
+        invalid_job_fields = (
+            ("conclusion", "skipped"), ("run_attempt", 1), ("run_id", 4), ("steps", []),
+        )
+        for field, value in invalid_job_fields:
             with self.subTest(field=field):
                 jobs = deepcopy(self.jobs)
                 jobs[0][field] = value
@@ -84,3 +90,12 @@ class VerifyReleaseCITests(TestCase):
         evidence = fetch + log(CHECKOUT)
         receipt = self.verify(read_log=lambda _: evidence, parents=[BASE, HEAD])
         self.assertTrue(receipt["gate_passed"])
+
+    def test_duplicate_job_ids_and_unrelated_workflow_are_rejected(self):
+        jobs = deepcopy(self.jobs)
+        jobs[0]["id"] = jobs[1]["id"]
+        with self.assertRaisesRegex(ValueError, "Required jobs"):
+            self.verify(jobs=jobs)
+        self.run["path"] = ".github/workflows/unrelated.yml"
+        with self.assertRaisesRegex(ValueError, "terminal CI run"):
+            self.verify()

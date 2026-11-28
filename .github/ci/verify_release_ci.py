@@ -32,7 +32,9 @@ def checkout_shas(log: bytes) -> list[str]:
     return found
 
 
-def verify_run(run, jobs, read_log, *, checkout, pr=None, head=None, base=None, parents=None):
+def verify_run(
+    run, jobs, read_log, *, checkout, branch=None, pr=None, head=None, base=None, parents=None
+):
     """Bind successful job logs to the current attempt, trigger and checkout."""
     if (
         run["path"] != ".github/workflows/ci.yml"
@@ -42,8 +44,13 @@ def verify_run(run, jobs, read_log, *, checkout, pr=None, head=None, base=None, 
         raise ValueError("Expected a successful terminal CI run")
     require_merge_ref = False
     if pr is None:
-        if run["event"] != "push" or run["head_sha"] != checkout:
-            raise ValueError("Push run does not match the expected checkout")
+        if (
+            not branch
+            or run["event"] != "push"
+            or run["head_sha"] != checkout
+            or run["head_branch"] != branch
+        ):
+            raise ValueError("Push run does not match the expected branch and checkout")
     else:
         associations = run["pull_requests"]
         if run["event"] != "pull_request" or run["head_sha"] != head:
@@ -63,8 +70,10 @@ def verify_run(run, jobs, read_log, *, checkout, pr=None, head=None, base=None, 
     if (
         len(jobs) != len(REQUIRED_JOBS)
         or {job["name"] for job in jobs} != REQUIRED_JOBS
+        or len({job["id"] for job in jobs}) != len(REQUIRED_JOBS)
         or any(
-            job["run_attempt"] != run["run_attempt"]
+            job["run_id"] != run["id"]
+            or job["run_attempt"] != run["run_attempt"]
             or job["status"] != "completed"
             or job["conclusion"] != "success"
             or not any(
@@ -102,6 +111,7 @@ def verify_run(run, jobs, read_log, *, checkout, pr=None, head=None, base=None, 
             "id", "event", "status", "conclusion", "head_sha", "html_url", "run_attempt"
         )},
         "expected_checkout": checkout,
+        "branch": branch,
         "pull_request": None if pr is None else {"number": pr, "head": head, "base": base},
         "gate_passed": True,
         "jobs": receipts,
@@ -113,6 +123,7 @@ def main() -> int:
     parser.add_argument("run", type=int)
     parser.add_argument("checkout")
     parser.add_argument("--repo", default="SoroushVahidi/njit-thesis-auditor")
+    parser.add_argument("--branch", help="Expected branch for a push run")
     parser.add_argument("--pr", type=int)
     parser.add_argument("--head")
     parser.add_argument("--base")
@@ -123,12 +134,12 @@ def main() -> int:
         and args.run > 0
         and re.fullmatch(r"[\w.-]+/[\w.-]+", args.repo, re.ASCII)
         and (
-            (args.pr is None and args.head is None and args.base is None)
-            or (args.pr and args.pr > 0 and SHA.fullmatch(args.head or "")
-                and SHA.fullmatch(args.base or ""))
+            (args.branch and args.pr is None and args.head is None and args.base is None)
+            or (args.branch is None and args.pr and args.pr > 0
+                and SHA.fullmatch(args.head or "") and SHA.fullmatch(args.base or ""))
         )
     ):
-        parser.error("Supply a full checkout SHA and, for pull requests, PR number and full SHAs")
+        parser.error("Use a full checkout SHA and either --branch or --pr with --head and --base")
 
     def api(endpoint):
         return subprocess.run(
@@ -139,6 +150,8 @@ def main() -> int:
     path = f"actions/runs/{args.run}"
     try:
         run = json.loads(api(path))
+        if run["id"] != args.run:
+            raise ValueError("GitHub returned a different run")
         attempt = run["run_attempt"]
         jobs = json.loads(api(f"{path}/attempts/{attempt}/jobs?per_page=20"))["jobs"]
         parents = None
@@ -149,7 +162,8 @@ def main() -> int:
             parents = [parent["sha"] for parent in commit["parents"]]
         receipt = verify_run(
             run, jobs, lambda job: api(f"actions/jobs/{job}/logs"),
-            checkout=args.checkout, pr=args.pr, head=args.head, base=args.base, parents=parents,
+            checkout=args.checkout, branch=args.branch, pr=args.pr, head=args.head,
+            base=args.base, parents=parents,
         )
         if json.loads(api(path))["run_attempt"] != attempt:
             raise ValueError("The run was rerun while checking its evidence")

@@ -38,6 +38,16 @@ Retain the original receipts in the private qualification archive, including
 `launcher-closeout.json`, the installer lifecycle receipt, and
 `installed-engine-parity.json`.
 
+## Shared source integration — 2026-11-27
+
+[PR #713](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/713)
+integrated the native candidate runtime into main at
+`7baea26a66520f811b793f5a7041051faeeefdcd`. Its only differences from the
+native candidate tree were the status and qualification documents. All seven
+[Linux post-merge CI jobs](https://github.com/SoroushVahidi/njit-thesis-auditor/actions/runs/46097095515)
+passed. The website release leaves the published rc.3 installer intact.
+The native receipts still identify the original rc.4 candidate artifact.
+
 ## Historical preparation — 2026-11-18
 
 This file records a local candidate, not a published installer or release.
