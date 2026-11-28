@@ -24,7 +24,7 @@ from typing import BinaryIO
 
 import uvicorn
 
-from njit_auditor.desktop_metadata import DESKTOP_VERSION
+from njit_auditor.desktop_metadata import DESKTOP_VERSION, desktop_build_info
 from njit_auditor.offline_app import (
     create_offline_app,
     is_link_or_junction,
@@ -106,30 +106,52 @@ def run_desktop(
         try:
             window = None
             if not headless:
-                try:
-                    import tkinter as tk
-                except ImportError:
-                    # Browser mode is usable on Linux builds without Tcl/Tk;
-                    # the interface itself has a visible Quit action.
-                    pass
+                if sys.platform == "win32":
+                    from njit_auditor.windows_launcher import WindowsLauncher
+
+                    window = WindowsLauncher(
+                        server, thread, lambda: webbrowser.open(url), application.state.request_quit
+                    )
+                    open_from_launcher = window.open_browser
                 else:
                     try:
-                        window = tk.Tk()
-                    except tk.TclError:
-                        window = None
-                    if window is not None:
-                        _configure_window(
-                            window,
-                            server,
-                            thread,
-                            lambda: webbrowser.open(url),
-                            application.state.request_quit,
-                        )
+                        import tkinter as tk
+                    except ImportError:
+                        # Browser mode remains usable without Tcl/Tk.
+                        pass
+                    else:
+                        try:
+                            window = tk.Tk()
+                        except tk.TclError:
+                            window = None
+                        if window is not None:
+                            open_from_launcher = _configure_window(
+                                window, server, thread, lambda: webbrowser.open(url),
+                                application.state.request_quit,
+                            )
+                            window.update_idletasks()
             for _ in range(100):
+                if window is not None and sys.platform == "win32":
+                    window.update()
                 if server.started or not thread.is_alive():
                     break
                 thread.join(0.05)
+            if server.should_exit:
+                # Quit during native startup is an ordinary shutdown, not a
+                # startup failure or a reason to auto-open a browser.
+                return
             if not server.started:
+                if window is not None:
+                    if sys.platform == "win32":
+                        window.startup_error()
+                    else:
+                        from tkinter import messagebox
+
+                        messagebox.showerror(
+                            "NJIT Thesis Auditor", "The local auditor could not start.",
+                            parent=window,
+                        )
+                    window.destroy()
                 raise RuntimeError("The local auditor server did not start")
             if state_file is not None:
                 # Explicit test harness opt-in, never enabled for student launches.
@@ -137,13 +159,18 @@ def run_desktop(
                     os.chmod(state_file, 0o600)
                     json.dump({"url": url, "pid": os.getpid()}, state)
                 state_written = True
-            if open_browser and not webbrowser.open(url):
-                raise RuntimeError("No default browser could be opened")
+            if open_browser:
+                if window is not None:
+                    open_from_launcher()
+                elif not webbrowser.open(url):
+                    raise RuntimeError("No default browser could be opened")
             if headless or window is None:
                 thread.join()
             else:
                 window.mainloop()
         finally:
+            if window is not None and sys.platform == "win32":
+                window.destroy()
             if state_written and state_file is not None:
                 state_file.unlink(missing_ok=True)
             application.state.request_quit()
@@ -161,35 +188,77 @@ def run_desktop(
             tempfile.tempdir = previous_tempdir
 
 
-def _configure_window(window, server, thread, open_auditor, request_quit) -> None:
+def _request_system_dpi_awareness() -> None:
+    if sys.platform == "win32":
+        import ctypes
+
+        # An existing executable manifest can already fix the process mode.
+        ctypes.windll.user32.SetProcessDPIAware()
+
+
+def _configure_window(window, server, thread, open_auditor, request_quit):
     import tkinter as tk
+    from tkinter import ttk
 
     window.title("NJIT Thesis Auditor")
-    window.geometry("400x220")
     if os.name == "nt":
         window.iconbitmap(default=str(resource_path("assets", "icons", "njit-auditor.ico")))
-    tk.Label(window, text="NJIT Thesis Auditor", font=("Arial", 16)).pack(pady=12)
-    tk.Label(window, text=f"Version {DESKTOP_VERSION} · Runs on this computer").pack()
-    tk.Button(window, text="Open auditor", command=open_auditor).pack(pady=8)
+    frame = ttk.Frame(window, padding=("15p", "12p"))
+    frame.pack(fill="both", expand=True)
+    ttk.Label(frame, text="NJIT Thesis Auditor", font="TkHeadingFont").pack(anchor="w")
+    ttk.Label(frame, text="Check thesis formatting in your browser.").pack(anchor="w", pady="4p")
+    status = tk.StringVar(master=window, value="Starting the local auditor…")
+    ttk.Label(frame, textvariable=status, wraplength="275p").pack(anchor="w", pady="8p")
+    buttons = ttk.Frame(frame)
+    buttons.pack(fill="x", pady=("0p", "9p"))
+
+    def open_browser_window() -> None:
+        if not server.started or server.should_exit:
+            return
+        try:
+            opened = open_auditor()
+        except (OSError, webbrowser.Error):
+            opened = False
+        status.set(
+            "Auditor ready in your browser." if opened
+            else "Could not open your browser. Check your default browser and try again."
+        )
 
     def close_window() -> None:
+        status.set("Stopping the local auditor…")
+        window.update_idletasks()
         if not request_quit():
-            from tkinter import messagebox
+            status.set("Could not stop the audit yet. Try Quit again.")
 
-            messagebox.showwarning(
-                "NJIT Thesis Auditor", "Could not stop the audit yet. Try Quit again."
-            )
-
-    tk.Button(window, text="Quit", command=close_window).pack()
+    open_button = ttk.Button(buttons, text="Open auditor", command=open_browser_window)
+    open_button.state(["disabled"])
+    open_button.pack(side="left", padx=("0p", "6p"))
+    ttk.Button(buttons, text="Quit", command=close_window).pack(side="left")
+    build = desktop_build_info().get("build_version", DESKTOP_VERSION)
+    ttk.Label(frame, text=f"Version {build} · Runs on this computer").pack(anchor="w")
     window.protocol("WM_DELETE_WINDOW", close_window)
 
     def update_window() -> None:
         if thread.is_alive() and not server.should_exit:
+            if server.started and open_button.instate(["disabled"]):
+                open_button.state(["!disabled"])
+                open_button.focus_set()
+                if status.get() == "Starting the local auditor…":
+                    status.set("Ready to open in your browser.")
             window.after(250, update_window)
         else:
             window.destroy()
 
     window.after(250, update_window)
+    window.update_idletasks()
+    # Reserve room for the OS caption and controls at the effective Tk scale.
+    caption_width = round(window.winfo_fpixels("300p"))
+    screen_width_cap = max(1, int(window.winfo_screenwidth() * 0.9))
+    window.minsize(
+        max(window.winfo_reqwidth(), min(caption_width, screen_width_cap)),
+        window.winfo_reqheight(),
+    )
+    return open_browser_window
 
 
 def main() -> None:

@@ -10,9 +10,52 @@ from pathlib import Path
 
 import pytest
 
+from njit_auditor.desktop_metadata import DESKTOP_VERSION, candidate_version
+
 ROOT = Path(__file__).resolve().parents[1]
 API = runpy.run_path(str(ROOT / "scripts/desktop_reference.py"))
 MANIFEST = ROOT / "tests/fixtures/desktop_reference/production-4efd780-v1.manifest.json"
+
+
+def test_candidate_identity_includes_source_and_rejects_abbreviated_sha():
+    assert candidate_version("a" * 40) == f"{DESKTOP_VERSION}+gaaaaaaaaaaaa"
+    assert candidate_version("b" * 40) != candidate_version("a" * 40)
+    with pytest.raises(ValueError, match="exact Git commit"):
+        candidate_version("a" * 12)
+
+
+def test_same_sha_reference_validates_hashes_and_bundle_identity(tmp_path, monkeypatch):
+    import hashlib
+
+    pytest.importorskip("playwright")
+    monkeypatch.syspath_prepend(str(ROOT / "scripts"))
+    from validate_desktop_parity import fixtures, load_local_reference
+
+    source = "a" * 40
+    monkeypatch.setitem(load_local_reference.__globals__, "checkout_sha", lambda: source)
+    reference = {"source_commit": source, "fixtures": dict.fromkeys(fixtures(), {})}
+    payloads = {"reference.json": json.dumps(reference).encode(), **fixtures()}
+    for name, data in payloads.items():
+        (tmp_path / name).write_bytes(data)
+    provenance = {
+        "capture_kind": "same-sha-loopback",
+        "version_before": {"commit": source},
+        "version_after": {"commit": source},
+        "payload_sha256": {name: hashlib.sha256(data).hexdigest()
+                           for name, data in payloads.items()},
+    }
+    (tmp_path / "provenance.json").write_text(json.dumps(provenance), encoding="utf-8")
+    executable = tmp_path / "bundle" / "app.exe"
+    info = executable.parent / "_internal" / "desktop-build-info.json"
+    info.parent.mkdir(parents=True)
+    info.write_text(json.dumps({"commit": "b" * 40}), encoding="utf-8")
+    with pytest.raises(ValueError, match="different source revisions"):
+        load_local_reference(tmp_path, executable)
+    info.write_text(json.dumps({"commit": source}), encoding="utf-8")
+    assert load_local_reference(tmp_path, executable) == reference
+    (tmp_path / "structured.pdf").write_bytes(b"modified")
+    with pytest.raises(ValueError, match="fixture changed"):
+        load_local_reference(tmp_path, executable)
 
 
 def test_pinned_production_reference_unpacks_without_network(tmp_path, monkeypatch):
