@@ -4,6 +4,30 @@
 > advertised GitHub main and the live `/version` before using these values for
 > development or release work.
 
+## Windows source integration and Linux release — 2026-11-27
+
+- The release from [#713](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/713)
+  deployed website revision `7baea26a66520f811b793f5a7041051faeeefdcd` after all
+  seven [post-merge CI jobs](https://github.com/SoroushVahidi/njit-thesis-auditor/actions/runs/46097095515)
+  passed. Public and loopback checks verified the running revision, all four
+  sample hashes, audit reports, and unchanged reviewer records and attachment
+  fingerprints. The verified owner-only backup was retained.
+- GitHub integrated the Windows source changes from #667 and #709–#712 through
+  #713. The stacked #712 was closed after verifying its exact patch was on
+  main. The branch and its review history remain available.
+- [#708](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/708) merged at
+  `847d95250a569abac1006d835bc20b9aeb56fa86`. Its NTFS storage is a Windows
+  reviewer opt-in. The native-qualified patch was identical after integration.
+  Refer to the [deployment procedure](../DEPLOYMENT.md) and
+  [post-merge CI](https://github.com/SoroushVahidi/njit-thesis-auditor/actions/runs/46097949252)
+  before assigning a production disposition to this revision.
+- Read-only reconciliation found zero new website submissions. The Esther
+  inventory remains at 303 items, with 188 verified closed and 115 unresolved.
+  The evidence and authorization limits in the snapshot below still apply.
+- The published installer remains rc.3. See the
+  [rc.4 qualification record](../releases/windows-0.2.0-rc.4-candidate.md) for
+  the artifact-specific and Windows requirements still outstanding.
+
 ## Source, production, and feedback snapshot — 2026-11-27
 
 | Role | Verified observation |
