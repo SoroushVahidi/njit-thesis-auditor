@@ -25,7 +25,11 @@ try {
     Check-Exit 'Windows application build'
     $bundle = Join-Path $repoRoot 'dist\NJIT Thesis Auditor'
     if (-not (Test-Path -LiteralPath "$bundle\NJIT Thesis Auditor.exe")) { throw 'Missing application.' }
-    $version = & $builder -c 'from njit_auditor.desktop_metadata import DESKTOP_VERSION; print(DESKTOP_VERSION)'
+    $buildInfo = Get-Content -LiteralPath (Join-Path $bundle '_internal\desktop-build-info.json') -Raw | ConvertFrom-Json
+    $version = $buildInfo.build_version
+    if ($buildInfo.commit -ne (git rev-parse HEAD) -or $version -notmatch '\+g[0-9a-f]{12}$') {
+        throw 'Bundle provenance does not match the Windows candidate checkout.'
+    }
     Check-Exit 'Version lookup'
     $fileVersion = & $builder -c "from njit_auditor.desktop_metadata import FILE_VERSION; print('.'.join(map(str, FILE_VERSION)))"
     Check-Exit 'Numeric version lookup'
@@ -34,7 +38,7 @@ try {
     $output = Join-Path $repoRoot 'dist\installers'
     & $Iscc "/DAppVersion=$version" "/DFileVersion=$fileVersion" "/DBundleDir=$bundle" "/DOutputDir=$output" packaging/windows_installer.iss
     Check-Exit 'Graphical installer build'
-    & $builder scripts/windows_release_metadata.py --installer "$output\NJIT-Thesis-Auditor-Setup-$version.exe"
+    & $builder scripts/windows_release_metadata.py --installer "$output\NJIT-Thesis-Auditor-Setup-$version.exe" --bundle "$bundle"
     Check-Exit 'Installer metadata'
     Write-Host "Candidate installer: $output\NJIT-Thesis-Auditor-Setup-$version.exe"
     Write-Host 'New beta build. Publish with the actual smoke-test results and testing limits.'

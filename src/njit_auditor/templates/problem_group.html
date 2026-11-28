@@ -167,7 +167,7 @@
   <div class="card problem-group-hero">
     <p class="problem-group-kicker">{{ group_kicker if group_kicker else "Examples of this problem" }}</p>
     <h1>{{ group_title }}</h1>
-    <p class="subtitle" style="margin-bottom:0.9rem;">Audit file: <strong>{{ file_name }}</strong></p>
+    <p class="subtitle" style="margin-bottom:0.9rem;">Audit file: <strong><bdi>{{ file_name }}</bdi></strong></p>
     <p style="margin:0;">{{ group_explanation }}</p>
     {% if pattern_note %}
     <p class="problem-group-pattern-note">{{ pattern_note }}</p>

@@ -8,6 +8,13 @@
     <p>NJIT Thesis Auditor helps NJIT graduate students check thesis and dissertation formatting before formal review. It points to potential issues and provides reports to guide revisions.</p>
     <p>This student-developed tool is not an official NJIT product and does not replace Graduate Studies review.</p>
   </section>
+  {% if offline_mode %}
+  <section class="section" aria-labelledby="about-build-heading">
+    <h2 id="about-build-heading">Desktop build</h2>
+    <p>{{ desktop_build_channel }} · {{ desktop_version }}</p>
+    {% if desktop_commit %}<p>Source commit <code>{{ desktop_commit }}</code></p>{% endif %}
+  </section>
+  {% endif %}
   <section class="section" aria-labelledby="about-development-heading">
     <h2 id="about-development-heading">Development and acknowledgments</h2>
     <p>Soroush Vahidi, an NJIT Computer Science PhD student, is the developer and maintainer.</p>
