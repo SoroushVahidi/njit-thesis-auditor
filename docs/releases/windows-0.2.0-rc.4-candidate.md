@@ -1,4 +1,44 @@
-# Windows beta 0.2.0-rc.4: local source candidate
+# Windows beta 0.2.0-rc.4 qualification
+
+## Native candidate evidence — 2026-11-27
+
+The unpublished candidate `bb1eac8acfd2f73cd6165e51807895b15ee3e4d1`
+(tree `71fc4f848e16598a61534e87b590eb92cf2c1595`) brings together the rc.4
+build identity (#667), Unicode document names (#709), report actions (#710),
+report search and layout (#712), and launcher readiness (#711). It uses
+stock Win32 controls on Windows. The Tk path serves other desktop platforms.
+Windows reviewer storage (#708) is a separate opt-in deployment change.
+
+The native run `7bbd2818631440288ac856b635320f2b` recorded 22 passing
+regressions, successful packaging and same-source packaged parity on six
+synthetic PDFs. The unsigned candidate installer is 43,807,630 bytes with
+SHA-256 `a227507f076337df2009561f29dd90a97748e3e1cfd7acfe5449a5ab3f92db0c`.
+A separate noninteractive run in an isolated standard-user profile verified
+clean install, upgrade from rc.3, reinstall, uninstall, and preservation of
+eight reports and an unrelated file. All 42 installed-engine comparisons
+against the same-source Ubuntu service passed.
+
+The broad launcher probe reported an MSAA enumeration gap for the version
+label and an external-console screenshot failure. The follow-up
+`75fdec51a01946cdaf0d1c1fb651d1c5` verified the full version label through
+direct MSAA, opened the auditor with Space, and confirmed loopback HTTP
+200, zero external requests, and complete cleanup. The follow-up did not
+verify Enter on the packaged Open button or capture the external console.
+Keep both receipts. The follow-up did not cover Narrator.
+
+Stable Windows 11 x64, direct Narrator use, the interactive installer
+wizard, physical mixed-DPI monitor transitions, remaining keyboard and
+console observations, and institutional code signing remain outstanding.
+A later build carries a different embedded source SHA and needs its own
+artifact verification. Public distribution requires separate approval.
+The existing rc.3 release remains the published beta.
+
+Retain the original receipts in the private qualification archive, including
+`candidate-windows.xml`, `candidate-receipt.json`, `native-launcher.json`,
+`launcher-closeout.json`, the installer lifecycle receipt, and
+`installed-engine-parity.json`.
+
+## Historical preparation — 2026-11-18
 
 This file records a local candidate, not a published installer or release.
 The latest public beta is `desktop-v0.2.0-rc.3`, built from private source

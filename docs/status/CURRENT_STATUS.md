@@ -4,6 +4,23 @@
 > advertised GitHub main and the live `/version` before using these values for
 > development or release work.
 
+## Source, production, and feedback snapshot — 2026-11-27
+
+| Role | Verified observation |
+| --- | --- |
+| Main and production at intake | `a6a4ba5198b748b878afa2caaa49fcae1b98061f`, merge of [#707](https://github.com/SoroushVahidi/njit-thesis-auditor/pull/707). The [main CI run](https://github.com/SoroushVahidi/njit-thesis-auditor/actions/runs/46024727200) passed all seven jobs. Health, version, and the four approved sample PDF hashes agreed across the public and loopback endpoints. |
+| Reviewer feedback | The read-only comparison retained both accounts, all 128 finding receipts and all five general receipts with matching row and attachment fingerprints, and zero tombstones. #707 covered both finding attachment types with a live isolated test. General feedback and administrator classification and resolution are checked against isolated storage. The live HTTPS administration interface remains disabled. |
+| Esther inventory | 303 distinct records, 188 strictly verified closed and 115 unresolved. The website snapshot contained zero new receipts. The unresolved dispositions are 78 requiring original evidence, eight requiring clarification, seven requiring institutional approval, 15 with incomplete or bounded verification, and seven under manual review or abstention. |
+| Windows qualification | The [rc.4 candidate record](../releases/windows-0.2.0-rc.4-candidate.md) identifies the native source, completed checks and outstanding requirements. |
+
+For the 15 partially verified items, retain the reported-case verification
+scope until the original document, exact finding selector, or applicable
+academic decision is available. P036 requires an independently adjudicated
+natural spacing violation with secure list-entry ownership. OCR heading
+location requires natural scans with current NJIT layouts. Folio advice
+requires more independent source-linked samples with printed, blank and
+conflicting controls. Those experiments remain outside the production rules.
+
 ## Source and production snapshot — 2026-11-26
 
 | Role | Verified observation |
